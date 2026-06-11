@@ -1,0 +1,8 @@
+# Schema bundle archive (extracted CSDL under schema/csdl is committed instead).
+/DSP8010_*.zip
+
+# Build artifacts
+/bin/
+*.test
+*.out
+
