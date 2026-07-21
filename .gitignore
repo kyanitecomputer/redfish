@@ -6,3 +6,8 @@
 *.test
 *.out
 
+# Validator tooling and run artifacts (cloned/downloaded, not part of the lib)
+/third_party/
+/SchemaFiles/
+/logs/
+/profiles/
