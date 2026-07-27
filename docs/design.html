@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cairn · Redfish Interface — Design Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F9FB;
+    --paper-2:#FFFFFF;
+    --ink:#0B2138;
+    --ink-2:#3C5168;
+    --ink-3:#6A7C90;
+    --sapphire:#15489E;
+    --sapphire-deep:#0B2E73;
+    --cyan:#15B4D6;
+    --cyan-bright:#2BD6E8;
+    --line:#E2E8EF;
+    --line-2:#CBD6E0;
+    --code-bg:#0A1F38;
+    --code-ink:#D7E6F2;
+    --code-cyan:#5BE0EE;
+    --code-blue:#7FB4FF;
+    --code-dim:#5E7894;
+    --amber:#B26A12;
+    --amber-bg:#FBF3E6;
+    --amber-line:#E6D2AC;
+    --good:#0E7A5F;
+    --good-bg:#E7F5F0;
+    --crystal:linear-gradient(135deg,#0B2E73 0%,#15489E 38%,#15B4D6 80%,#2BD6E8 100%);
+    --radius:10px;
+    --maxw:1200px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:Inter,system-ui,-apple-system,sans-serif;
+    font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--sapphire);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,kbd,.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  :is(h1,h2,h3,h4){font-family:"Space Grotesk",sans-serif;line-height:1.15;color:var(--ink);font-weight:600}
+
+  /* ---------- header ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:40;
+    background:rgba(247,249,251,.86);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-in{max-width:var(--maxw);margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:14px}
+  .blade{flex:none}
+  .topbar .wordmark{font-family:"Space Grotesk";font-weight:600;letter-spacing:.02em;font-size:15px}
+  .topbar .wordmark span{color:var(--ink-3);font-weight:400}
+  .topbar .right{margin-left:auto;font-size:12.5px;color:var(--ink-3);font-family:"JetBrains Mono"}
+
+  /* ---------- hero ---------- */
+  .hero{max-width:var(--maxw);margin:0 auto;padding:64px 28px 30px}
+  .eyebrow{display:flex;align-items:center;gap:10px;font-family:"JetBrains Mono";font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--sapphire);margin:0 0 18px}
+  .eyebrow .rule{height:1px;width:46px;background:var(--line-2)}
+  .hero h1{font-size:clamp(34px,5.4vw,60px);font-weight:700;letter-spacing:-.02em;margin:0 0 18px;max-width:18ch}
+  .hero h1 em{font-style:normal;background:var(--crystal);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .lede{font-size:clamp(16px,2.1vw,19px);color:var(--ink-2);max-width:66ch;margin:0 0 30px}
+  .meta{display:flex;flex-wrap:wrap;gap:10px 12px}
+  .chip{font-family:"JetBrains Mono";font-size:12px;border:1px solid var(--line-2);border-radius:999px;padding:5px 13px;color:var(--ink-2);background:var(--paper-2)}
+  .chip b{color:var(--ink);font-weight:500}
+
+  /* ---------- layout ---------- */
+  .shell{max-width:var(--maxw);margin:0 auto;padding:18px 28px 90px;display:grid;grid-template-columns:230px 1fr;gap:54px;align-items:start}
+  nav.toc{position:sticky;top:78px;font-size:13.5px}
+  nav.toc .toc-h{font-family:"JetBrains Mono";font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:0 0 12px}
+  nav.toc ol{list-style:none;margin:0;padding:0}
+  nav.toc li{margin:0}
+  nav.toc a{display:block;color:var(--ink-2);padding:5px 0 5px 14px;border-left:2px solid var(--line);line-height:1.35}
+  nav.toc a:hover{color:var(--ink);border-left-color:var(--cyan);text-decoration:none}
+  nav.toc a.sub{padding-left:28px;font-size:12.8px;color:var(--ink-3)}
+  nav.toc a.active{color:var(--sapphire);border-left-color:var(--sapphire);font-weight:500}
+
+  main{min-width:0}
+  .part{margin:0 0 14px;padding-top:18px}
+  .part-tag{display:flex;align-items:baseline;gap:14px;margin:0 0 6px}
+  .part-num{font-family:"JetBrains Mono";font-size:13px;color:var(--cyan);font-weight:500}
+  .part h2{font-size:clamp(24px,3.4vw,33px);letter-spacing:-.015em;font-weight:700;margin:0}
+  .part .sub{color:var(--ink-2);margin:8px 0 0;max-width:70ch}
+  .divider{height:2px;background:var(--crystal);border:0;margin:30px 0 26px;opacity:.85;border-radius:2px}
+
+  section.block{scroll-margin-top:84px;margin:34px 0}
+  h3.heading{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:0 0 12px;display:flex;align-items:center;gap:10px}
+  h3.heading .ix{font-family:"JetBrains Mono";font-size:13px;color:var(--ink-3);font-weight:400}
+  h4{font-size:15px;font-weight:600;margin:22px 0 8px;color:var(--ink)}
+  p{margin:0 0 14px}
+  main ul{margin:0 0 14px;padding-left:0;list-style:none}
+  main ul li{position:relative;padding-left:22px;margin:0 0 9px}
+  main ul li::before{content:"";position:absolute;left:2px;top:.62em;width:7px;height:7px;background:var(--cyan);transform:rotate(45deg);border-radius:1px}
+  main ul li b{font-weight:600}
+  .lbl{font-family:"JetBrains Mono";font-size:.86em;color:var(--sapphire);background:#EAF1FB;border:1px solid #D5E3F7;border-radius:5px;padding:1px 6px}
+
+  code:not(pre code){font-size:.88em;background:#EDF2F7;border:1px solid #E0E8F0;border-radius:5px;padding:1px 6px;color:#13386F}
+
+  /* code blocks */
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:var(--radius);padding:18px 20px;overflow:auto;font-family:"JetBrains Mono";font-size:13px;line-height:1.6;margin:6px 0 18px;border:1px solid #143257}
+  pre .c{color:var(--code-dim)}
+  pre .k{color:var(--code-cyan)}
+  pre .b{color:var(--code-blue)}
+  pre .s{color:#9FE8B0}
+
+  /* callouts */
+  .call{border-radius:var(--radius);padding:15px 18px 15px 17px;margin:18px 0;border:1px solid var(--line);background:var(--paper-2)}
+  .call .ct{font-family:"JetBrains Mono";font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 7px;font-weight:500}
+  .call.warn{background:var(--amber-bg);border-color:var(--amber-line)}
+  .call.warn .ct{color:var(--amber)}
+  .call.good{background:var(--good-bg);border-color:#BEE3D6}
+  .call.good .ct{color:var(--good)}
+  .call p:last-child{margin-bottom:0}
+
+  /* table */
+  .tw{overflow-x:auto;margin:8px 0 20px;border:1px solid var(--line);border-radius:var(--radius)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#F0F4F8;font-family:"Space Grotesk";font-weight:600;font-size:12.5px;color:var(--ink);letter-spacing:.01em}
+  tr:last-child td{border-bottom:0}
+  td .mono{font-size:12.5px;color:#13386F}
+  .tag-no{color:var(--amber);font-weight:600}
+  .tag-yes{color:var(--good);font-weight:600}
+
+  /* figure */
+  figure{margin:24px 0 8px;border:1px solid var(--line);border-radius:14px;background:var(--paper-2);padding:22px 18px 14px;overflow:hidden}
+  figure svg{display:block;width:100%;height:auto}
+  figcaption{font-size:12.5px;color:var(--ink-3);font-family:"JetBrains Mono";margin-top:12px;text-align:center}
+
+  /* cutlist */
+  .cut li::before{background:var(--amber);transform:none;width:8px;height:2px;top:.78em;border-radius:0}
+
+  /* sources */
+  .src-grid{display:grid;gap:18px}
+  .src-cat{border:1px solid var(--line);border-radius:14px;background:var(--paper-2);padding:20px 22px}
+  .src-cat h3{margin-top:0}
+  .src-cat ul li::before{display:none}
+  .src-cat ul li{padding-left:0;margin-bottom:13px;border-bottom:1px solid var(--line);padding-bottom:13px}
+  .src-cat ul li:last-child{border-bottom:0;padding-bottom:0;margin-bottom:0}
+  .src-name{font-family:"JetBrains Mono";font-size:13.5px;font-weight:500}
+  .src-desc{display:block;font-size:13px;color:var(--ink-2);margin-top:3px}
+  .src-url{display:block;font-family:"JetBrains Mono";font-size:11.5px;color:var(--ink-3);margin-top:3px;word-break:break-all}
+
+  footer{max-width:var(--maxw);margin:0 auto;padding:30px 28px 60px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;font-family:"JetBrains Mono"}
+  footer .blade-sm{vertical-align:-3px;margin-right:8px}
+
+  /* responsive */
+  @media (max-width:920px){
+    .shell{grid-template-columns:1fr;gap:0}
+    nav.toc{display:none}
+  }
+  @media (max-width:560px){
+    .hero{padding:44px 20px 24px}
+    .topbar-in{padding:12px 20px}
+    .shell{padding:8px 20px 70px}
+    figure{padding:14px 8px 10px}
+  }
+</style>
+</head>
+<body>
+
+<!-- blade glyph reused via <use> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="kg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B2E73"/><stop offset="0.45" stop-color="#15489E"/>
+      <stop offset="0.85" stop-color="#15B4D6"/><stop offset="1" stop-color="#2BD6E8"/>
+    </linearGradient>
+    <g id="blade">
+      <path d="M11 1 L16 9 L13 23 L9 23 L6 9 Z" fill="url(#kg)"/>
+      <path d="M11 1 L11 23" stroke="#fff" stroke-opacity="0.28" stroke-width="1"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <svg class="blade" width="22" height="24" viewBox="0 0 22 24" aria-hidden="true"><use href="#blade"/></svg>
+    <span class="wordmark">Cairn&nbsp;<span>/ redfish</span></span>
+    <span class="right">kyanite · design&nbsp;notes</span>
+  </div>
+</header>
+
+<div class="hero">
+  <p class="eyebrow"><span class="rule"></span> Design Note · Draft</p>
+  <h1>A bare-metal Redfish interface for Cairn, generated from <em>CSDL</em>.</h1>
+  <p class="lede">Two tracks evaluated for the Kyanite management-controller stack: a schema-driven, dead-code-eliminable Redfish HTTP server generated directly from DMTF CSDL, and a Protobuf-centric exploration that adds ConnectRPC endpoints while keeping a single source of truth. The constant constraint is running on a real BMC without bloating the binary.</p>
+  <div class="meta">
+    <span class="chip"><b>Project</b> Cairn (u-bmc successor)</span>
+    <span class="chip"><b>Org</b> kyanite</span>
+    <span class="chip"><b>Runtime</b> bare-metal Go / TamaGo</span>
+    <span class="chip"><b>Spec</b> DMTF Redfish · DSP0266 / DSP8010</span>
+    <span class="chip"><b>Date</b> 2026-06-11</span>
+  </div>
+</div>
+
+<div class="shell">
+
+  <nav class="toc" aria-label="Contents">
+    <p class="toc-h">Contents</p>
+    <ol>
+      <li><a href="#arch">Target architecture</a></li>
+      <li><a href="#part1">I · CSDL → Go server</a></li>
+      <li><a class="sub" href="#p1-source">1.1 Schema source</a></li>
+      <li><a class="sub" href="#p1-dce">1.2 DCE strategy</a></li>
+      <li><a class="sub" href="#p1-hw">1.3 Hardware layering</a></li>
+      <li><a class="sub" href="#p1-odata">1.4 OData mechanics</a></li>
+      <li><a class="sub" href="#p1-subset">1.5 Subsetting</a></li>
+      <li><a class="sub" href="#p1-runtime">1.6 Router & inputs</a></li>
+      <li><a href="#part2">II · Protobuf exploration</a></li>
+      <li><a class="sub" href="#p2-map">2.1 CSDL → proto</a></li>
+      <li><a class="sub" href="#p2-json">2.2 The JSON wire problem</a></li>
+      <li><a class="sub" href="#p2-embed">2.3 Embedded cost</a></li>
+      <li><a class="sub" href="#p2-rec">2.4 Recommendation</a></li>
+      <li><a href="#cutlist">Cut list</a></li>
+      <li><a href="#sources">Sources & pointers</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- ARCHITECTURE -->
+    <section class="block" id="arch">
+      <h3 class="heading"><svg width="18" height="20" viewBox="0 0 22 24" aria-hidden="true"><use href="#blade"/></svg> Target architecture</h3>
+      <p>One annotated schema, derived from CSDL, fans out to two transport surfaces and a single hardware provider layer. The ConnectRPC surface uses native Protobuf; the Redfish HTTP surface is generated as explicit, reflection-free handlers so unimplemented resources never reach the binary.</p>
+      <figure>
+        <svg viewBox="0 0 920 470" role="img" aria-label="Data flow from CSDL bundle to an annotated proto schema, then to two transport surfaces over a shared provider layer and hardware backend.">
+          <defs>
+            <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#15489E"/></marker>
+            <marker id="arc" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#15B4D6"/></marker>
+          </defs>
+          <style>
+            .bx{fill:#fff;stroke:#CBD6E0;stroke-width:1.5;rx:10}
+            .bx-d{fill:#0A1F38;stroke:#143257}
+            .bx-s{fill:#EAF1FB;stroke:#9EC0EE}
+            .t{font-family:'Space Grotesk',sans-serif;font-size:14px;fill:#0B2138;font-weight:600}
+            .tt{font-family:'JetBrains Mono',monospace;font-size:11px;fill:#6A7C90}
+            .tw{font-family:'JetBrains Mono',monospace;font-size:11px;fill:#D7E6F2}
+            .tl{font-family:'JetBrains Mono',monospace;font-size:10.5px;fill:#15489E}
+            .ln{stroke:#15489E;stroke-width:1.6;fill:none}
+            .lnc{stroke:#15B4D6;stroke-width:1.6;fill:none}
+          </style>
+
+          <!-- CSDL -->
+          <rect class="bx" x="20" y="180" width="170" height="92" rx="10"/>
+          <text class="t" x="38" y="212">CSDL bundle</text>
+          <text class="tt" x="38" y="232">DSP8010 · OData EDMX</text>
+          <text class="tt" x="38" y="250">normative source</text>
+
+          <!-- generator -->
+          <rect class="bx bx-s" x="250" y="186" width="150" height="80" rx="10"/>
+          <text class="t" x="268" y="218">CSDL parser</text>
+          <text class="tl" x="268" y="238">Redfish-Tools</text>
+
+          <!-- proto -->
+          <rect class="bx" x="455" y="168" width="200" height="116" rx="10"/>
+          <text class="t" x="474" y="200">Annotated .proto</text>
+          <text class="tt" x="474" y="222">+ custom OData options</text>
+          <text class="tt" x="474" y="240">+ buf.validate</text>
+          <text class="tt" x="474" y="258">single source of truth</text>
+
+          <!-- backend A: connect -->
+          <rect class="bx bx-d" x="710" y="70" width="190" height="92" rx="10"/>
+          <text class="tw" x="728" y="100" style="fill:#fff;font-family:'Space Grotesk';font-weight:600;font-size:14px">connect-go + vtproto</text>
+          <text class="tw" x="728" y="120">ConnectRPC / gRPC</text>
+          <text class="tw" x="728" y="138" style="fill:#5BE0EE">internal · binary · lean</text>
+
+          <!-- backend B: redfish json -->
+          <rect class="bx" x="710" y="186" width="190" height="98" rx="10"/>
+          <text class="t" x="728" y="216">redfish-json codegen</text>
+          <text class="tt" x="728" y="236">MarshalJSON + Register*</text>
+          <text class="tt" x="728" y="254">external · spec-compliant</text>
+          <text class="tl" x="728" y="272">no protojson / no reflect</text>
+
+          <!-- provider -->
+          <rect class="bx bx-s" x="455" y="332" width="200" height="62" rx="10"/>
+          <text class="t" x="474" y="360">Provider interfaces</text>
+          <text class="tl" x="474" y="380">DTO in / DTO out</text>
+
+          <!-- hardware -->
+          <rect class="bx bx-d" x="455" y="416" width="200" height="44" rx="10"/>
+          <text class="tw" x="474" y="443" style="font-family:'JetBrains Mono';font-size:12px">PMBus · I²C · GPIO · flash</text>
+
+          <!-- arrows -->
+          <path class="ln" d="M190 226 H248" marker-end="url(#ar)"/>
+          <path class="ln" d="M400 226 H453" marker-end="url(#ar)"/>
+          <path class="lnc" d="M655 200 C690 200 685 130 708 118" marker-end="url(#arc)"/>
+          <path class="ln" d="M655 236 H708" marker-end="url(#ar)"/>
+          <path class="ln" d="M805 162 V186" marker-end="url(#ar)" opacity="0"/>
+          <!-- surfaces to provider -->
+          <path class="lnc" d="M805 162 C805 310 660 320 656 350" marker-end="url(#arc)"/>
+          <path class="ln" d="M805 284 C805 320 660 345 656 360" marker-end="url(#ar)"/>
+          <!-- provider to hw -->
+          <path class="ln" d="M555 394 V414" marker-end="url(#ar)"/>
+          <text class="tl" x="700" y="320" style="fill:#15B4D6">implements</text>
+        </svg>
+        <figcaption>CSDL → annotated proto → two transports over one provider layer. Both surfaces depend on the same DTOs; only registered resources link in.</figcaption>
+      </figure>
+    </section>
+
+    <hr class="divider">
+
+    <!-- PART I -->
+    <div class="part" id="part1">
+      <div class="part-tag"><span class="part-num">PART&nbsp;I</span></div>
+      <h2>The Go Redfish server, generated from CSDL</h2>
+      <p class="sub">A purpose-built generator turns the normative CSDL schema into idiomatic Go models, reflection-free marshalers, and per-resource route registration. No existing project does this: gofish is a client, the airship/Nordix libraries are OpenAPI-generated clients, and kubevirtbmc is a hand-written server subset scoped to KubeVirt VMs.</p>
+    </div>
+
+    <section class="block" id="p1-source">
+      <h3 class="heading"><span class="ix">1.1</span> Schema source — CSDL, not OpenAPI</h3>
+      <p>DSP8010 ships three functionally equivalent forms — CSDL (OData EDMX, the normative primary), JSON Schema, and OpenAPI YAML. CSDL retains the OData type, navigation, and annotation metadata that the OpenAPI projection flattens, and that metadata is exactly what drives correct emission.</p>
+      <ul>
+        <li>Generate with a custom <code>text/template</code> pipeline, reusing DMTF <span class="lbl">Redfish-Tools</span> for CSDL parsing logic.</li>
+        <li><b>Do not</b> use stock <code>swagger-codegen</code> / <code>openapi-generator</code> — they choke on the bundle and emit non-idiomatic, bloated client code.</li>
+        <li>The DMTF C struct generator is the architectural precedent: schema → struct + JSON converter for resource-constrained (UEFI/EDK2) targets.</li>
+      </ul>
+    </section>
+
+    <section class="block" id="p1-dce">
+      <h3 class="heading"><span class="ix">1.2</span> Dead-code elimination is two problems</h3>
+      <h4>Marshaling &amp; reflection</h4>
+      <p><code>encoding/json</code> reflection forces type retention, pulls in <code>reflect</code>, and is the dominant size cost on TamaGo. Generate explicit <code>MarshalJSON</code> per type (and <code>UnmarshalJSON</code> only for writable resources). This is the single largest binary-size lever and removes <code>reflect</code> from the link graph.</p>
+      <h4>Routing</h4>
+      <p>The blow-up comes from a generated global route table / giant switch / <code>init()</code>-registered map covering every resource — all reachable, none eliminable. Instead emit one registration function per resource:</p>
+<pre><span class="c">// generated, one per resource — nothing references it until you do</span>
+<span class="k">func</span> <span class="b">RegisterSystems</span>(mux *http.ServeMux, p SystemsProvider) { <span class="c">/* ... */</span> }
+
+<span class="c">// cairn/main.go — only what this BMC actually serves links in</span>
+redfish.<span class="b">RegisterServiceRoot</span>(mux, root)
+redfish.<span class="b">RegisterSystems</span>(mux, sysBackend)
+redfish.<span class="b">RegisterChassis</span>(mux, chassisBackend)
+<span class="c">// Thermal, UpdateService, … never referenced → eliminated</span></pre>
+      <div class="call warn">
+        <p class="ct">Anti-pattern</p>
+        <p>Never emit <code>RegisterAll()</code> or <code>init()</code>-based auto-registration. Either re-anchors every handler to the reachable graph and defeats DCE. Registration must be explicit and opt-in.</p>
+      </div>
+    </section>
+
+    <section class="block" id="p1-hw">
+      <h3 class="heading"><span class="ix">1.3</span> Layering for real hardware</h3>
+      <ul>
+        <li>Generated models stay pure DTOs — no client pointer, unlike gofish's <code>Entity</code> embedding.</li>
+        <li>A provider interface per resource group fills/returns DTOs; hand-written backends read PMBus/I²C sensors, GPIO power control, flash.</li>
+        <li>Backend errors map to the standard Redfish message registry (DSP8011). Everything except the provider implementations is generable.</li>
+      </ul>
+    </section>
+
+    <section class="block" id="p1-odata">
+      <h3 class="heading"><span class="ix">1.4</span> OData mechanics the generator must emit</h3>
+      <ul>
+        <li><code>/redfish/v1</code> ServiceRoot, <code>$metadata</code> (EDMX), and the <code>odata</code> service document.</li>
+        <li><code>@odata.id</code> / <code>@odata.type</code> / <code>@odata.context</code> / <code>@odata.etag</code> injection.</li>
+        <li>Collection shape (<code>Members</code>, <code>Members@odata.count</code>) vs singleton.</li>
+        <li>Navigation links as references, not eager expansion; optional <code>$expand</code> / <code>$select</code>.</li>
+        <li>ETag / <code>If-Match</code> with sparse PATCH dispatch; standard error response body.</li>
+        <li>Emit a trimmed <code>$metadata</code> covering only registered types via <code>go:embed</code>.</li>
+      </ul>
+    </section>
+
+    <section class="block" id="p1-subset">
+      <h3 class="heading"><span class="ix">1.5</span> Subset at the source via profiles</h3>
+      <p>Drive generation from a DMTF Interoperability Profile (DSP8013) or an explicit allowlist, so unimplemented schemas (Thermal, UpdateService, …) are never generated. This addresses the unused-route concern before DCE even runs, and pins the surface to a declared conformance target.</p>
+    </section>
+
+    <section class="block" id="p1-runtime">
+      <h3 class="heading"><span class="ix">1.6</span> Router &amp; reusable inputs</h3>
+      <ul>
+        <li>Go 1.22+ <code>http.ServeMux</code> method+pattern matching, or a small static radix tree. No reflection-based web frameworks.</li>
+        <li>Remaining size drivers on TamaGo are TLS/crypto and the JSON layer — generated marshalers plus a profile-trimmed schema keep it minimal.</li>
+        <li>Reusable inputs: <span class="lbl">gofish</span> as a struct/field reference (strip client semantics), <span class="lbl">Redfish-Tools</span> for the CSDL parser, the <span class="lbl">C struct generator</span> as the codegen template.</li>
+      </ul>
+    </section>
+
+    <hr class="divider">
+
+    <!-- PART II -->
+    <div class="part" id="part2">
+      <div class="part-tag"><span class="part-num">PART&nbsp;II</span></div>
+      <h2>Protobuf exploration — ConnectRPC alongside HTTP</h2>
+      <p class="sub">Cairn uses Protobuf internally, so a CSDL → Protobuf mapping that loses no information (unlike OpenAPI) is attractive: it yields ConnectRPC endpoints natively and could, in principle, serve REST via Connect Vanguard. The DMTF "Benchmarking gRPC for Redfish" study proved the encoding is feasible as a transport, but it was a throughput study, not a fidelity-preserving mapping — and fidelity is the hard part.</p>
+    </div>
+
+    <section class="block" id="p2-map">
+      <h3 class="heading"><span class="ix">2.1</span> CSDL → proto is lossless only with custom options</h3>
+      <p>proto3 cannot natively express several OData constructs. To avoid the loss OpenAPI introduces, carry them in custom proto options (extensions), not in field shapes:</p>
+      <ul>
+        <li>Navigation vs contained references (both become message refs → distinction lives in an option).</li>
+        <li>Read/write permissions, required-on-create, immutable-after-create.</li>
+        <li>Abstract/derived type hierarchy and the <code>@odata.type</code> version string (proto has no inheritance → <code>oneof</code> + literal type field).</li>
+        <li>Enum member metadata (proto3 forces a zero <code>UNSPECIFIED</code> member with no Redfish analog).</li>
+        <li>Units / measurement annotations.</li>
+      </ul>
+      <p>Use <span class="lbl">protovalidate</span> (<code>buf.validate</code>) for CEL-expressible constraints (ranges, patterns, required, enum membership); push the rest into CSDL-fidelity options. The proto becomes a strict superset of CSDL.</p>
+    </section>
+
+    <section class="block" id="p2-json">
+      <h3 class="heading"><span class="ix">2.2</span> The JSON wire format is where Vanguard bites</h3>
+      <p>Vanguard transcodes via <code>protojson</code> and resolves schemas through <code>protoregistry.GlobalFiles</code> using <code>protoreflect</code>. That produces three problems against a strict Redfish target:</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Redfish expectation</th><th><span class="mono">protojson</span> behavior</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Integers as JSON numbers</td><td><span class="mono">int64/uint64</span> → JSON string</td><td class="tag-no">fails</td></tr>
+            <tr><td>Explicit <span class="mono">null</span> for known-but-unavailable (e.g. offline sensor)</td><td>unset fields omitted; no <span class="mono">null</span> emitted</td><td class="tag-no">fails</td></tr>
+            <tr><td>String enums, no sentinel</td><td>requires zero <span class="mono">UNSPECIFIED</span>; name casing</td><td class="tag-no">friction</td></tr>
+            <tr><td>Typed, open <span class="mono">Oem</span> extensions</td><td><span class="mono">Struct</span> (loses typing) or <span class="mono">Any</span> (untranscodable without registered schema)</td><td class="tag-no">lossy</td></tr>
+            <tr><td><span class="mono">@odata.id</span>, <span class="mono">Members@odata.count</span></td><td>solvable via <span class="mono">json_name</span> override</td><td class="tag-yes">ok</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="call warn">
+        <p class="ct">Two further consequences</p>
+        <p><b>DCE conflict:</b> <code>protoreflect</code> + the global descriptor registry retain every compiled descriptor, undermining the per-route, register-only-what-you-implement strategy from Part&nbsp;I. <b>Validation cost:</b> <code>protovalidate</code> evaluates CEL at runtime via <code>cel-go</code> (parser + checker + interpreter) — a large dependency with no static-codegen path, costly on a flash-constrained BMC.</p>
+      </div>
+    </section>
+
+    <section class="block" id="p2-embed">
+      <h3 class="heading"><span class="ix">2.3</span> Embedded build notes</h3>
+      <ul>
+        <li><b><span class="lbl">vtprotobuf</span></b> generates static <code>Marshal/Unmarshal/Size</code> (no reflection) → lean, fast, DCE-friendly, but binary only. Use it as the codec on the ConnectRPC path.</li>
+        <li>Keep <code>buf.validate</code> annotations in the schema for documentation and codegen, but for the BMC image generate static validators (PGV-style) or restrict validation to write/PATCH paths, and exclude <code>cel-go</code>.</li>
+        <li>Pin one Redfish release for proto generation; emit <code>@odata.type</code> version literals rather than encoding history.</li>
+      </ul>
+    </section>
+
+    <section class="block" id="p2-rec">
+      <h3 class="heading"><span class="ix">2.4</span> Recommendation — one proto, two backends</h3>
+      <div class="call good">
+        <p class="ct">Verdict</p>
+        <p>Make the annotated proto the single source of truth and run two codegen backends from it. Use ConnectRPC for native/internal clients; generate the spec-compliant HTTP surface with a dedicated Redfish-JSON codec — not <code>protojson</code>/Vanguard.</p>
+      </div>
+      <ul>
+        <li><b>Native surface</b> → <code>connect-go</code> + <code>vtprotobuf</code> codec. Clean fit for Cairn's internal Protobuf usage; Connect/gRPC for free.</li>
+        <li><b>Redfish HTTP surface</b> → the Part&nbsp;I generator (per-resource <code>MarshalJSON</code> + explicit <code>Register*</code>), fed from the same proto+options model. This is the only path that gets numbers, explicit null, typed <code>Oem</code>, and polymorphism right while keeping the DCE and size properties.</li>
+        <li><b>Vanguard becomes viable only if</b> strict spec-compliance on the REST side is not required (internal tooling that tolerates protojson quirks). Validate against the DMTF Service and Protocol validators before committing either way.</li>
+      </ul>
+    </section>
+
+    <hr class="divider">
+
+    <!-- CUT LIST -->
+    <section class="block" id="cutlist">
+      <h3 class="heading"><svg width="18" height="20" viewBox="0 0 22 24" aria-hidden="true"><use href="#blade"/></svg> Cut list — what not to ship</h3>
+      <ul class="cut">
+        <li><code>swagger-codegen</code> / <code>openapi-generator</code> on the schema bundle.</li>
+        <li><code>RegisterAll()</code> or <code>init()</code> route auto-registration.</li>
+        <li><code>encoding/json</code> reflection on hot model types.</li>
+        <li><code>protojson</code> for the spec-compliant Redfish surface.</li>
+        <li><code>cel-go</code> / runtime <code>protovalidate</code> in the BMC image.</li>
+        <li>OpenAPI YAML as the generation source (lossy vs CSDL).</li>
+      </ul>
+    </section>
+
+    <hr class="divider">
+
+    <!-- SOURCES -->
+    <section class="block" id="sources">
+      <h3 class="heading"><svg width="18" height="20" viewBox="0 0 22 24" aria-hidden="true"><use href="#blade"/></svg> Sources &amp; pointers</h3>
+      <p>Curated starting points. Verify versions and current status against upstream; some are research artifacts rather than maintained code.</p>
+
+      <div class="src-grid">
+
+        <div class="src-cat">
+          <h3>DMTF — specifications &amp; schema</h3>
+          <ul>
+            <li><span class="src-name">DSP0266 — Redfish Specification</span><span class="src-desc">Protocol, behaviors, OData conventions. The normative behavior reference.</span><span class="src-url">https://www.dmtf.org/dsp/DSP0266</span></li>
+            <li><span class="src-name">DSP0268 — Redfish Data Model Specification</span><span class="src-desc">Property-level descriptions and usage on top of the schema bundle.</span><span class="src-url">https://www.dmtf.org/dsp/DSP0268</span></li>
+            <li><span class="src-name">DSP8010 — Redfish Schema Bundle</span><span class="src-desc">CSDL + JSON Schema + OpenAPI. CSDL is the generation source.</span><span class="src-url">https://www.dmtf.org/dsp/DSP8010</span></li>
+            <li><span class="src-name">DSP8011 — Standard Registries</span><span class="src-desc">Message/event/privilege registries for error mapping.</span><span class="src-url">https://www.dmtf.org/dsp/DSP8011</span></li>
+            <li><span class="src-name">DSP8013 — Interoperability Profiles</span><span class="src-desc">Drive schema subsetting / conformance targets from these.</span><span class="src-url">https://www.dmtf.org/dsp/DSP8013</span></li>
+            <li><span class="src-name">Schema index (live)</span><span class="src-desc">Browseable CSDL/JSON schema per release.</span><span class="src-url">https://redfish.dmtf.org/schemas/v1/</span></li>
+          </ul>
+        </div>
+
+        <div class="src-cat">
+          <h3>DMTF — tool repositories (inspiration &amp; reuse)</h3>
+          <ul>
+            <li><span class="src-name">DMTF/Redfish-Tools</span><span class="src-desc">CSDL→JSON converter, doc generator. Mine the CSDL parser.</span><span class="src-url">https://github.com/DMTF/Redfish-Tools</span></li>
+            <li><span class="src-name">DMTF/Redfish-Schema-C-Struct-Generator</span><span class="src-desc">Schema → C struct + JSON converter for UEFI/EDK2. Closest codegen precedent for a constrained target.</span><span class="src-url">https://github.com/DMTF/Redfish-Schema-C-Struct-Generator</span></li>
+            <li><span class="src-name">DMTF/Redfish-Service-Validator</span><span class="src-desc">Conformance of a service against CSDL schema. Gate generated output on this.</span><span class="src-url">https://github.com/DMTF/Redfish-Service-Validator</span></li>
+            <li><span class="src-name">DMTF/Redfish-Protocol-Validator</span><span class="src-desc">HTTP-level protocol conformance (ETag, PATCH, status codes).</span><span class="src-url">https://github.com/DMTF/Redfish-Protocol-Validator</span></li>
+            <li><span class="src-name">DMTF/Redfish-Mockup-Server &amp; -Creator</span><span class="src-desc">Serve / capture mockups for fixture-driven tests.</span><span class="src-url">https://github.com/DMTF/Redfish-Mockup-Server</span></li>
+            <li><span class="src-name">DMTF/Redfish-Interface-Emulator</span><span class="src-desc">Static + dynamic reference implementation to diff behavior against.</span><span class="src-url">https://github.com/DMTF/Redfish-Interface-Emulator</span></li>
+            <li><span class="src-name">Benchmarking gRPC for Redfish (PDF)</span><span class="src-desc">The DMTF Protobuf-encoding prototype + Go codegen + benchmarks.</span><span class="src-url">https://www.dmtf.org/sites/default/files/Benchmarking_gRPC_for_Redfish.pdf</span></li>
+          </ul>
+        </div>
+
+        <div class="src-cat">
+          <h3>Go prior art</h3>
+          <ul>
+            <li><span class="src-name">stmcginnis/gofish</span><span class="src-desc">Redfish/Swordfish client with a near-complete struct model. Field/type reference; strip client semantics.</span><span class="src-url">https://github.com/stmcginnis/gofish</span></li>
+            <li><span class="src-name">airship/go-redfish · Nordix/go-redfish</span><span class="src-desc">OpenAPI-generated partial clients. Illustrates the limits of stock OpenAPI generation.</span><span class="src-url">https://opendev.org/airship/go-redfish · https://github.com/Nordix/go-redfish</span></li>
+            <li><span class="src-name">kubevirtbmc/kubevirtbmc</span><span class="src-desc">Hand-written IPMI + Redfish subset for KubeVirt VMs. The closest existing Go server; see kubevirt/community design proposal.</span><span class="src-url">https://github.com/kubevirtbmc/kubevirtbmc</span></li>
+            <li><span class="src-name">kubevirt/redfish-controller · v1k0d3n/kubevirt-redfish</span><span class="src-desc">Redfish-compatible API server for KubeVirt/OCP virtualization.</span><span class="src-url">https://github.com/kubevirt/redfish-controller</span></li>
+          </ul>
+        </div>
+
+        <div class="src-cat">
+          <h3>Protobuf / Connect tooling</h3>
+          <ul>
+            <li><span class="src-name">connectrpc/connect-go</span><span class="src-desc">Connect/gRPC/gRPC-Web server + client. The native RPC surface.</span><span class="src-url">https://github.com/connectrpc/connect-go</span></li>
+            <li><span class="src-name">connectrpc/vanguard-go</span><span class="src-desc">REST↔RPC transcoding via google.api.http annotations. Evaluate against the §2.2 caveats.</span><span class="src-url">https://github.com/connectrpc/vanguard-go</span></li>
+            <li><span class="src-name">bufbuild/protovalidate (+ -go)</span><span class="src-desc">CEL-based field validation. Annotate the schema; mind cel-go weight on embedded.</span><span class="src-url">https://github.com/bufbuild/protovalidate</span></li>
+            <li><span class="src-name">planetscale/vtprotobuf</span><span class="src-desc">Reflection-free marshal codegen. Codec for the ConnectRPC path.</span><span class="src-url">https://github.com/planetscale/vtprotobuf</span></li>
+            <li><span class="src-name">bufbuild/protoc-gen-validate (PGV)</span><span class="src-desc">Deprecated, but the reference for static (no-CEL) validator generation.</span><span class="src-url">https://github.com/bufbuild/protoc-gen-validate</span></li>
+            <li><span class="src-name">googleapis · google/api/http.proto</span><span class="src-desc">HTTP transcoding annotation definitions.</span><span class="src-url">https://github.com/googleapis/googleapis/blob/master/google/api/http.proto</span></li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <svg class="blade-sm" width="14" height="16" viewBox="0 0 22 24" aria-hidden="true"><use href="#blade"/></svg>
+  Cairn · kyanite — internal design note · draft, subject to revision
+</footer>
+
+<script>
+  // active TOC highlight
+  (function(){
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var map = {};
+    links.forEach(function(a){ var id=a.getAttribute('href').slice(1); var el=document.getElementById(id); if(el) map[id]=a; });
+    var ids = Object.keys(map);
+    if(!('IntersectionObserver' in window) || !ids.length) return;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          links.forEach(function(l){l.classList.remove('active');});
+          var a = map[e.target.id]; if(a) a.classList.add('active');
+        }
+      });
+    }, {rootMargin:'-72px 0px -70% 0px', threshold:0});
+    ids.forEach(function(id){ io.observe(document.getElementById(id)); });
+  })();
+</script>
+</body>
+</html>
