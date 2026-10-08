@@ -25,7 +25,7 @@ func Render(m *Model) ([]byte, error) {
 	fmt.Fprintf(&b, "\npackage %s\n\n", m.Package)
 	b.WriteString("import (\n")
 	if needsJSON {
-		fmt.Fprintf(&b, "\t%q\n\t%q\n", "bytes", "encoding/json/jsontext")
+		fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n", "bytes", "encoding/json/jsontext", "strconv")
 	}
 	fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n\t%q\n)\n\n", "context", "net/http", odataPkg, serverPkg)
 
@@ -414,7 +414,7 @@ func modelHasPatch(m *Model) bool {
 }
 
 // modelNeedsJSON reports whether the model emits any jsontext-based body parser,
-// which requires the bytes and encoding/json/jsontext imports plus the shared
+// which requires the bytes, encoding/json/jsontext, and strconv imports plus the shared
 // scalar readers. True when a resource is PATCH-able or any action takes
 // scalar parameters.
 func modelNeedsJSON(m *Model) bool {
@@ -471,7 +471,11 @@ func patchReadInt(dec *jsontext.Decoder) (int64, error) {
 	if t.Kind() != '0' {
 		return 0, errPatchType
 	}
-	return t.Int(), nil
+	v, err := strconv.ParseInt(t.String(), 10, 64)
+	if err != nil {
+		return 0, errPatchType
+	}
+	return v, nil
 }
 
 func patchReadFloat(dec *jsontext.Decoder) (float64, error) {
@@ -482,7 +486,11 @@ func patchReadFloat(dec *jsontext.Decoder) (float64, error) {
 	if t.Kind() != '0' {
 		return 0, errPatchType
 	}
-	return t.Float(), nil
+	v, err := strconv.ParseFloat(t.String(), 64)
+	if err != nil {
+		return 0, errPatchType
+	}
+	return v, nil
 }
 
 `)

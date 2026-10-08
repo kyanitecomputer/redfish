@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
+	"strconv"
 )
 
 // errPatchType is returned when a PATCH value has an unexpected JSON type.
@@ -51,7 +52,11 @@ func patchReadInt(dec *jsontext.Decoder) (int64, error) {
 	if t.Kind() != '0' {
 		return 0, errPatchType
 	}
-	return t.Int(), nil
+	v, err := strconv.ParseInt(t.String(), 10, 64)
+	if err != nil {
+		return 0, errPatchType
+	}
+	return v, nil
 }
 
 func patchReadFloat(dec *jsontext.Decoder) (float64, error) {
@@ -62,7 +67,11 @@ func patchReadFloat(dec *jsontext.Decoder) (float64, error) {
 	if t.Kind() != '0' {
 		return 0, errPatchType
 	}
-	return t.Float(), nil
+	v, err := strconv.ParseFloat(t.String(), 64)
+	if err != nil {
+		return 0, errPatchType
+	}
+	return v, nil
 }
 
 // AccountServiceAccountProviderTypes is a Redfish string enumeration.
