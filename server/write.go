@@ -5,6 +5,7 @@
 package server
 
 import (
+	"errors"
 	"hash/fnv"
 	"io"
 	"net/http"
@@ -90,6 +91,27 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		},
 	}.Bytes()
 	writeJSON(w, status, body)
+}
+
+// Error is an error a provider returns to choose the HTTP status and Redfish
+// message of the response. Errors that are not (and do not wrap) an *Error are
+// reported as 500 Internal Server Error.
+type Error struct {
+	Status    int    // HTTP status code
+	MessageID string // Redfish message identifier, e.g. odata.MsgGeneralError
+	Message   string // human-readable message
+}
+
+func (e *Error) Error() string { return e.Message }
+
+// WriteErr writes err as a Redfish error response, using the status and
+// message of an *Error in err's chain or a generic 500 otherwise.
+func WriteErr(w http.ResponseWriter, err error) {
+	if e, ok := errors.AsType[*Error](err); ok {
+		WriteError(w, e.Status, e.MessageID, e.Message)
+		return
+	}
+	Internal(w)
 }
 
 // NotFound writes a standard Redfish 404 for the requested URI.
