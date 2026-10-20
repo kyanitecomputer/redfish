@@ -6,6 +6,7 @@ import (
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
+	"src.kyanite.computer/redfish/update"
 )
 
 // backend is an in-memory implementation of the generated provider interfaces.
@@ -72,6 +73,7 @@ func (b *backend) GetServiceRoot(_ context.Context) (*gen.ServiceRoot, error) {
 		Managers:       odata.Link("/redfish/v1/Managers"),
 		SessionService: odata.Link("/redfish/v1/SessionService"),
 		AccountService: odata.Link("/redfish/v1/AccountService"),
+		UpdateService:  odata.Link(update.ServiceURI),
 		Links:          gen.ServiceRootLinks{Sessions: odata.Link("/redfish/v1/SessionService/Sessions")},
 	}, nil
 }

@@ -268,3 +268,25 @@ func TestNotFound(t *testing.T) {
 		t.Errorf("missing error body: %v", m)
 	}
 }
+
+func TestFirmwareInventory(t *testing.T) {
+	srv := newServer(t)
+	root := getJSON(t, srv.URL, "/redfish/v1")
+	if us, _ := root["UpdateService"].(map[string]any); us["@odata.id"] != "/redfish/v1/UpdateService" {
+		t.Fatalf("UpdateService link = %v", root["UpdateService"])
+	}
+	coll := getJSON(t, srv.URL, "/redfish/v1/UpdateService/FirmwareInventory")
+	if coll["Members@odata.count"].(float64) != 2 {
+		t.Errorf("firmware count = %v", coll["Members@odata.count"])
+	}
+	mgr := getJSON(t, srv.URL, "/redfish/v1/Managers/bmc")
+	active, _ := mgr["Links"].(map[string]any)["ActiveSoftwareImage"].(map[string]any)
+	id, _ := active["@odata.id"].(string)
+	if id != "/redfish/v1/UpdateService/FirmwareInventory/bmc" {
+		t.Fatalf("ActiveSoftwareImage = %v", active)
+	}
+	fw := getJSON(t, srv.URL, id)
+	if fw["Version"] != "1.0.0" || fw["Version"] != mgr["FirmwareVersion"] {
+		t.Errorf("BMC firmware version = %v, Manager.FirmwareVersion = %v", fw["Version"], mgr["FirmwareVersion"])
+	}
+}
