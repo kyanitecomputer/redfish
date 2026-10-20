@@ -102,6 +102,10 @@ func (s *Service) Register(mux *http.ServeMux) {
 		gen.RegisterSimpleUpdateUpdateService(mux, s)
 		server.Handle(mux, "POST", MultipartPushURI, s.servePush)
 	}
+	if _, ok := s.backend.(Activator); ok {
+		gen.RegisterActivateUpdateService(mux, s)
+		gen.RegisterActivateSoftwareInventory(mux, s)
+	}
 }
 
 // GetUpdateService implements gen.UpdateServiceProvider.
@@ -116,14 +120,18 @@ func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error
 		FirmwareInventory: odata.Link(FirmwareInventoryURI),
 		SoftwareInventory: odata.Link(SoftwareInventoryURI),
 	}
+	actions := &gen.UpdateServiceActions{}
 	if _, ok := s.backend.(Installer); ok {
-		us.Actions = &gen.UpdateServiceActions{
-			SimpleUpdate: &odata.ActionTarget{Target: SimpleUpdateURI},
-		}
+		actions.SimpleUpdate = &odata.ActionTarget{Target: SimpleUpdateURI}
+		us.Actions = actions
 		us.MultipartHttpPushUri = MultipartPushURI
 		if size := s.MaxImageSizeBytes; size > 0 {
 			us.MaxImageSizeBytes = &size
 		}
+	}
+	if _, ok := s.backend.(Activator); ok {
+		actions.Activate = &odata.ActionTarget{Target: ActivateURI}
+		us.Actions = actions
 	}
 	return us, nil
 }
@@ -238,7 +246,7 @@ func (s *Service) ListSoftwareInventory(ctx context.Context, p server.Params) ([
 
 // GetSoftwareInventory implements gen.SoftwareInventoryProvider.
 func (s *Service) GetSoftwareInventory(ctx context.Context, p server.Params) (*gen.SoftwareInventory, error) {
-	items, _, err := s.inventory(ctx, p)
+	items, base, err := s.inventory(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +254,15 @@ func (s *Service) GetSoftwareInventory(ctx context.Context, p server.Params) (*g
 	for _, it := range items {
 		if it.Id == id {
 			c := *it
-			c.ODataID = p.Path()
+			c.ODataID = base + "/" + id
+			if _, ok := s.backend.(Activator); ok {
+				actions := gen.SoftwareInventoryActions{}
+				if c.Actions != nil {
+					actions = *c.Actions
+				}
+				actions.Activate = &odata.ActionTarget{Target: c.ODataID + "/Actions/SoftwareInventory.Activate"}
+				c.Actions = &actions
+			}
 			return &c, nil
 		}
 	}
