@@ -106,10 +106,9 @@ func (r *resolver) resource(typeRef string) error {
 }
 
 // boundActions converts the CSDL actions bound to the resource base namespace
-// into the model's Action form, resolving each action's scalar/enum input
-// parameters. The binding (first) parameter and any complex or array parameters
-// are skipped: this subset parses only scalar action parameters from the POST
-// body.
+// into the model's Action form, resolving each action's input parameters. The
+// binding (first) parameter is skipped, as are parameters actionParam does not
+// support.
 func (r *resolver) boundActions(base string) []Action {
 	var out []Action
 	for _, a := range r.b.BoundActions(base) {
@@ -120,22 +119,32 @@ func (r *resolver) boundActions(base string) []Action {
 			Description: csdl.Annotations(a.Annotations).Description(),
 		}
 		for _, p := range a.Parameters[1:] { // [0] is the binding parameter
-			inner, isColl := csdl.StripCollection(p.Type)
-			if isColl {
-				continue // array parameters are unsupported in this subset
+			if f, ok := r.actionParam(p); ok {
+				act.Params = append(act.Params, f)
 			}
-			if _, _, ok := r.b.LatestComplex(inner); ok {
-				continue // complex parameters are unsupported in this subset
-			}
-			f, ok := r.scalarField(p.Name, p.Type, true, false)
-			if !ok || !f.scalarKind() {
-				continue
-			}
-			act.Params = append(act.Params, f)
 		}
 		out = append(out, act)
 	}
 	return out
+}
+
+// actionParam maps an action parameter to a field. Scalars, enums, string and
+// enum arrays, and arrays of resource references are supported; complex
+// parameters are skipped.
+func (r *resolver) actionParam(p csdl.Parameter) (Field, bool) {
+	inner, isColl := csdl.StripCollection(p.Type)
+	if _, _, ok := r.b.LatestComplex(inner); ok {
+		return Field{}, false
+	}
+	if isColl {
+		if _, _, ok := r.b.ResolveEntity(inner); ok {
+			return Field{GoName: ident(p.Name), JSONName: p.Name, GoType: "[]odata.Link", Kind: KindNavSlice}, true
+		}
+		f, ok := r.scalarField(p.Name, p.Type, true, false)
+		return f, ok && f.Kind == KindStringSlice
+	}
+	f, ok := r.scalarField(p.Name, p.Type, true, false)
+	return f, ok && f.scalarKind()
 }
 
 // chainUpdatable reports whether any type in the chain is marked updatable.
