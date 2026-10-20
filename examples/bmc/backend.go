@@ -155,10 +155,10 @@ func (b *backend) GetComputerSystem(_ context.Context, p server.Params) (*gen.Co
 
 // ResetComputerSystem performs the #ComputerSystem.Reset action, updating the
 // in-memory PowerState. A real BMC would drive the platform reset lines.
-func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params *gen.ComputerSystemResetParameters) error {
+func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params *gen.ComputerSystemResetParameters) (*server.ActionResult, error) {
 	s := b.systems[p.Get("ComputerSystemId")]
 	if s == nil || params.ResetType == nil {
-		return nil
+		return nil, nil
 	}
 	switch *params.ResetType {
 	case gen.ResourceResetTypeForceOff, gen.ResourceResetTypeGracefulShutdown:
@@ -166,5 +166,5 @@ func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params
 	default:
 		s.PowerState = gen.ResourcePowerStateOn
 	}
-	return nil
+	return nil, nil
 }

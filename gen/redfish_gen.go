@@ -4650,7 +4650,7 @@ func (p *ChassisResetParameters) UnmarshalJSON(data []byte) error {
 
 // ResetChassisProvider performs the #Chassis.Reset action.
 type ResetChassisProvider interface {
-	ResetChassis(ctx context.Context, p server.Params, params *ChassisResetParameters) error
+	ResetChassis(ctx context.Context, p server.Params, params *ChassisResetParameters) (*server.ActionResult, error)
 }
 
 // RegisterResetChassis wires a POST handler for the #Chassis.Reset action into mux.
@@ -4668,11 +4668,12 @@ func RegisterResetChassis(mux *http.ServeMux, p ResetChassisProvider) {
 				return
 			}
 		}
-		if err := p.ResetChassis(r.Context(), prm, &params); err != nil {
+		res, err := p.ResetChassis(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Actions/Chassis.Reset", h)
 }
@@ -5169,7 +5170,7 @@ func (p *ComputerSystemAddResourceBlockParameters) UnmarshalJSON(data []byte) er
 
 // AddResourceBlockComputerSystemProvider performs the #ComputerSystem.AddResourceBlock action.
 type AddResourceBlockComputerSystemProvider interface {
-	AddResourceBlockComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemAddResourceBlockParameters) error
+	AddResourceBlockComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemAddResourceBlockParameters) (*server.ActionResult, error)
 }
 
 // RegisterAddResourceBlockComputerSystem wires a POST handler for the #ComputerSystem.AddResourceBlock action into mux.
@@ -5187,11 +5188,12 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 				return
 			}
 		}
-		if err := p.AddResourceBlockComputerSystem(r.Context(), prm, &params); err != nil {
+		res, err := p.AddResourceBlockComputerSystem(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
 	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
@@ -5267,7 +5269,7 @@ func (p *ComputerSystemDecommissionParameters) UnmarshalJSON(data []byte) error 
 
 // DecommissionComputerSystemProvider performs the #ComputerSystem.Decommission action.
 type DecommissionComputerSystemProvider interface {
-	DecommissionComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemDecommissionParameters) error
+	DecommissionComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemDecommissionParameters) (*server.ActionResult, error)
 }
 
 // RegisterDecommissionComputerSystem wires a POST handler for the #ComputerSystem.Decommission action into mux.
@@ -5285,11 +5287,12 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 				return
 			}
 		}
-		if err := p.DecommissionComputerSystem(r.Context(), prm, &params); err != nil {
+		res, err := p.DecommissionComputerSystem(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
 	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
@@ -5374,7 +5377,7 @@ func (p *ComputerSystemExportConfigurationParameters) UnmarshalJSON(data []byte)
 
 // ExportConfigurationComputerSystemProvider performs the #ComputerSystem.ExportConfiguration action.
 type ExportConfigurationComputerSystemProvider interface {
-	ExportConfigurationComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemExportConfigurationParameters) error
+	ExportConfigurationComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemExportConfigurationParameters) (*server.ActionResult, error)
 }
 
 // RegisterExportConfigurationComputerSystem wires a POST handler for the #ComputerSystem.ExportConfiguration action into mux.
@@ -5392,11 +5395,12 @@ func RegisterExportConfigurationComputerSystem(mux *http.ServeMux, p ExportConfi
 				return
 			}
 		}
-		if err := p.ExportConfigurationComputerSystem(r.Context(), prm, &params); err != nil {
+		res, err := p.ExportConfigurationComputerSystem(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
 	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
@@ -5458,7 +5462,7 @@ func (p *ComputerSystemRemoveResourceBlockParameters) UnmarshalJSON(data []byte)
 
 // RemoveResourceBlockComputerSystemProvider performs the #ComputerSystem.RemoveResourceBlock action.
 type RemoveResourceBlockComputerSystemProvider interface {
-	RemoveResourceBlockComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemRemoveResourceBlockParameters) error
+	RemoveResourceBlockComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemRemoveResourceBlockParameters) (*server.ActionResult, error)
 }
 
 // RegisterRemoveResourceBlockComputerSystem wires a POST handler for the #ComputerSystem.RemoveResourceBlock action into mux.
@@ -5476,11 +5480,12 @@ func RegisterRemoveResourceBlockComputerSystem(mux *http.ServeMux, p RemoveResou
 				return
 			}
 		}
-		if err := p.RemoveResourceBlockComputerSystem(r.Context(), prm, &params); err != nil {
+		res, err := p.RemoveResourceBlockComputerSystem(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
 	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
@@ -5536,7 +5541,7 @@ func (p *ComputerSystemResetParameters) UnmarshalJSON(data []byte) error {
 
 // ResetComputerSystemProvider performs the #ComputerSystem.Reset action.
 type ResetComputerSystemProvider interface {
-	ResetComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemResetParameters) error
+	ResetComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemResetParameters) (*server.ActionResult, error)
 }
 
 // RegisterResetComputerSystem wires a POST handler for the #ComputerSystem.Reset action into mux.
@@ -5554,11 +5559,12 @@ func RegisterResetComputerSystem(mux *http.ServeMux, p ResetComputerSystemProvid
 				return
 			}
 		}
-		if err := p.ResetComputerSystem(r.Context(), prm, &params); err != nil {
+		res, err := p.ResetComputerSystem(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
 	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
@@ -5570,18 +5576,19 @@ type ComputerSystemSetDefaultBootOrderParameters struct{}
 
 // SetDefaultBootOrderComputerSystemProvider performs the #ComputerSystem.SetDefaultBootOrder action.
 type SetDefaultBootOrderComputerSystemProvider interface {
-	SetDefaultBootOrderComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemSetDefaultBootOrderParameters) error
+	SetDefaultBootOrderComputerSystem(ctx context.Context, p server.Params, params *ComputerSystemSetDefaultBootOrderParameters) (*server.ActionResult, error)
 }
 
 // RegisterSetDefaultBootOrderComputerSystem wires a POST handler for the #ComputerSystem.SetDefaultBootOrder action into mux.
 func RegisterSetDefaultBootOrderComputerSystem(mux *http.ServeMux, p SetDefaultBootOrderComputerSystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ComputerSystemSetDefaultBootOrderParameters
-		if err := p.SetDefaultBootOrderComputerSystem(r.Context(), prm, &params); err != nil {
+		res, err := p.SetDefaultBootOrderComputerSystem(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
 	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
@@ -5962,18 +5969,19 @@ type ManagerForceFailoverParameters struct{}
 
 // ForceFailoverManagerProvider performs the #Manager.ForceFailover action.
 type ForceFailoverManagerProvider interface {
-	ForceFailoverManager(ctx context.Context, p server.Params, params *ManagerForceFailoverParameters) error
+	ForceFailoverManager(ctx context.Context, p server.Params, params *ManagerForceFailoverParameters) (*server.ActionResult, error)
 }
 
 // RegisterForceFailoverManager wires a POST handler for the #Manager.ForceFailover action into mux.
 func RegisterForceFailoverManager(mux *http.ServeMux, p ForceFailoverManagerProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerForceFailoverParameters
-		if err := p.ForceFailoverManager(r.Context(), prm, &params); err != nil {
+		res, err := p.ForceFailoverManager(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ForceFailover", h)
 }
@@ -6033,7 +6041,7 @@ func (p *ManagerModifyRedundancySetParameters) UnmarshalJSON(data []byte) error 
 
 // ModifyRedundancySetManagerProvider performs the #Manager.ModifyRedundancySet action.
 type ModifyRedundancySetManagerProvider interface {
-	ModifyRedundancySetManager(ctx context.Context, p server.Params, params *ManagerModifyRedundancySetParameters) error
+	ModifyRedundancySetManager(ctx context.Context, p server.Params, params *ManagerModifyRedundancySetParameters) (*server.ActionResult, error)
 }
 
 // RegisterModifyRedundancySetManager wires a POST handler for the #Manager.ModifyRedundancySet action into mux.
@@ -6051,11 +6059,12 @@ func RegisterModifyRedundancySetManager(mux *http.ServeMux, p ModifyRedundancySe
 				return
 			}
 		}
-		if err := p.ModifyRedundancySetManager(r.Context(), prm, &params); err != nil {
+		res, err := p.ModifyRedundancySetManager(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ModifyRedundancySet", h)
 }
@@ -6109,7 +6118,7 @@ func (p *ManagerResetParameters) UnmarshalJSON(data []byte) error {
 
 // ResetManagerProvider performs the #Manager.Reset action.
 type ResetManagerProvider interface {
-	ResetManager(ctx context.Context, p server.Params, params *ManagerResetParameters) error
+	ResetManager(ctx context.Context, p server.Params, params *ManagerResetParameters) (*server.ActionResult, error)
 }
 
 // RegisterResetManager wires a POST handler for the #Manager.Reset action into mux.
@@ -6127,11 +6136,12 @@ func RegisterResetManager(mux *http.ServeMux, p ResetManagerProvider) {
 				return
 			}
 		}
-		if err := p.ResetManager(r.Context(), prm, &params); err != nil {
+		res, err := p.ResetManager(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.Reset", h)
 }
@@ -6185,7 +6195,7 @@ func (p *ManagerResetToDefaultsParameters) UnmarshalJSON(data []byte) error {
 
 // ResetToDefaultsManagerProvider performs the #Manager.ResetToDefaults action.
 type ResetToDefaultsManagerProvider interface {
-	ResetToDefaultsManager(ctx context.Context, p server.Params, params *ManagerResetToDefaultsParameters) error
+	ResetToDefaultsManager(ctx context.Context, p server.Params, params *ManagerResetToDefaultsParameters) (*server.ActionResult, error)
 }
 
 // RegisterResetToDefaultsManager wires a POST handler for the #Manager.ResetToDefaults action into mux.
@@ -6203,11 +6213,12 @@ func RegisterResetToDefaultsManager(mux *http.ServeMux, p ResetToDefaultsManager
 				return
 			}
 		}
-		if err := p.ResetToDefaultsManager(r.Context(), prm, &params); err != nil {
+		res, err := p.ResetToDefaultsManager(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ResetToDefaults", h)
 }
@@ -6268,7 +6279,7 @@ func (p *ManagerUpdateSecurityModeParameters) UnmarshalJSON(data []byte) error {
 
 // UpdateSecurityModeManagerProvider performs the #Manager.UpdateSecurityMode action.
 type UpdateSecurityModeManagerProvider interface {
-	UpdateSecurityModeManager(ctx context.Context, p server.Params, params *ManagerUpdateSecurityModeParameters) error
+	UpdateSecurityModeManager(ctx context.Context, p server.Params, params *ManagerUpdateSecurityModeParameters) (*server.ActionResult, error)
 }
 
 // RegisterUpdateSecurityModeManager wires a POST handler for the #Manager.UpdateSecurityMode action into mux.
@@ -6286,11 +6297,12 @@ func RegisterUpdateSecurityModeManager(mux *http.ServeMux, p UpdateSecurityModeM
 				return
 			}
 		}
-		if err := p.UpdateSecurityModeManager(r.Context(), prm, &params); err != nil {
+		res, err := p.UpdateSecurityModeManager(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.UpdateSecurityMode", h)
 }
@@ -7190,7 +7202,7 @@ func (p *ManagerAccountChangePasswordParameters) UnmarshalJSON(data []byte) erro
 
 // ChangePasswordManagerAccountProvider performs the #ManagerAccount.ChangePassword action.
 type ChangePasswordManagerAccountProvider interface {
-	ChangePasswordManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountChangePasswordParameters) error
+	ChangePasswordManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountChangePasswordParameters) (*server.ActionResult, error)
 }
 
 // RegisterChangePasswordManagerAccount wires a POST handler for the #ManagerAccount.ChangePassword action into mux.
@@ -7208,11 +7220,12 @@ func RegisterChangePasswordManagerAccount(mux *http.ServeMux, p ChangePasswordMa
 				return
 			}
 		}
-		if err := p.ChangePasswordManagerAccount(r.Context(), prm, &params); err != nil {
+		res, err := p.ChangePasswordManagerAccount(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
@@ -7223,18 +7236,19 @@ type ManagerAccountClearSecretKeyParameters struct{}
 
 // ClearSecretKeyManagerAccountProvider performs the #ManagerAccount.ClearSecretKey action.
 type ClearSecretKeyManagerAccountProvider interface {
-	ClearSecretKeyManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountClearSecretKeyParameters) error
+	ClearSecretKeyManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountClearSecretKeyParameters) (*server.ActionResult, error)
 }
 
 // RegisterClearSecretKeyManagerAccount wires a POST handler for the #ManagerAccount.ClearSecretKey action into mux.
 func RegisterClearSecretKeyManagerAccount(mux *http.ServeMux, p ClearSecretKeyManagerAccountProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerAccountClearSecretKeyParameters
-		if err := p.ClearSecretKeyManagerAccount(r.Context(), prm, &params); err != nil {
+		res, err := p.ClearSecretKeyManagerAccount(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
@@ -7245,18 +7259,19 @@ type ManagerAccountGenerateSecretKeyParameters struct{}
 
 // GenerateSecretKeyManagerAccountProvider performs the #ManagerAccount.GenerateSecretKey action.
 type GenerateSecretKeyManagerAccountProvider interface {
-	GenerateSecretKeyManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountGenerateSecretKeyParameters) error
+	GenerateSecretKeyManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountGenerateSecretKeyParameters) (*server.ActionResult, error)
 }
 
 // RegisterGenerateSecretKeyManagerAccount wires a POST handler for the #ManagerAccount.GenerateSecretKey action into mux.
 func RegisterGenerateSecretKeyManagerAccount(mux *http.ServeMux, p GenerateSecretKeyManagerAccountProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerAccountGenerateSecretKeyParameters
-		if err := p.GenerateSecretKeyManagerAccount(r.Context(), prm, &params); err != nil {
+		res, err := p.GenerateSecretKeyManagerAccount(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
@@ -7310,7 +7325,7 @@ func (p *ManagerAccountVerifyTimeBasedOneTimePasswordParameters) UnmarshalJSON(d
 
 // VerifyTimeBasedOneTimePasswordManagerAccountProvider performs the #ManagerAccount.VerifyTimeBasedOneTimePassword action.
 type VerifyTimeBasedOneTimePasswordManagerAccountProvider interface {
-	VerifyTimeBasedOneTimePasswordManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountVerifyTimeBasedOneTimePasswordParameters) error
+	VerifyTimeBasedOneTimePasswordManagerAccount(ctx context.Context, p server.Params, params *ManagerAccountVerifyTimeBasedOneTimePasswordParameters) (*server.ActionResult, error)
 }
 
 // RegisterVerifyTimeBasedOneTimePasswordManagerAccount wires a POST handler for the #ManagerAccount.VerifyTimeBasedOneTimePassword action into mux.
@@ -7328,11 +7343,12 @@ func RegisterVerifyTimeBasedOneTimePasswordManagerAccount(mux *http.ServeMux, p 
 				return
 			}
 		}
-		if err := p.VerifyTimeBasedOneTimePasswordManagerAccount(r.Context(), prm, &params); err != nil {
+		res, err := p.VerifyTimeBasedOneTimePasswordManagerAccount(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
@@ -7851,18 +7867,19 @@ type EnvironmentMetricsResetMetricsParameters struct{}
 
 // ResetMetricsEnvironmentMetricsProvider performs the #EnvironmentMetrics.ResetMetrics action.
 type ResetMetricsEnvironmentMetricsProvider interface {
-	ResetMetricsEnvironmentMetrics(ctx context.Context, p server.Params, params *EnvironmentMetricsResetMetricsParameters) error
+	ResetMetricsEnvironmentMetrics(ctx context.Context, p server.Params, params *EnvironmentMetricsResetMetricsParameters) (*server.ActionResult, error)
 }
 
 // RegisterResetMetricsEnvironmentMetrics wires a POST handler for the #EnvironmentMetrics.ResetMetrics action into mux.
 func RegisterResetMetricsEnvironmentMetrics(mux *http.ServeMux, p ResetMetricsEnvironmentMetricsProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params EnvironmentMetricsResetMetricsParameters
-		if err := p.ResetMetricsEnvironmentMetrics(r.Context(), prm, &params); err != nil {
+		res, err := p.ResetMetricsEnvironmentMetrics(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
@@ -7942,18 +7959,19 @@ type EnvironmentMetricsResetToDefaultsParameters struct{}
 
 // ResetToDefaultsEnvironmentMetricsProvider performs the #EnvironmentMetrics.ResetToDefaults action.
 type ResetToDefaultsEnvironmentMetricsProvider interface {
-	ResetToDefaultsEnvironmentMetrics(ctx context.Context, p server.Params, params *EnvironmentMetricsResetToDefaultsParameters) error
+	ResetToDefaultsEnvironmentMetrics(ctx context.Context, p server.Params, params *EnvironmentMetricsResetToDefaultsParameters) (*server.ActionResult, error)
 }
 
 // RegisterResetToDefaultsEnvironmentMetrics wires a POST handler for the #EnvironmentMetrics.ResetToDefaults action into mux.
 func RegisterResetToDefaultsEnvironmentMetrics(mux *http.ServeMux, p ResetToDefaultsEnvironmentMetricsProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params EnvironmentMetricsResetToDefaultsParameters
-		if err := p.ResetToDefaultsEnvironmentMetrics(r.Context(), prm, &params); err != nil {
+		res, err := p.ResetToDefaultsEnvironmentMetrics(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
@@ -8713,7 +8731,7 @@ func (p *LogServiceClearLogParameters) UnmarshalJSON(data []byte) error {
 
 // ClearLogLogServiceProvider performs the #LogService.ClearLog action.
 type ClearLogLogServiceProvider interface {
-	ClearLogLogService(ctx context.Context, p server.Params, params *LogServiceClearLogParameters) error
+	ClearLogLogService(ctx context.Context, p server.Params, params *LogServiceClearLogParameters) (*server.ActionResult, error)
 }
 
 // RegisterClearLogLogService wires a POST handler for the #LogService.ClearLog action into mux.
@@ -8731,11 +8749,12 @@ func RegisterClearLogLogService(mux *http.ServeMux, p ClearLogLogServiceProvider
 				return
 			}
 		}
-		if err := p.ClearLogLogService(r.Context(), prm, &params); err != nil {
+		res, err := p.ClearLogLogService(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
@@ -8833,7 +8852,7 @@ func (p *LogServiceCollectDiagnosticDataParameters) UnmarshalJSON(data []byte) e
 
 // CollectDiagnosticDataLogServiceProvider performs the #LogService.CollectDiagnosticData action.
 type CollectDiagnosticDataLogServiceProvider interface {
-	CollectDiagnosticDataLogService(ctx context.Context, p server.Params, params *LogServiceCollectDiagnosticDataParameters) error
+	CollectDiagnosticDataLogService(ctx context.Context, p server.Params, params *LogServiceCollectDiagnosticDataParameters) (*server.ActionResult, error)
 }
 
 // RegisterCollectDiagnosticDataLogService wires a POST handler for the #LogService.CollectDiagnosticData action into mux.
@@ -8851,11 +8870,12 @@ func RegisterCollectDiagnosticDataLogService(mux *http.ServeMux, p CollectDiagno
 				return
 			}
 		}
-		if err := p.CollectDiagnosticDataLogService(r.Context(), prm, &params); err != nil {
+		res, err := p.CollectDiagnosticDataLogService(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
@@ -8873,18 +8893,19 @@ type LogServiceDownloadRawLogParameters struct{}
 
 // DownloadRawLogLogServiceProvider performs the #LogService.DownloadRawLog action.
 type DownloadRawLogLogServiceProvider interface {
-	DownloadRawLogLogService(ctx context.Context, p server.Params, params *LogServiceDownloadRawLogParameters) error
+	DownloadRawLogLogService(ctx context.Context, p server.Params, params *LogServiceDownloadRawLogParameters) (*server.ActionResult, error)
 }
 
 // RegisterDownloadRawLogLogService wires a POST handler for the #LogService.DownloadRawLog action into mux.
 func RegisterDownloadRawLogLogService(mux *http.ServeMux, p DownloadRawLogLogServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params LogServiceDownloadRawLogParameters
-		if err := p.DownloadRawLogLogService(r.Context(), prm, &params); err != nil {
+		res, err := p.DownloadRawLogLogService(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
@@ -8974,7 +8995,7 @@ func (p *LogServicePushDiagnosticDataParameters) UnmarshalJSON(data []byte) erro
 
 // PushDiagnosticDataLogServiceProvider performs the #LogService.PushDiagnosticData action.
 type PushDiagnosticDataLogServiceProvider interface {
-	PushDiagnosticDataLogService(ctx context.Context, p server.Params, params *LogServicePushDiagnosticDataParameters) error
+	PushDiagnosticDataLogService(ctx context.Context, p server.Params, params *LogServicePushDiagnosticDataParameters) (*server.ActionResult, error)
 }
 
 // RegisterPushDiagnosticDataLogService wires a POST handler for the #LogService.PushDiagnosticData action into mux.
@@ -8992,11 +9013,12 @@ func RegisterPushDiagnosticDataLogService(mux *http.ServeMux, p PushDiagnosticDa
 				return
 			}
 		}
-		if err := p.PushDiagnosticDataLogService(r.Context(), prm, &params); err != nil {
+		res, err := p.PushDiagnosticDataLogService(r.Context(), prm, &params)
+		if err != nil {
 			server.WriteErr(w, err)
 			return
 		}
-		server.NoContent(w)
+		server.WriteActionResult(w, res)
 	}
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
 	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)

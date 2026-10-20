@@ -70,6 +70,37 @@ func NoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ActionResult is the outcome of an action a provider performed. A nil
+// *ActionResult reports an action that completed without a response body.
+type ActionResult struct {
+	// TaskMonitor, when set, reports the action as accepted for asynchronous
+	// processing: the response is 202 Accepted with a Location header pointing
+	// at the task monitor URI.
+	TaskMonitor string
+	// Body is the response body: the result of a completed action, or the Task
+	// representing an accepted one. It may be nil.
+	Body Resource
+}
+
+// WriteActionResult writes the response to an action: 204 No Content for a nil
+// result, 202 Accepted for an asynchronous one, otherwise 200 OK with the body.
+func WriteActionResult(w http.ResponseWriter, res *ActionResult) {
+	switch {
+	case res == nil || (res.TaskMonitor == "" && res.Body == nil):
+		NoContent(w)
+	case res.TaskMonitor != "":
+		w.Header().Set("Location", res.TaskMonitor)
+		if res.Body == nil {
+			w.Header().Set("OData-Version", odata.Version)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, res.Body.Bytes())
+	default:
+		writeJSON(w, http.StatusOK, res.Body.Bytes())
+	}
+}
+
 // WriteError writes a Redfish error response with the given HTTP status, base
 // message code, and human-readable message.
 func WriteError(w http.ResponseWriter, status int, code, message string) {
