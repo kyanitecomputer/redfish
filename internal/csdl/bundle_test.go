@@ -159,3 +159,32 @@ func findUris(b *Bundle, et *EntityType) []string {
 	}
 	return nil
 }
+
+// A property typed with a versioned complex type (Manager.v1_0_0.Links) must
+// resolve to the latest version of that type, so that properties added in
+// later versions (Links.ActiveSoftwareImage, added in v1_6_0) are generated.
+func TestLatestComplexUpgradesVersionedReference(t *testing.T) {
+	b := loadBundle(t)
+	ns, ct, ok := b.LatestComplex("Manager.v1_0_0.Links")
+	if !ok {
+		t.Fatal("could not resolve Manager.v1_0_0.Links")
+	}
+	if ns == "Manager.v1_0_0" {
+		t.Fatalf("resolved to the referenced version %s, want the latest", ns)
+	}
+	var found bool
+	for cur := ct; cur != nil && !found; {
+		for _, np := range cur.NavProps {
+			if np.Name == "ActiveSoftwareImage" {
+				found = true
+			}
+		}
+		if cur.BaseType == "" {
+			break
+		}
+		_, cur, _ = b.ResolveComplex(cur.BaseType)
+	}
+	if !found {
+		t.Fatalf("%s.Links chain lacks ActiveSoftwareImage", ns)
+	}
+}
