@@ -6,6 +6,7 @@ import (
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
+	"src.kyanite.computer/redfish/update"
 )
 
 // This file implements the additional resources required by the OCP Baseline
@@ -36,7 +37,10 @@ func (b *backend) GetManager(_ context.Context, p server.Params) (*gen.Manager, 
 		NetworkProtocol:    odata.Link("/redfish/v1/Managers/bmc/NetworkProtocol"),
 		EthernetInterfaces: odata.Link("/redfish/v1/Managers/bmc/EthernetInterfaces"),
 		LogServices:        odata.Link("/redfish/v1/Managers/bmc/LogServices"),
-		Links:              &gen.ManagerLinks{},
+		Links: &gen.ManagerLinks{
+			ActiveSoftwareImage: odata.Link(update.FirmwareInventoryURI + "/" + bmcFirmwareID),
+			SoftwareImages:      []odata.Link{odata.Link(update.FirmwareInventoryURI + "/" + bmcFirmwareID)},
+		},
 	}, nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/update"
 )
 
 func main() {
@@ -49,5 +50,6 @@ func newMux(b *backend) *http.ServeMux {
 	gen.RegisterLogService(mux, b)
 	gen.RegisterLogEntryCollection(mux, b)
 	gen.RegisterLogEntry(mux, b)
+	update.New(b).Register(mux)
 	return mux
 }
