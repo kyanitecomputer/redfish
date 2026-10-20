@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/update"
@@ -35,6 +36,25 @@ func (b *backend) Inventory(_ context.Context) (*update.Inventory, error) {
 			},
 		},
 	}, nil
+}
+
+// Install simulates an update: it drains a pushed image and reports progress.
+// A real BMC would hand the image to its update tooling.
+func (b *backend) Install(_ context.Context, img update.Image, _ update.Request, progress func(int)) error {
+	if img.Body != nil {
+		if _, err := io.Copy(io.Discard, img.Body); err != nil {
+			return err
+		}
+	}
+	for p := 25; p <= 100; p += 25 {
+		progress(p)
+	}
+	return nil
+}
+
+// Activate simulates activating staged images; it has nothing to switch.
+func (b *backend) Activate(context.Context, []string, []string, func(int)) error {
+	return nil
 }
 
 func boolPtr(v bool) *bool { return &v }
