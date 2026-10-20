@@ -155,13 +155,13 @@ func writePatchType(b *bytes.Buffer, r *Resource, writable []Field) {
 	writeSparseParser(b, r.GoName+"Patch", writable)
 }
 
-// writeSparseStruct emits a struct of pointer fields, one per field; a nil
-// pointer means the property was absent from the parsed body.
+// writeSparseStruct emits a struct with one pointer or slice field per field; a
+// nil value means the property was absent from the parsed body.
 func writeSparseStruct(b *bytes.Buffer, typeName, doc string, fields []Field) {
 	fmt.Fprintf(b, "%s\n", doc)
 	fmt.Fprintf(b, "type %s struct {\n", typeName)
 	for _, f := range fields {
-		fmt.Fprintf(b, "\t%s *%s\n", f.GoName, patchElemType(f))
+		fmt.Fprintf(b, "\t%s %s\n", f.GoName, sparseType(f))
 	}
 	fmt.Fprintf(b, "}\n\n")
 }
@@ -248,6 +248,17 @@ func actionURIs(uris []string, segment string) []string {
 	return out
 }
 
+// sparseType returns the Go type of a field in a sparse struct: the slice type
+// for arrays, otherwise a pointer to the scalar type.
+func sparseType(f Field) string {
+	switch f.Kind {
+	case KindStringSlice, KindNavSlice:
+		return f.GoType
+	default:
+		return "*" + patchElemType(f)
+	}
+}
+
 // patchElemType returns the element type of a patch pointer field.
 func patchElemType(f Field) string {
 	switch f.Kind {
@@ -274,6 +285,10 @@ func writePatchCase(b *bytes.Buffer, f Field) {
 		fmt.Fprintf(b, "\t\t\tv, err := patchReadFloat(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tp.%s = &v\n", f.GoName)
 	case KindEnum:
 		fmt.Fprintf(b, "\t\t\tv, err := patchReadString(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tev := %s(v)\n\t\t\tp.%s = &ev\n", f.GoType, f.GoName)
+	case KindStringSlice:
+		fmt.Fprintf(b, "\t\t\tv, err := patchReadStrings(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tp.%s = v\n", f.GoName)
+	case KindNavSlice:
+		fmt.Fprintf(b, "\t\t\tv, err := patchReadLinks(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tp.%s = v\n", f.GoName)
 	default: // KindString
 		fmt.Fprintf(b, "\t\t\tv, err := patchReadString(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tp.%s = &v\n", f.GoName)
 	}
@@ -457,6 +472,69 @@ func patchReadFloat(dec *jsontext.Decoder) (float64, error) {
 		return 0, errPatchType
 	}
 	return v, nil
+}
+
+// patchReadStrings reads a JSON array of strings. An empty array yields a
+// non-nil empty slice, distinguishing it from an absent property.
+func patchReadStrings(dec *jsontext.Decoder) ([]string, error) {
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
+		if err != nil {
+			return nil, err
+		}
+		return nil, errPatchType
+	}
+	out := []string{}
+	for dec.PeekKind() != ']' {
+		v, err := patchReadString(dec)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	_, err := dec.ReadToken()
+	return out, err
+}
+
+// patchReadLinks reads a JSON array of reference objects ({"@odata.id": ...}),
+// ignoring any other members of each object.
+func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
+		if err != nil {
+			return nil, err
+		}
+		return nil, errPatchType
+	}
+	out := []odata.Link{}
+	for dec.PeekKind() != ']' {
+		if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+			if err != nil {
+				return nil, err
+			}
+			return nil, errPatchType
+		}
+		var id string
+		for dec.PeekKind() != '}' {
+			name, err := dec.ReadToken()
+			if err != nil {
+				return nil, err
+			}
+			if name.String() != "@odata.id" {
+				if err := dec.SkipValue(); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if id, err = patchReadString(dec); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := dec.ReadToken(); err != nil {
+			return nil, err
+		}
+		out = append(out, odata.Link(id))
+	}
+	_, err := dec.ReadToken()
+	return out, err
 }
 
 `)

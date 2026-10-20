@@ -74,6 +74,69 @@ func patchReadFloat(dec *jsontext.Decoder) (float64, error) {
 	return v, nil
 }
 
+// patchReadStrings reads a JSON array of strings. An empty array yields a
+// non-nil empty slice, distinguishing it from an absent property.
+func patchReadStrings(dec *jsontext.Decoder) ([]string, error) {
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
+		if err != nil {
+			return nil, err
+		}
+		return nil, errPatchType
+	}
+	out := []string{}
+	for dec.PeekKind() != ']' {
+		v, err := patchReadString(dec)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	_, err := dec.ReadToken()
+	return out, err
+}
+
+// patchReadLinks reads a JSON array of reference objects ({"@odata.id": ...}),
+// ignoring any other members of each object.
+func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
+		if err != nil {
+			return nil, err
+		}
+		return nil, errPatchType
+	}
+	out := []odata.Link{}
+	for dec.PeekKind() != ']' {
+		if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+			if err != nil {
+				return nil, err
+			}
+			return nil, errPatchType
+		}
+		var id string
+		for dec.PeekKind() != '}' {
+			name, err := dec.ReadToken()
+			if err != nil {
+				return nil, err
+			}
+			if name.String() != "@odata.id" {
+				if err := dec.SkipValue(); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if id, err = patchReadString(dec); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := dec.ReadToken(); err != nil {
+			return nil, err
+		}
+		out = append(out, odata.Link(id))
+	}
+	_, err := dec.ReadToken()
+	return out, err
+}
+
 // AccountServiceAccountProviderTypes is a Redfish string enumeration.
 type AccountServiceAccountProviderTypes string
 
@@ -348,12 +411,37 @@ const (
 	ComputerSystemBootSourceOverrideModeUEFI   ComputerSystemBootSourceOverrideMode = "UEFI"
 )
 
+// ComputerSystemComponent is a Redfish string enumeration.
+type ComputerSystemComponent string
+
+const (
+	ComputerSystemComponentAll     ComputerSystemComponent = "All"
+	ComputerSystemComponentManager ComputerSystemComponent = "Manager"
+	ComputerSystemComponentBIOS    ComputerSystemComponent = "BIOS"
+	ComputerSystemComponentNetwork ComputerSystemComponent = "Network"
+	ComputerSystemComponentStorage ComputerSystemComponent = "Storage"
+)
+
 // ComputerSystemCompositionUseCase is a Redfish string enumeration.
 type ComputerSystemCompositionUseCase string
 
 const (
 	ComputerSystemCompositionUseCaseResourceBlockCapable ComputerSystemCompositionUseCase = "ResourceBlockCapable"
 	ComputerSystemCompositionUseCaseExpandableSystem     ComputerSystemCompositionUseCase = "ExpandableSystem"
+)
+
+// ComputerSystemDecommissionType is a Redfish string enumeration.
+type ComputerSystemDecommissionType string
+
+const (
+	ComputerSystemDecommissionTypeAll           ComputerSystemDecommissionType = "All"
+	ComputerSystemDecommissionTypeUserData      ComputerSystemDecommissionType = "UserData"
+	ComputerSystemDecommissionTypeManagerConfig ComputerSystemDecommissionType = "ManagerConfig"
+	ComputerSystemDecommissionTypeBIOSConfig    ComputerSystemDecommissionType = "BIOSConfig"
+	ComputerSystemDecommissionTypeNetworkConfig ComputerSystemDecommissionType = "NetworkConfig"
+	ComputerSystemDecommissionTypeStorageConfig ComputerSystemDecommissionType = "StorageConfig"
+	ComputerSystemDecommissionTypeLogs          ComputerSystemDecommissionType = "Logs"
+	ComputerSystemDecommissionTypeTPM           ComputerSystemDecommissionType = "TPM"
 )
 
 // ComputerSystemExportSecurity is a Redfish string enumeration.
@@ -5112,8 +5200,10 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 
 // ComputerSystemDecommissionParameters holds the input parameters of the #ComputerSystem.Decommission action.
 type ComputerSystemDecommissionParameters struct {
-	ComputerSystemETag *string
-	RequireSecureErase *bool
+	DecommissionTypes    []string
+	OEMDecommissionTypes []string
+	ComputerSystemETag   *string
+	RequireSecureErase   *bool
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemDecommissionParameters body,
@@ -5142,6 +5232,18 @@ func (p *ComputerSystemDecommissionParameters) UnmarshalJSON(data []byte) error 
 			continue
 		}
 		switch name {
+		case "DecommissionTypes":
+			v, err := patchReadStrings(dec)
+			if err != nil {
+				return err
+			}
+			p.DecommissionTypes = v
+		case "OEMDecommissionTypes":
+			v, err := patchReadStrings(dec)
+			if err != nil {
+				return err
+			}
+			p.OEMDecommissionTypes = v
 		case "ComputerSystemETag":
 			v, err := patchReadString(dec)
 			if err != nil {
@@ -5197,6 +5299,8 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 // ComputerSystemExportConfigurationParameters holds the input parameters of the #ComputerSystem.ExportConfiguration action.
 type ComputerSystemExportConfigurationParameters struct {
 	ExportType           *ComputerSystemExportType
+	Components           []string
+	OEMComponents        []string
 	Security             *ComputerSystemExportSecurity
 	EncryptionPassphrase *string
 }
@@ -5234,6 +5338,18 @@ func (p *ComputerSystemExportConfigurationParameters) UnmarshalJSON(data []byte)
 			}
 			ev := ComputerSystemExportType(v)
 			p.ExportType = &ev
+		case "Components":
+			v, err := patchReadStrings(dec)
+			if err != nil {
+				return err
+			}
+			p.Components = v
+		case "OEMComponents":
+			v, err := patchReadStrings(dec)
+			if err != nil {
+				return err
+			}
+			p.OEMComponents = v
 		case "Security":
 			v, err := patchReadString(dec)
 			if err != nil {
@@ -5862,8 +5978,58 @@ func RegisterForceFailoverManager(mux *http.ServeMux, p ForceFailoverManagerProv
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ForceFailover", h)
 }
 
-// ManagerModifyRedundancySetParameters holds the input parameters of the #Manager.ModifyRedundancySet action (none defined).
-type ManagerModifyRedundancySetParameters struct{}
+// ManagerModifyRedundancySetParameters holds the input parameters of the #Manager.ModifyRedundancySet action.
+type ManagerModifyRedundancySetParameters struct {
+	Add    []odata.Link
+	Remove []odata.Link
+}
+
+// UnmarshalJSON parses the known properties of a ManagerModifyRedundancySetParameters body,
+// ignoring unknown and null-valued properties.
+func (p *ManagerModifyRedundancySetParameters) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "Add":
+			v, err := patchReadLinks(dec)
+			if err != nil {
+				return err
+			}
+			p.Add = v
+		case "Remove":
+			v, err := patchReadLinks(dec)
+			if err != nil {
+				return err
+			}
+			p.Remove = v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
 // ModifyRedundancySetManagerProvider performs the #Manager.ModifyRedundancySet action.
 type ModifyRedundancySetManagerProvider interface {
@@ -5874,6 +6040,17 @@ type ModifyRedundancySetManagerProvider interface {
 func RegisterModifyRedundancySetManager(mux *http.ServeMux, p ModifyRedundancySetManagerProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerModifyRedundancySetParameters
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			if err := params.UnmarshalJSON(body); err != nil {
+				server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+				return
+			}
+		}
 		if err := p.ModifyRedundancySetManager(r.Context(), prm, &params); err != nil {
 			server.WriteErr(w, err)
 			return
