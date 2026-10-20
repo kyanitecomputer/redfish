@@ -1333,6 +1333,33 @@ const (
 	SoftwareInventoryVersionSchemeOEM                SoftwareInventoryVersionScheme = "OEM"
 )
 
+// TaskServiceOverWritePolicy is a Redfish string enumeration.
+type TaskServiceOverWritePolicy string
+
+const (
+	TaskServiceOverWritePolicyManual TaskServiceOverWritePolicy = "Manual"
+	TaskServiceOverWritePolicyOldest TaskServiceOverWritePolicy = "Oldest"
+)
+
+// TaskTaskState is a Redfish string enumeration.
+type TaskTaskState string
+
+const (
+	TaskTaskStateNew         TaskTaskState = "New"
+	TaskTaskStateStarting    TaskTaskState = "Starting"
+	TaskTaskStateRunning     TaskTaskState = "Running"
+	TaskTaskStateSuspended   TaskTaskState = "Suspended"
+	TaskTaskStateInterrupted TaskTaskState = "Interrupted"
+	TaskTaskStatePending     TaskTaskState = "Pending"
+	TaskTaskStateStopping    TaskTaskState = "Stopping"
+	TaskTaskStateCompleted   TaskTaskState = "Completed"
+	TaskTaskStateKilled      TaskTaskState = "Killed"
+	TaskTaskStateException   TaskTaskState = "Exception"
+	TaskTaskStateService     TaskTaskState = "Service"
+	TaskTaskStateCancelling  TaskTaskState = "Cancelling"
+	TaskTaskStateCancelled   TaskTaskState = "Cancelled"
+)
+
 // UpdateServiceApplyTime is a Redfish string enumeration.
 type UpdateServiceApplyTime string
 
@@ -3335,6 +3362,46 @@ func (x *ManagerSerialConsole) Bytes() []byte {
 	return b.Bytes()
 }
 
+// MessageMessage is a generated Redfish complex type.
+type MessageMessage struct {
+	MessageId                string
+	Message                  string
+	RelatedProperties        []string
+	MessageArgs              []string
+	Severity                 string
+	Resolution               string
+	Oem                      *ResourceOem
+	MessageSeverity          ResourceHealth
+	ResolutionSteps          []ResolutionStepResolutionStep
+	Username                 string
+	UserAuthenticationSource string
+}
+
+// Bytes encodes MessageMessage as Redfish JSON.
+func (x *MessageMessage) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.String("MessageId", x.MessageId)
+	b.OptString("Message", x.Message)
+	b.StrArray("RelatedProperties", x.RelatedProperties)
+	b.StrArray("MessageArgs", x.MessageArgs)
+	b.OptString("Severity", x.Severity)
+	b.OptString("Resolution", x.Resolution)
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	b.OptString("MessageSeverity", string(x.MessageSeverity))
+	if x.ResolutionSteps != nil {
+		items := make([][]byte, len(x.ResolutionSteps))
+		for i := range x.ResolutionSteps {
+			items[i] = x.ResolutionSteps[i].Bytes()
+		}
+		b.RawArray("ResolutionSteps", items)
+	}
+	b.OptString("Username", x.Username)
+	b.OptString("UserAuthenticationSource", x.UserAuthenticationSource)
+	return b.Bytes()
+}
+
 // PowerSubsystemActions is a generated Redfish complex type.
 type PowerSubsystemActions struct {
 	Oem *PowerSubsystemOemActions
@@ -3943,6 +4010,94 @@ type SoftwareInventoryOemActions struct {
 
 // Bytes encodes SoftwareInventoryOemActions as Redfish JSON.
 func (x *SoftwareInventoryOemActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	return b.Bytes()
+}
+
+// TaskActions is a generated Redfish complex type.
+type TaskActions struct {
+	Oem *TaskOemActions
+}
+
+// Bytes encodes TaskActions as Redfish JSON.
+func (x *TaskActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	return b.Bytes()
+}
+
+// TaskLinks is a generated Redfish complex type.
+type TaskLinks struct {
+	Oem              *ResourceOem
+	CreatedResources []odata.Link
+}
+
+// Bytes encodes TaskLinks as Redfish JSON.
+func (x *TaskLinks) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	if len(x.CreatedResources) > 0 {
+		b.RefArray("CreatedResources", odata.Strings(x.CreatedResources))
+	}
+	return b.Bytes()
+}
+
+// TaskOemActions is a generated Redfish complex type.
+type TaskOemActions struct {
+}
+
+// Bytes encodes TaskOemActions as Redfish JSON.
+func (x *TaskOemActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	return b.Bytes()
+}
+
+// TaskPayload is a generated Redfish complex type.
+type TaskPayload struct {
+	TargetUri     string
+	HttpOperation string
+	HttpHeaders   []string
+	JsonBody      string
+}
+
+// Bytes encodes TaskPayload as Redfish JSON.
+func (x *TaskPayload) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptString("TargetUri", x.TargetUri)
+	b.OptString("HttpOperation", x.HttpOperation)
+	b.StrArray("HttpHeaders", x.HttpHeaders)
+	b.OptString("JsonBody", x.JsonBody)
+	return b.Bytes()
+}
+
+// TaskServiceActions is a generated Redfish complex type.
+type TaskServiceActions struct {
+	Oem                     *TaskServiceOemActions
+	DeleteAllCompletedTasks *odata.ActionTarget // #TaskService.DeleteAllCompletedTasks
+}
+
+// Bytes encodes TaskServiceActions as Redfish JSON.
+func (x *TaskServiceActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	if x.DeleteAllCompletedTasks != nil {
+		b.Raw("#TaskService.DeleteAllCompletedTasks", x.DeleteAllCompletedTasks.Bytes())
+	}
+	return b.Bytes()
+}
+
+// TaskServiceOemActions is a generated Redfish complex type.
+type TaskServiceOemActions struct {
+}
+
+// Bytes encodes TaskServiceOemActions as Redfish JSON.
+func (x *TaskServiceOemActions) Bytes() []byte {
 	b := odata.NewBuilder()
 	return b.Bytes()
 }
@@ -10559,6 +10714,322 @@ func RegisterCancelSoftwareInventory(mux *http.ServeMux, p CancelSoftwareInvento
 	server.Handle(mux, "POST", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
 }
 
+// TaskService: The `TaskService` schema describes a task service that enables management of long-duration operations, includes the properties for the task service itself, and has links to the resource collection of tasks.
+type TaskService struct {
+	ODataID                         string // @odata.id of this resource instance
+	Oem                             *ResourceOem
+	Id                              string
+	Description                     string
+	Name                            string
+	CompletedTaskOverWritePolicy    TaskServiceOverWritePolicy
+	DateTime                        string
+	LifeCycleEventOnTaskStateChange *bool
+	ServiceEnabled                  *bool
+	Status                          *ResourceStatus
+	Actions                         *TaskServiceActions
+	TaskAutoDeleteTimeoutMinutes    *int64
+	TaskMonitorAutoExpirySeconds    *int64
+	Tasks                           odata.Link
+}
+
+// Bytes encodes TaskService as a Redfish JSON resource.
+func (x *TaskService) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.String("@odata.type", "#TaskService.v1_3_0.TaskService")
+	b.String("@odata.id", x.ODataID)
+	b.String("@odata.context", odata.Context("TaskService.TaskService"))
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	b.String("Id", x.Id)
+	b.OptString("Description", x.Description)
+	b.String("Name", x.Name)
+	b.OptString("CompletedTaskOverWritePolicy", string(x.CompletedTaskOverWritePolicy))
+	b.OptString("DateTime", x.DateTime)
+	b.OptBool("LifeCycleEventOnTaskStateChange", x.LifeCycleEventOnTaskStateChange)
+	b.OptBool("ServiceEnabled", x.ServiceEnabled)
+	if x.Status != nil {
+		b.Raw("Status", x.Status.Bytes())
+	}
+	if x.Actions != nil {
+		b.Raw("Actions", x.Actions.Bytes())
+	}
+	b.OptInt("TaskAutoDeleteTimeoutMinutes", x.TaskAutoDeleteTimeoutMinutes)
+	b.OptInt("TaskMonitorAutoExpirySeconds", x.TaskMonitorAutoExpirySeconds)
+	if x.Tasks != "" {
+		b.Ref("Tasks", string(x.Tasks))
+	}
+	return b.Bytes()
+}
+
+// TaskServicePatch holds the writable properties of TaskService present in a PATCH body.
+type TaskServicePatch struct {
+	ServiceEnabled               *bool
+	TaskAutoDeleteTimeoutMinutes *int64
+	TaskMonitorAutoExpirySeconds *int64
+}
+
+// UnmarshalJSON parses the known properties of a TaskServicePatch body,
+// ignoring unknown and null-valued properties.
+func (p *TaskServicePatch) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "ServiceEnabled":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.ServiceEnabled = &v
+		case "TaskAutoDeleteTimeoutMinutes":
+			v, err := patchReadInt(dec)
+			if err != nil {
+				return err
+			}
+			p.TaskAutoDeleteTimeoutMinutes = &v
+		case "TaskMonitorAutoExpirySeconds":
+			v, err := patchReadInt(dec)
+			if err != nil {
+				return err
+			}
+			p.TaskMonitorAutoExpirySeconds = &v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// TaskServiceProvider supplies the TaskService resource.
+type TaskServiceProvider interface {
+	GetTaskService(ctx context.Context) (*TaskService, error)
+	PatchTaskService(ctx context.Context, patch *TaskServicePatch) (*TaskService, error)
+}
+
+// RegisterTaskService wires the TaskService resource into mux. It links into a binary
+// only when referenced, so unused resources are removed by the linker.
+func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		res, err := p.GetTaskService(r.Context())
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if res == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if res.ODataID == "" {
+			res.ODataID = prm.Path()
+		}
+		server.WriteResource(w, res)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/TaskService", h)
+	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		cur, err := p.GetTaskService(r.Context())
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if cur == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if cur.ODataID == "" {
+			cur.ODataID = prm.Path()
+		}
+		if !server.CheckIfMatch(r, cur.Bytes()) {
+			server.PreconditionFailed(w)
+			return
+		}
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch TaskServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		updated, err := p.PatchTaskService(r.Context(), &patch)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if updated == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if updated.ODataID == "" {
+			updated.ODataID = prm.Path()
+		}
+		server.WriteResource(w, updated)
+	}
+	server.Handle(mux, "PATCH", "/redfish/v1/TaskService", ph)
+}
+
+// TaskServiceDeleteAllCompletedTasksParameters holds the input parameters of the #TaskService.DeleteAllCompletedTasks action (none defined).
+type TaskServiceDeleteAllCompletedTasksParameters struct{}
+
+// DeleteAllCompletedTasksTaskServiceProvider performs the #TaskService.DeleteAllCompletedTasks action.
+type DeleteAllCompletedTasksTaskServiceProvider interface {
+	DeleteAllCompletedTasksTaskService(ctx context.Context, params *TaskServiceDeleteAllCompletedTasksParameters) (*server.ActionResult, error)
+}
+
+// RegisterDeleteAllCompletedTasksTaskService wires a POST handler for the #TaskService.DeleteAllCompletedTasks action into mux.
+func RegisterDeleteAllCompletedTasksTaskService(mux *http.ServeMux, p DeleteAllCompletedTasksTaskServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params TaskServiceDeleteAllCompletedTasksParameters
+		res, err := p.DeleteAllCompletedTasksTaskService(r.Context(), &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/TaskService/Actions/TaskService.DeleteAllCompletedTasks", h)
+}
+
+// TaskCollectionProvider lists the members of the TaskCollection collection by @odata.id.
+type TaskCollectionProvider interface {
+	ListTask(ctx context.Context, p server.Params) ([]string, error)
+}
+
+// RegisterTaskCollection wires the TaskCollection collection into mux.
+func RegisterTaskCollection(mux *http.ServeMux, p TaskCollectionProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		ids, err := p.ListTask(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		c := odata.Collection{
+			ODataType:    "#TaskCollection.TaskCollection",
+			ODataID:      prm.Path(),
+			ODataContext: odata.Context("TaskCollection.TaskCollection"),
+			Name:         "Task Collection",
+			Members:      ids,
+		}
+		server.WriteResource(w, c)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks", h)
+	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks/{TaskId}/SubTasks", h)
+}
+
+// Task: The `Task` schema contains information about a task that the Redfish task service schedules or executes.
+type Task struct {
+	ODataID           string // @odata.id of this resource instance
+	Oem               *ResourceOem
+	Id                string
+	Description       string
+	Name              string
+	TaskState         TaskTaskState
+	StartTime         string
+	EndTime           string
+	TaskStatus        ResourceHealth
+	Messages          []MessageMessage
+	Actions           *TaskActions
+	TaskMonitor       string
+	Payload           *TaskPayload
+	HidePayload       *bool
+	PercentComplete   *int64
+	EstimatedDuration string
+	Links             *TaskLinks
+	SubTasks          odata.Link
+}
+
+// Bytes encodes Task as a Redfish JSON resource.
+func (x *Task) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.String("@odata.type", "#Task.v1_7_4.Task")
+	b.String("@odata.id", x.ODataID)
+	b.String("@odata.context", odata.Context("Task.Task"))
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	b.String("Id", x.Id)
+	b.OptString("Description", x.Description)
+	b.String("Name", x.Name)
+	b.OptString("TaskState", string(x.TaskState))
+	b.OptString("StartTime", x.StartTime)
+	b.OptString("EndTime", x.EndTime)
+	b.OptString("TaskStatus", string(x.TaskStatus))
+	if x.Messages != nil {
+		items := make([][]byte, len(x.Messages))
+		for i := range x.Messages {
+			items[i] = x.Messages[i].Bytes()
+		}
+		b.RawArray("Messages", items)
+	}
+	if x.Actions != nil {
+		b.Raw("Actions", x.Actions.Bytes())
+	}
+	b.OptString("TaskMonitor", x.TaskMonitor)
+	if x.Payload != nil {
+		b.Raw("Payload", x.Payload.Bytes())
+	}
+	b.OptBool("HidePayload", x.HidePayload)
+	b.OptInt("PercentComplete", x.PercentComplete)
+	b.OptString("EstimatedDuration", x.EstimatedDuration)
+	if x.Links != nil {
+		b.Raw("Links", x.Links.Bytes())
+	}
+	if x.SubTasks != "" {
+		b.Ref("SubTasks", string(x.SubTasks))
+	}
+	return b.Bytes()
+}
+
+// TaskProvider supplies the Task resource.
+type TaskProvider interface {
+	GetTask(ctx context.Context, p server.Params) (*Task, error)
+}
+
+// RegisterTask wires the Task resource into mux. It links into a binary
+// only when referenced, so unused resources are removed by the linker.
+func RegisterTask(mux *http.ServeMux, p TaskProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		res, err := p.GetTask(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if res == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if res.ODataID == "" {
+			res.ODataID = prm.Path()
+		}
+		server.WriteResource(w, res)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks/{TaskId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks/{TaskId}/SubTasks/{TaskId2}", h)
+}
+
 // metadataXML is the service $metadata (EDMX) document covering the
 // registered resources.
 const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -10652,6 +11123,17 @@ const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/SoftwareInventoryCollection_v1.xml">
     <edmx:Include Namespace="SoftwareInventoryCollection"/>
   </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Task_v1.xml">
+    <edmx:Include Namespace="Task"/>
+    <edmx:Include Namespace="Task.v1_7_4"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/TaskCollection_v1.xml">
+    <edmx:Include Namespace="TaskCollection"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/TaskService_v1.xml">
+    <edmx:Include Namespace="TaskService"/>
+    <edmx:Include Namespace="TaskService.v1_3_0"/>
+  </edmx:Reference>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ThermalSubsystem_v1.xml">
     <edmx:Include Namespace="ThermalSubsystem"/>
     <edmx:Include Namespace="ThermalSubsystem.v1_5_0"/>
@@ -10669,7 +11151,7 @@ const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
 `
 
 // odataServiceDoc is the /redfish/v1/odata service document.
-const odataServiceDoc = `{"@odata.context":"/redfish/v1/$metadata","@odata.id":"/redfish/v1/odata","value":[{"name":"Service","kind":"Singleton","url":"/redfish/v1/"},{"name":"Sessions","kind":"Singleton","url":"/redfish/v1/SessionService/Sessions"},{"name":"Chassis","kind":"Singleton","url":"/redfish/v1/Chassis"},{"name":"Systems","kind":"Singleton","url":"/redfish/v1/Systems"},{"name":"Managers","kind":"Singleton","url":"/redfish/v1/Managers"},{"name":"Accounts","kind":"Singleton","url":"/redfish/v1/AccountService/Accounts"},{"name":"Sensors","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Sensors"},{"name":"Controls","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Controls"},{"name":"EthernetInterfaces","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/EthernetInterfaces"},{"name":"LogServices","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices"},{"name":"Entries","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries"},{"name":"SoftwareInventory","kind":"Singleton","url":"/redfish/v1/UpdateService/SoftwareInventory"}]}`
+const odataServiceDoc = `{"@odata.context":"/redfish/v1/$metadata","@odata.id":"/redfish/v1/odata","value":[{"name":"Service","kind":"Singleton","url":"/redfish/v1/"},{"name":"Sessions","kind":"Singleton","url":"/redfish/v1/SessionService/Sessions"},{"name":"Chassis","kind":"Singleton","url":"/redfish/v1/Chassis"},{"name":"Systems","kind":"Singleton","url":"/redfish/v1/Systems"},{"name":"Managers","kind":"Singleton","url":"/redfish/v1/Managers"},{"name":"Accounts","kind":"Singleton","url":"/redfish/v1/AccountService/Accounts"},{"name":"Sensors","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Sensors"},{"name":"Controls","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Controls"},{"name":"EthernetInterfaces","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/EthernetInterfaces"},{"name":"LogServices","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices"},{"name":"Entries","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries"},{"name":"SoftwareInventory","kind":"Singleton","url":"/redfish/v1/UpdateService/SoftwareInventory"},{"name":"Tasks","kind":"Singleton","url":"/redfish/v1/TaskService/Tasks"}]}`
 
 // RegisterMetadata serves the service metadata document at /redfish/v1/$metadata.
 func RegisterMetadata(mux *http.ServeMux) {
