@@ -24,10 +24,19 @@ INTEROP=third_party/Redfish-Interop-Validator/RedfishInteropValidator.py
 export GOWORK=off
 export GOEXPERIMENT=jsonv2
 
-# Start the example server in the background and ensure it is cleaned up.
-go run ./examples/bmc &
+# Refuse to validate whatever else may be listening on the port.
+if curl -fsS -o /dev/null "${RHOST}/redfish/v1" 2>/dev/null; then
+	echo "port ${PORT} is already serving Redfish; stop that server first" >&2
+	exit 1
+fi
+
+# Build and start the example server in the background. Running the binary
+# directly (rather than via go run) ensures the trap stops the server itself.
+BIN_DIR=$(mktemp -d)
+go build -o "${BIN_DIR}/bmc" ./examples/bmc
+"${BIN_DIR}/bmc" &
 SERVER_PID=$!
-trap 'kill "${SERVER_PID}" 2>/dev/null || true' EXIT
+trap 'kill "${SERVER_PID}" 2>/dev/null || true; rm -rf "${BIN_DIR}"' EXIT
 
 # Wait for the service root to respond.
 for _ in $(seq 1 30); do
