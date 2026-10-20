@@ -132,14 +132,15 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 
 	fmt.Fprintf(b, "// Register%s wires the %s resource into mux. It links into a binary\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "// only when referenced, so unused resources are removed by the linker.\n")
-	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
+	writeURIsDoc(b, r.GoName, r.URIs)
+	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider%s) {\n", r.GoName, r.GoName, registerArgs(r.URIs))
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 	fmt.Fprintf(b, "\t\tres, err := p.Get%s(r.Context()%s)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif res == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif res.ODataID == \"\" {\n\t\t\tres.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, res)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "h")
+	writeRoutes(b, "GET", r.URIs, "", "h")
 	if patchable {
 		writePatchHandler(b, r, hasParams)
 	}
@@ -216,7 +217,8 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 		fmt.Fprintf(b, "}\n\n")
 
 		fmt.Fprintf(b, "// Register%s wires a POST handler for the %s action into mux.\n", method, a.WireName)
-		fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", method, method)
+		writeURIsDoc(b, r.GoName, r.URIs)
+		fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider%s) {\n", method, method, registerArgs(r.URIs))
 		fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 		fmt.Fprintf(b, "\t\tvar params %s\n", paramsType)
 		if len(a.Params) > 0 {
@@ -228,7 +230,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 		fmt.Fprintf(b, "\t\tres, err := p.%s(r.Context()%s, &params)\n", method, callArgs(hasParams))
 		fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 		fmt.Fprintf(b, "\t\tserver.WriteActionResult(w, res)\n\t}\n")
-		writeRoutes(b, "POST", actionURIs(r.URIs, a.Segment), "h")
+		writeRoutes(b, "POST", r.URIs, a.Segment, "h")
 		fmt.Fprintf(b, "}\n\n")
 	}
 }
@@ -314,7 +316,7 @@ func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
 	fmt.Fprintf(b, "\t\tif updated == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif updated.ODataID == \"\" {\n\t\t\tupdated.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, updated)\n\t}\n")
-	writeRoutes(b, "PATCH", r.URIs, "ph")
+	writeRoutes(b, "PATCH", r.URIs, "", "ph")
 }
 
 func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
@@ -338,7 +340,8 @@ func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
 	fmt.Fprintf(b, "}\n\n")
 
 	fmt.Fprintf(b, "// Register%s wires the %s collection into mux.\n", r.GoName, r.GoName)
-	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
+	writeURIsDoc(b, r.GoName, r.URIs)
+	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider%s) {\n", r.GoName, r.GoName, registerArgs(r.URIs))
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 	fmt.Fprintf(b, "\t\tids, err := p.List%s(r.Context()%s)\n", r.MemberGoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
@@ -350,7 +353,7 @@ func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
 	fmt.Fprintf(b, "\t\t\tMembers:      ids,\n")
 	fmt.Fprintf(b, "\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, c)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "h")
+	writeRoutes(b, "GET", r.URIs, "", "h")
 	fmt.Fprintf(b, "}\n\n")
 }
 
@@ -368,7 +371,8 @@ func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "}\n\n")
 
 	fmt.Fprintf(b, "// Register%s wires the %s collection into mux.\n", r.GoName, r.GoName)
-	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
+	writeURIsDoc(b, r.GoName, r.URIs)
+	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider%s) {\n", r.GoName, r.GoName, registerArgs(r.URIs))
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 	fmt.Fprintf(b, "\t\tmembers, err := p.List%s(r.Context()%s)\n", r.MemberGoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
@@ -382,7 +386,7 @@ func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "\t\t\tExpanded:     items,\n")
 	fmt.Fprintf(b, "\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, c)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "h")
+	writeRoutes(b, "GET", r.URIs, "", "h")
 	fmt.Fprintf(b, "}\n\n")
 }
 
@@ -668,9 +672,12 @@ func wildcards(uri string) []string {
 
 // needsParams reports whether a resource's provider receives a server.Params:
 // when any URI carries a path parameter, or when the resource is served under
-// several distinct URIs (ignoring trailing-slash variants) so the provider can
-// tell which one was requested.
+// several distinct URIs (ignoring trailing-slash variants), or at URIs supplied
+// at registration, so the provider can tell which one was requested.
 func needsParams(uris []string) bool {
+	if len(uris) == 0 {
+		return true
+	}
 	distinct := map[string]bool{}
 	for _, u := range uris {
 		if len(wildcards(u)) > 0 {
@@ -702,10 +709,41 @@ func callArgs(hasParams bool) string {
 	return ""
 }
 
-// writeRoutes registers handler hVar for method on each URI via server.Handle.
-func writeRoutes(b *bytes.Buffer, method string, uris []string, hVar string) {
+// writeRoutes registers handler hVar for method on each URI via server.Handle,
+// or on each action target when segment names an action. Resources whose schema
+// defines no URIs are registered at the URIs passed to their Register function.
+func writeRoutes(b *bytes.Buffer, method string, uris []string, segment, hVar string) {
+	if len(uris) == 0 {
+		target := "uri"
+		if segment != "" {
+			target = fmt.Sprintf("uri+%q", "/Actions/"+segment)
+		}
+		fmt.Fprintf(b, "\tfor _, uri := range uris {\n\t\tserver.Handle(mux, %q, %s, %s)\n\t}\n", method, target, hVar)
+		return
+	}
+	if segment != "" {
+		uris = actionURIs(uris, segment)
+	}
 	for _, uri := range uris {
 		fmt.Fprintf(b, "\tserver.Handle(mux, %q, %q, %s)\n", method, uri, hVar)
+	}
+}
+
+// registerArgs renders the extra Register parameter of a resource whose schema
+// defines no URIs.
+func registerArgs(uris []string) string {
+	if len(uris) == 0 {
+		return ", uris ...string"
+	}
+	return ""
+}
+
+// writeURIsDoc documents the uris parameter of a resource whose schema defines
+// no URIs.
+func writeURIsDoc(b *bytes.Buffer, name string, uris []string) {
+	if len(uris) == 0 {
+		fmt.Fprintf(b, "//\n// The schema defines no URIs for %s; it is served at each of uris,\n", name)
+		fmt.Fprintf(b, "// which must not end in a slash.\n")
 	}
 }
 
