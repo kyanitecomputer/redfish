@@ -3879,7 +3879,7 @@ type ServiceRootProvider interface {
 // RegisterServiceRoot wires the ServiceRoot resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
 func RegisterServiceRoot(mux *http.ServeMux, p ServiceRootProvider) {
-	h := func(w http.ResponseWriter, r *http.Request) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetServiceRoot(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -3890,12 +3890,12 @@ func RegisterServiceRoot(mux *http.ServeMux, p ServiceRootProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = "/redfish/v1"
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1", h)
-	mux.HandleFunc("GET /redfish/v1/{$}", h)
+	server.Handle(mux, "GET", "/redfish/v1", h)
+	server.Handle(mux, "GET", "/redfish/v1/", h)
 }
 
 // SessionService: The `SessionService` schema describes the session service and its properties, with links to the actual list of sessions.
@@ -4018,7 +4018,7 @@ type SessionServiceProvider interface {
 // RegisterSessionService wires the SessionService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
 func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
-	h := func(w http.ResponseWriter, r *http.Request) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetSessionService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -4029,12 +4029,12 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = "/redfish/v1/SessionService"
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/SessionService", h)
-	ph := func(w http.ResponseWriter, r *http.Request) {
+	server.Handle(mux, "GET", "/redfish/v1/SessionService", h)
+	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetSessionService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -4045,7 +4045,7 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = "/redfish/v1/SessionService"
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -4071,11 +4071,11 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = "/redfish/v1/SessionService"
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/SessionService", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/SessionService", ph)
 }
 
 // SessionCollectionProvider lists the members of the SessionCollection collection by @odata.id.
@@ -4085,7 +4085,7 @@ type SessionCollectionProvider interface {
 
 // RegisterSessionCollection wires the SessionCollection collection into mux.
 func RegisterSessionCollection(mux *http.ServeMux, p SessionCollectionProvider) {
-	h := func(w http.ResponseWriter, r *http.Request) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListSession(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -4093,14 +4093,14 @@ func RegisterSessionCollection(mux *http.ServeMux, p SessionCollectionProvider) 
 		}
 		c := odata.Collection{
 			ODataType:    "#SessionCollection.SessionCollection",
-			ODataID:      "/redfish/v1/SessionService/Sessions",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("SessionCollection.SessionCollection"),
 			Name:         "Session Collection",
 			Members:      ids,
 		}
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/SessionService/Sessions", h)
+	server.Handle(mux, "GET", "/redfish/v1/SessionService/Sessions", h)
 }
 
 // ChassisCollectionProvider lists the members of the ChassisCollection collection by @odata.id.
@@ -4110,7 +4110,7 @@ type ChassisCollectionProvider interface {
 
 // RegisterChassisCollection wires the ChassisCollection collection into mux.
 func RegisterChassisCollection(mux *http.ServeMux, p ChassisCollectionProvider) {
-	h := func(w http.ResponseWriter, r *http.Request) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListChassis(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -4118,14 +4118,14 @@ func RegisterChassisCollection(mux *http.ServeMux, p ChassisCollectionProvider) 
 		}
 		c := odata.Collection{
 			ODataType:    "#ChassisCollection.ChassisCollection",
-			ODataID:      "/redfish/v1/Chassis",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("ChassisCollection.ChassisCollection"),
 			Name:         "Chassis Collection",
 			Members:      ids,
 		}
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Chassis", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis", h)
 }
 
 // Chassis: The `Chassis` schema represents the physical components of a system.
@@ -4464,13 +4464,11 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetChassis(r.Context(), prm)
 		if err != nil {
@@ -4482,7 +4480,7 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -4508,13 +4506,11 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Chassis/{ChassisId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}", ph)
 }
 
 // ChassisResetParameters holds the input parameters of the #Chassis.Reset action.
@@ -4590,9 +4586,7 @@ func RegisterResetChassis(mux *http.ServeMux, p ResetChassisProvider) {
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/Actions/Chassis.Reset", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Actions/Chassis.Reset", h)
 }
 
 // ComputerSystemCollectionProvider lists the members of the ComputerSystemCollection collection by @odata.id.
@@ -4602,7 +4596,7 @@ type ComputerSystemCollectionProvider interface {
 
 // RegisterComputerSystemCollection wires the ComputerSystemCollection collection into mux.
 func RegisterComputerSystemCollection(mux *http.ServeMux, p ComputerSystemCollectionProvider) {
-	h := func(w http.ResponseWriter, r *http.Request) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListComputerSystem(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -4610,14 +4604,14 @@ func RegisterComputerSystemCollection(mux *http.ServeMux, p ComputerSystemCollec
 		}
 		c := odata.Collection{
 			ODataType:    "#ComputerSystemCollection.ComputerSystemCollection",
-			ODataID:      "/redfish/v1/Systems",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("ComputerSystemCollection.ComputerSystemCollection"),
 			Name:         "Computer System Collection",
 			Members:      ids,
 		}
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Systems", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems", h)
 }
 
 // ComputerSystem: The `ComputerSystem` schema represents a computer or system instance and the software-visible resources, or items within the data plane, such as memory, CPU, and other devices that it can access.
@@ -4979,19 +4973,13 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetComputerSystem(r.Context(), prm)
 		if err != nil {
@@ -5003,7 +4991,7 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -5029,19 +5017,13 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Systems/{ComputerSystemId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", ph)
 }
 
 // ComputerSystemAddResourceBlockParameters holds the input parameters of the #ComputerSystem.AddResourceBlock action.
@@ -5123,15 +5105,9 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
 }
 
 // ComputerSystemDecommissionParameters holds the input parameters of the #ComputerSystem.Decommission action.
@@ -5213,15 +5189,9 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
 }
 
 // ComputerSystemExportConfigurationParameters holds the input parameters of the #ComputerSystem.ExportConfiguration action.
@@ -5312,15 +5282,9 @@ func RegisterExportConfigurationComputerSystem(mux *http.ServeMux, p ExportConfi
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
 }
 
 // ComputerSystemRemoveResourceBlockParameters holds the input parameters of the #ComputerSystem.RemoveResourceBlock action.
@@ -5402,15 +5366,9 @@ func RegisterRemoveResourceBlockComputerSystem(mux *http.ServeMux, p RemoveResou
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
 }
 
 // ComputerSystemResetParameters holds the input parameters of the #ComputerSystem.Reset action.
@@ -5486,15 +5444,9 @@ func RegisterResetComputerSystem(mux *http.ServeMux, p ResetComputerSystemProvid
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
 }
 
 // ComputerSystemSetDefaultBootOrderParameters holds the input parameters of the #ComputerSystem.SetDefaultBootOrder action (none defined).
@@ -5515,15 +5467,9 @@ func RegisterSetDefaultBootOrderComputerSystem(mux *http.ServeMux, p SetDefaultB
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
 }
 
 // ManagerCollectionProvider lists the members of the ManagerCollection collection by @odata.id.
@@ -5533,7 +5479,7 @@ type ManagerCollectionProvider interface {
 
 // RegisterManagerCollection wires the ManagerCollection collection into mux.
 func RegisterManagerCollection(mux *http.ServeMux, p ManagerCollectionProvider) {
-	h := func(w http.ResponseWriter, r *http.Request) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListManager(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -5541,14 +5487,14 @@ func RegisterManagerCollection(mux *http.ServeMux, p ManagerCollectionProvider) 
 		}
 		c := odata.Collection{
 			ODataType:    "#ManagerCollection.ManagerCollection",
-			ODataID:      "/redfish/v1/Managers",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("ManagerCollection.ManagerCollection"),
 			Name:         "Manager Collection",
 			Members:      ids,
 		}
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers", h)
 }
 
 // Manager: In Redfish, a manager is a systems management entity that can implement or provide access to a Redfish service.
@@ -5846,13 +5792,11 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetManager(r.Context(), prm)
 		if err != nil {
@@ -5864,7 +5808,7 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -5890,13 +5834,11 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Managers/{ManagerId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}", ph)
 }
 
 // ManagerForceFailoverParameters holds the input parameters of the #Manager.ForceFailover action (none defined).
@@ -5917,9 +5859,7 @@ func RegisterForceFailoverManager(mux *http.ServeMux, p ForceFailoverManagerProv
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/Actions/Manager.ForceFailover", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ForceFailover", h)
 }
 
 // ManagerModifyRedundancySetParameters holds the input parameters of the #Manager.ModifyRedundancySet action (none defined).
@@ -5940,9 +5880,7 @@ func RegisterModifyRedundancySetManager(mux *http.ServeMux, p ModifyRedundancySe
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/Actions/Manager.ModifyRedundancySet", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ModifyRedundancySet", h)
 }
 
 // ManagerResetParameters holds the input parameters of the #Manager.Reset action.
@@ -6018,9 +5956,7 @@ func RegisterResetManager(mux *http.ServeMux, p ResetManagerProvider) {
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/Actions/Manager.Reset", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.Reset", h)
 }
 
 // ManagerResetToDefaultsParameters holds the input parameters of the #Manager.ResetToDefaults action.
@@ -6096,9 +6032,7 @@ func RegisterResetToDefaultsManager(mux *http.ServeMux, p ResetToDefaultsManager
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/Actions/Manager.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ResetToDefaults", h)
 }
 
 // ManagerUpdateSecurityModeParameters holds the input parameters of the #Manager.UpdateSecurityMode action.
@@ -6181,9 +6115,7 @@ func RegisterUpdateSecurityModeManager(mux *http.ServeMux, p UpdateSecurityModeM
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/Actions/Manager.UpdateSecurityMode", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.UpdateSecurityMode", h)
 }
 
 // ManagerNetworkProtocol: The network service settings for the manager.
@@ -6371,13 +6303,11 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/NetworkProtocol", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetManagerNetworkProtocol(r.Context(), prm)
 		if err != nil {
@@ -6389,7 +6319,7 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -6415,13 +6345,11 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Managers/{ManagerId}/NetworkProtocol", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", ph)
 }
 
 // AccountService: The `AccountService` schema defines an account service.
@@ -6686,16 +6614,12 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/AccountService", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/RemoteAccountService", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/AccountService", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetAccountService(r.Context(), prm)
 		if err != nil {
@@ -6707,7 +6631,7 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -6733,16 +6657,12 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/AccountService", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Managers/{ManagerId}/RemoteAccountService", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/AccountService", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", ph)
 }
 
 // ManagerAccountCollectionProvider lists the members of the ManagerAccountCollection collection by @odata.id.
@@ -6760,19 +6680,15 @@ func RegisterManagerAccountCollection(mux *http.ServeMux, p ManagerAccountCollec
 		}
 		c := odata.Collection{
 			ODataType:    "#ManagerAccountCollection.ManagerAccountCollection",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("ManagerAccountCollection.ManagerAccountCollection"),
 			Name:         "Manager Account Collection",
 			Members:      ids,
 		}
-		c.ODataID = r.URL.Path
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/AccountService/Accounts", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/AccountService/Accounts", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts", h)
 }
 
 // ManagerAccount: The `ManagerAccount` schema defines the user accounts that are owned by a manager.
@@ -6991,16 +6907,12 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/AccountService/Accounts/{ManagerAccountId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetManagerAccount(r.Context(), prm)
 		if err != nil {
@@ -7012,7 +6924,7 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -7038,16 +6950,12 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/AccountService/Accounts/{ManagerAccountId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", ph)
 }
 
 // ManagerAccountChangePasswordParameters holds the input parameters of the #ManagerAccount.ChangePassword action.
@@ -7129,12 +7037,8 @@ func RegisterChangePasswordManagerAccount(mux *http.ServeMux, p ChangePasswordMa
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
 }
 
 // ManagerAccountClearSecretKeyParameters holds the input parameters of the #ManagerAccount.ClearSecretKey action (none defined).
@@ -7155,12 +7059,8 @@ func RegisterClearSecretKeyManagerAccount(mux *http.ServeMux, p ClearSecretKeyMa
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
 }
 
 // ManagerAccountGenerateSecretKeyParameters holds the input parameters of the #ManagerAccount.GenerateSecretKey action (none defined).
@@ -7181,12 +7081,8 @@ func RegisterGenerateSecretKeyManagerAccount(mux *http.ServeMux, p GenerateSecre
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
 }
 
 // ManagerAccountVerifyTimeBasedOneTimePasswordParameters holds the input parameters of the #ManagerAccount.VerifyTimeBasedOneTimePassword action.
@@ -7261,12 +7157,8 @@ func RegisterVerifyTimeBasedOneTimePasswordManagerAccount(mux *http.ServeMux, p 
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "ManagerAccountId": r.PathValue("ManagerAccountId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
 }
 
 // ThermalSubsystem: The `ThermalSubsystem` schema contains the definition for the thermal subsystem of a chassis.
@@ -7413,13 +7305,11 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetThermalSubsystem(r.Context(), prm)
 		if err != nil {
@@ -7431,7 +7321,7 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -7457,13 +7347,11 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", ph)
 }
 
 // PowerSubsystem: This `PowerSubsystem schema` contains the definition for the power subsystem of a chassis.
@@ -7539,13 +7427,11 @@ func RegisterPowerSubsystem(mux *http.ServeMux, p PowerSubsystemProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/PowerSubsystem", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PowerSubsystem", h)
 }
 
 // SensorCollectionProvider lists the members of the SensorCollection collection by @odata.id.
@@ -7563,31 +7449,19 @@ func RegisterSensorCollection(mux *http.ServeMux, p SensorCollectionProvider) {
 		}
 		c := odata.Collection{
 			ODataType:    "#SensorCollection.SensorCollection",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("SensorCollection.SensorCollection"),
 			Name:         "Sensor Collection",
 			Members:      ids,
 		}
-		c.ODataID = r.URL.Path
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/Sensors", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/PowerEquipment/RackPDUs/{PowerDistributionId}/Sensors", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"PowerDistributionId": r.PathValue("PowerDistributionId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/PowerEquipment/FloorPDUs/{PowerDistributionId}/Sensors", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"PowerDistributionId": r.PathValue("PowerDistributionId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Sensors", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"PowerDistributionId": r.PathValue("PowerDistributionId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/PowerEquipment/TransferSwitches/{PowerDistributionId}/Sensors", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"PowerDistributionId": r.PathValue("PowerDistributionId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/PowerEquipment/PowerShelves/{PowerDistributionId}/Sensors", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"PowerDistributionId": r.PathValue("PowerDistributionId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Sensors", h)
+	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/RackPDUs/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/FloorPDUs/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/TransferSwitches/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/PowerShelves/{PowerDistributionId}/Sensors", h)
 }
 
 // ControlCollectionProvider lists the members of the ControlCollection collection by @odata.id.
@@ -7605,16 +7479,14 @@ func RegisterControlCollection(mux *http.ServeMux, p ControlCollectionProvider) 
 		}
 		c := odata.Collection{
 			ODataType:    "#ControlCollection.ControlCollection",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("ControlCollection.ControlCollection"),
 			Name:         "Control Collection",
 			Members:      ids,
 		}
-		c.ODataID = r.URL.Path
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/Controls", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Controls", h)
 }
 
 // EnvironmentMetrics: The `EnvironmentMetrics` schema represents the environmental metrics of a device.
@@ -7720,223 +7592,81 @@ func RegisterEnvironmentMetrics(mux *http.ServeMux, p EnvironmentMetricsProvider
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MediaControllerId": r.PathValue("MediaControllerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FacilityId": r.PathValue("FacilityId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Facilities/{FacilityId}/AmbientMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FacilityId": r.PathValue("FacilityId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FabricId": r.PathValue("FabricId"), "SwitchId": r.PathValue("SwitchId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FabricId": r.PathValue("FabricId"), "SwitchId": r.PathValue("SwitchId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MediaControllerId": r.PathValue("MediaControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics", h)
+	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics", h)
 }
 
 // EnvironmentMetricsResetMetricsParameters holds the input parameters of the #EnvironmentMetrics.ResetMetrics action (none defined).
@@ -7957,219 +7687,77 @@ func RegisterResetMetricsEnvironmentMetrics(mux *http.ServeMux, p ResetMetricsEn
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MediaControllerId": r.PathValue("MediaControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FacilityId": r.PathValue("FacilityId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FacilityId": r.PathValue("FacilityId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FabricId": r.PathValue("FabricId"), "SwitchId": r.PathValue("SwitchId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FabricId": r.PathValue("FabricId"), "SwitchId": r.PathValue("SwitchId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MediaControllerId": r.PathValue("MediaControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
 }
 
 // EnvironmentMetricsResetToDefaultsParameters holds the input parameters of the #EnvironmentMetrics.ResetToDefaults action (none defined).
@@ -8190,219 +7778,77 @@ func RegisterResetToDefaultsEnvironmentMetrics(mux *http.ServeMux, p ResetToDefa
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "DriveId": r.PathValue("DriveId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MediaControllerId": r.PathValue("MediaControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FacilityId": r.PathValue("FacilityId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FacilityId": r.PathValue("FacilityId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FabricId": r.PathValue("FabricId"), "SwitchId": r.PathValue("SwitchId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"FabricId": r.PathValue("FabricId"), "SwitchId": r.PathValue("SwitchId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "MediaControllerId": r.PathValue("MediaControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "FabricAdapterId": r.PathValue("FabricAdapterId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "GraphicsControllerId": r.PathValue("GraphicsControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "USBControllerId": r.PathValue("USBControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "ProcessorId": r.PathValue("ProcessorId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"StorageId": r.PathValue("StorageId"), "StorageControllerId": r.PathValue("StorageControllerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "PortId": r.PathValue("PortId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"CoolingUnitId": r.PathValue("CoolingUnitId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
 }
 
 // EthernetInterfaceCollectionProvider lists the members of the EthernetInterfaceCollection collection by @odata.id.
@@ -8420,40 +7866,22 @@ func RegisterEthernetInterfaceCollection(mux *http.ServeMux, p EthernetInterface
 		}
 		c := odata.Collection{
 			ODataType:    "#EthernetInterfaceCollection.EthernetInterfaceCollection",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("EthernetInterfaceCollection.EthernetInterfaceCollection"),
 			Name:         "Ethernet Interface Collection",
 			Members:      ids,
 		}
-		c.ODataID = r.URL.Path
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/HostInterfaces/{HostInterfaceId}/HostEthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "HostInterfaceId": r.PathValue("HostInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId"), "NetworkDeviceFunctionId": r.PathValue("NetworkDeviceFunctionId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/HostInterfaces/{HostInterfaceId}/HostEthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces", h)
 }
 
 // EthernetInterface: The `EthernetInterface` schema represents a single, logical Ethernet interface or network interface controller (NIC).
@@ -8728,40 +8156,20 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId"), "NetworkDeviceFunctionId": r.PathValue("NetworkDeviceFunctionId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetEthernetInterface(r.Context(), prm)
 		if err != nil {
@@ -8773,7 +8181,7 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -8799,40 +8207,20 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "NetworkAdapterId": r.PathValue("NetworkAdapterId"), "NetworkDeviceFunctionId": r.PathValue("NetworkDeviceFunctionId"), "EthernetInterfaceId": r.PathValue("EthernetInterfaceId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
 }
 
 // LogServiceCollectionProvider lists the members of the LogServiceCollection collection by @odata.id.
@@ -8850,28 +8238,18 @@ func RegisterLogServiceCollection(mux *http.ServeMux, p LogServiceCollectionProv
 		}
 		c := odata.Collection{
 			ODataType:    "#LogServiceCollection.LogServiceCollection",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("LogServiceCollection.LogServiceCollection"),
 			Name:         "Log Service Collection",
 			Members:      ids,
 		}
-		c.ODataID = r.URL.Path
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/LogServices", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/LogServices", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/LogServices", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices", h)
 }
 
 // LogService: The `LogService` schema contains properties for monitoring and configuring a log service.
@@ -9045,37 +8423,19 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/JobService/Log", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("GET /redfish/v1/TelemetryService/LogService", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/JobService/Log", h)
+	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetLogService(r.Context(), prm)
 		if err != nil {
@@ -9087,7 +8447,7 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -9113,37 +8473,19 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/JobService/Log", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/TelemetryService/LogService", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/JobService/Log", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/TelemetryService/LogService", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", ph)
 }
 
 // LogServiceClearLogParameters holds the input parameters of the #LogService.ClearLog action.
@@ -9218,33 +8560,15 @@ func RegisterClearLogLogService(mux *http.ServeMux, p ClearLogLogServiceProvider
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/JobService/Log/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/TelemetryService/LogService/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.ClearLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.ClearLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.ClearLog", h)
 }
 
 // LogServiceCollectDiagnosticDataParameters holds the input parameters of the #LogService.CollectDiagnosticData action.
@@ -9356,33 +8680,15 @@ func RegisterCollectDiagnosticDataLogService(mux *http.ServeMux, p CollectDiagno
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/JobService/Log/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/TelemetryService/LogService/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.CollectDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.CollectDiagnosticData", h)
 }
 
 // LogServiceDownloadRawLogParameters holds the input parameters of the #LogService.DownloadRawLog action (none defined).
@@ -9403,33 +8709,15 @@ func RegisterDownloadRawLogLogService(mux *http.ServeMux, p DownloadRawLogLogSer
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/JobService/Log/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/TelemetryService/LogService/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.DownloadRawLog", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.DownloadRawLog", h)
 }
 
 // LogServicePushDiagnosticDataParameters holds the input parameters of the #LogService.PushDiagnosticData action.
@@ -9533,33 +8821,15 @@ func RegisterPushDiagnosticDataLogService(mux *http.ServeMux, p PushDiagnosticDa
 		}
 		server.NoContent(w)
 	}
-	mux.HandleFunc("POST /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/JobService/Log/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/TelemetryService/LogService/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("POST /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("POST /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.PushDiagnosticData", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId")})
-	})
+	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.PushDiagnosticData", h)
 }
 
 // LogEntryCollectionProvider returns the inlined members of the LogEntryCollection collection
@@ -9583,40 +8853,22 @@ func RegisterLogEntryCollection(mux *http.ServeMux, p LogEntryCollectionProvider
 		}
 		c := odata.Collection{
 			ODataType:    "#LogEntryCollection.LogEntryCollection",
+			ODataID:      prm.Path(),
 			ODataContext: odata.Context("LogEntryCollection.LogEntryCollection"),
 			Name:         "Log Entry Collection",
 			Expanded:     items,
 		}
-		c.ODataID = r.URL.Path
 		server.WriteResource(w, c)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/JobService/Log/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("GET /redfish/v1/TelemetryService/LogService/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/JobService/Log/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries", h)
 }
 
 // LogEntry: The `LogEntry` schema defines the record format for a log.
@@ -9809,37 +9061,19 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 			return
 		}
 		if res.ODataID == "" {
-			res.ODataID = r.URL.Path
+			res.ODataID = prm.Path()
 		}
 		server.WriteResource(w, res)
 	}
-	mux.HandleFunc("GET /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/JobService/Log/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("GET /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		h(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/JobService/Log/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", h)
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetLogEntry(r.Context(), prm)
 		if err != nil {
@@ -9851,7 +9085,7 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 			return
 		}
 		if cur.ODataID == "" {
-			cur.ODataID = r.URL.Path
+			cur.ODataID = prm.Path()
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
@@ -9877,37 +9111,19 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 			return
 		}
 		if updated.ODataID == "" {
-			updated.ODataID = r.URL.Path
+			updated.ODataID = prm.Path()
 		}
 		server.WriteResource(w, updated)
 	}
-	mux.HandleFunc("PATCH /redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ManagerId": r.PathValue("ManagerId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ResourceBlockId": r.PathValue("ResourceBlockId"), "ComputerSystemId": r.PathValue("ComputerSystemId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "LogServiceId": r.PathValue("LogServiceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/JobService/Log/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ComputerSystemId": r.PathValue("ComputerSystemId"), "MemoryId": r.PathValue("MemoryId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
-	mux.HandleFunc("PATCH /redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", func(w http.ResponseWriter, r *http.Request) {
-		ph(w, r, server.Params{"ChassisId": r.PathValue("ChassisId"), "PCIeDeviceId": r.PathValue("PCIeDeviceId"), "CXLLogicalDeviceId": r.PathValue("CXLLogicalDeviceId"), "LogEntryId": r.PathValue("LogEntryId")})
-	})
+	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/JobService/Log/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", ph)
 }
 
 // metadataXML is the service $metadata (EDMX) document covering the

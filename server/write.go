@@ -24,16 +24,6 @@ type Resource interface {
 	Bytes() []byte
 }
 
-// Params holds the path parameters of the matched route, keyed by their Redfish
-// URI segment name (for example "ChassisId"). Because a resource type may be
-// served under several parents with different segment names, each route
-// populates only the parameters that its own URI declares.
-type Params map[string]string
-
-// Get returns the value of the named path parameter, or "" if the matched route
-// did not declare it.
-func (p Params) Get(name string) string { return p[name] }
-
 // etag computes a strong ETag from the response body. A strong validator is
 // required for Redfish If-Match concurrency control; the FNV hash is exact for
 // identical bodies and avoids pulling in a cryptographic hash.

@@ -111,8 +111,7 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 	writeFieldEmits(b, r.Fields)
 	fmt.Fprintf(b, "\treturn b.Bytes()\n}\n\n")
 
-	canonical := canonicalURI(r.URIs)
-	hasParams := anyWildcards(r.URIs)
+	hasParams := needsParams(r.URIs)
 	writable := r.WritableFields()
 	patchable := r.Patchable && len(writable) > 0
 
@@ -120,8 +119,8 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 		writePatchType(b, r, writable)
 	}
 
-	// Provider interface. Parameterized resources receive a server.Params so the
-	// provider can read whichever path segments the matched route supplied.
+	// Provider interface. Resources with path parameters or several URIs receive
+	// a server.Params so the provider can tell which route was matched.
 	fmt.Fprintf(b, "// %sProvider supplies the %s resource.\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "type %sProvider interface {\n", r.GoName)
 	fmt.Fprintf(b, "\tGet%s(ctx context.Context%s) (*%s, error)\n", r.GoName, providerArgs(hasParams), r.GoName)
@@ -134,29 +133,17 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "// Register%s wires the %s resource into mux. It links into a binary\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "// only when referenced, so unused resources are removed by the linker.\n")
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
-	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
+	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 	fmt.Fprintf(b, "\t\tres, err := p.Get%s(r.Context()%s)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif res == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
-	if hasParams {
-		fmt.Fprintf(b, "\t\tif res.ODataID == \"\" {\n\t\t\tres.ODataID = r.URL.Path\n\t\t}\n")
-	} else {
-		fmt.Fprintf(b, "\t\tif res.ODataID == \"\" {\n\t\t\tres.ODataID = %q\n\t\t}\n", canonical)
-	}
+	fmt.Fprintf(b, "\t\tif res.ODataID == \"\" {\n\t\t\tres.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, res)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "h", hasParams)
+	writeRoutes(b, "GET", r.URIs, "h")
 	if patchable {
 		writePatchHandler(b, r, hasParams)
 	}
 	fmt.Fprintf(b, "}\n\n")
-}
-
-// handlerParam renders the extra handler parameter for parameterized resources.
-func handlerParam(hasParams bool) string {
-	if hasParams {
-		return ", prm server.Params"
-	}
-	return ""
 }
 
 // writePatchType emits the sparse <R>Patch struct and its jsontext-based
@@ -210,7 +197,7 @@ func writeSparseParser(b *bytes.Buffer, typeName string, fields []Field) {
 // opt-in: a service registers only the actions it implements and advertises the
 // matching target on the resource's Actions object.
 func writeActions(b *bytes.Buffer, r *Resource) {
-	hasParams := anyWildcards(r.URIs)
+	hasParams := needsParams(r.URIs)
 	for _, a := range r.Actions {
 		paramsType := r.GoName + a.GoName + "Parameters"
 		method := a.GoName + r.GoName
@@ -230,7 +217,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 
 		fmt.Fprintf(b, "// Register%s wires a POST handler for the %s action into mux.\n", method, a.WireName)
 		fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", method, method)
-		fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
+		fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 		fmt.Fprintf(b, "\t\tvar params %s\n", paramsType)
 		if len(a.Params) > 0 {
 			fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
@@ -240,7 +227,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 		}
 		fmt.Fprintf(b, "\t\tif err := p.%s(r.Context()%s, &params); err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n", method, callArgs(hasParams))
 		fmt.Fprintf(b, "\t\tserver.NoContent(w)\n\t}\n")
-		writeRoutes(b, "POST", actionURIs(r.URIs, a.Segment), "h", hasParams)
+		writeRoutes(b, "POST", actionURIs(r.URIs, a.Segment), "h")
 		fmt.Fprintf(b, "}\n\n")
 	}
 }
@@ -296,16 +283,11 @@ func writePatchCase(b *bytes.Buffer, f Field) {
 // performs If-Match concurrency control, parses the sparse patch, delegates to
 // the provider, and writes the updated resource.
 func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
-	canonical := canonicalURI(r.URIs)
-	fmt.Fprintf(b, "\tph := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
+	fmt.Fprintf(b, "\tph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 	fmt.Fprintf(b, "\t\tcur, err := p.Get%s(r.Context()%s)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif cur == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
-	if hasParams {
-		fmt.Fprintf(b, "\t\tif cur.ODataID == \"\" {\n\t\t\tcur.ODataID = r.URL.Path\n\t\t}\n")
-	} else {
-		fmt.Fprintf(b, "\t\tif cur.ODataID == \"\" {\n\t\t\tcur.ODataID = %q\n\t\t}\n", canonical)
-	}
+	fmt.Fprintf(b, "\t\tif cur.ODataID == \"\" {\n\t\t\tcur.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif !server.CheckIfMatch(r, cur.Bytes()) {\n\t\t\tserver.PreconditionFailed(w)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tvar patch %sPatch\n", r.GoName)
@@ -314,13 +296,9 @@ func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
 	fmt.Fprintf(b, "\t\tupdated, err := p.Patch%s(r.Context()%s, &patch)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif updated == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
-	if hasParams {
-		fmt.Fprintf(b, "\t\tif updated.ODataID == \"\" {\n\t\t\tupdated.ODataID = r.URL.Path\n\t\t}\n")
-	} else {
-		fmt.Fprintf(b, "\t\tif updated.ODataID == \"\" {\n\t\t\tupdated.ODataID = %q\n\t\t}\n", canonical)
-	}
+	fmt.Fprintf(b, "\t\tif updated.ODataID == \"\" {\n\t\t\tupdated.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, updated)\n\t}\n")
-	writeRoutes(b, "PATCH", r.URIs, "ph", hasParams)
+	writeRoutes(b, "PATCH", r.URIs, "ph")
 }
 
 func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
@@ -332,8 +310,7 @@ func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
 		return
 	}
 
-	canonical := canonicalURI(r.URIs)
-	hasParams := anyWildcards(r.URIs)
+	hasParams := needsParams(r.URIs)
 	collName := spaceWords(r.MemberGoName) + " Collection"
 
 	// Nested collections (for example /redfish/v1/Chassis/{ChassisId}/Sensors)
@@ -346,31 +323,25 @@ func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
 
 	fmt.Fprintf(b, "// Register%s wires the %s collection into mux.\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
-	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
+	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 	fmt.Fprintf(b, "\t\tids, err := p.List%s(r.Context()%s)\n", r.MemberGoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tc := odata.Collection{\n")
 	fmt.Fprintf(b, "\t\t\tODataType:    %q,\n", r.ODataType)
-	if !hasParams {
-		fmt.Fprintf(b, "\t\t\tODataID:      %q,\n", canonical)
-	}
+	fmt.Fprintf(b, "\t\t\tODataID:      prm.Path(),\n")
 	fmt.Fprintf(b, "\t\t\tODataContext: odata.Context(%q),\n", r.ContextFrag)
 	fmt.Fprintf(b, "\t\t\tName:         %q,\n", collName)
 	fmt.Fprintf(b, "\t\t\tMembers:      ids,\n")
 	fmt.Fprintf(b, "\t\t}\n")
-	if hasParams {
-		fmt.Fprintf(b, "\t\tc.ODataID = r.URL.Path\n")
-	}
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, c)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "h", hasParams)
+	writeRoutes(b, "GET", r.URIs, "h")
 	fmt.Fprintf(b, "}\n\n")
 }
 
 // writeExpandedCollection emits an AutoExpand collection whose provider returns
 // fully-populated member objects that are inlined into the response.
 func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
-	canonical := canonicalURI(r.URIs)
-	hasParams := anyWildcards(r.URIs)
+	hasParams := needsParams(r.URIs)
 	collName := spaceWords(r.MemberGoName) + " Collection"
 
 	fmt.Fprintf(b, "// %sProvider returns the inlined members of the %s collection\n", r.GoName, r.GoName)
@@ -382,25 +353,20 @@ func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
 
 	fmt.Fprintf(b, "// Register%s wires the %s collection into mux.\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
-	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
+	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 	fmt.Fprintf(b, "\t\tmembers, err := p.List%s(r.Context()%s)\n", r.MemberGoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\titems := make([][]byte, len(members))\n")
 	fmt.Fprintf(b, "\t\tfor i := range members {\n\t\t\titems[i] = members[i].Bytes()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tc := odata.Collection{\n")
 	fmt.Fprintf(b, "\t\t\tODataType:    %q,\n", r.ODataType)
-	if !hasParams {
-		fmt.Fprintf(b, "\t\t\tODataID:      %q,\n", canonical)
-	}
+	fmt.Fprintf(b, "\t\t\tODataID:      prm.Path(),\n")
 	fmt.Fprintf(b, "\t\t\tODataContext: odata.Context(%q),\n", r.ContextFrag)
 	fmt.Fprintf(b, "\t\t\tName:         %q,\n", collName)
 	fmt.Fprintf(b, "\t\t\tExpanded:     items,\n")
 	fmt.Fprintf(b, "\t\t}\n")
-	if hasParams {
-		fmt.Fprintf(b, "\t\tc.ODataID = r.URL.Path\n")
-	}
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, c)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "h", hasParams)
+	writeRoutes(b, "GET", r.URIs, "h")
 	fmt.Fprintf(b, "}\n\n")
 }
 
@@ -621,17 +587,22 @@ func wildcards(uri string) []string {
 	return names
 }
 
-// anyWildcards reports whether any of the resource's URIs carries a path
-// parameter. Such resources receive a server.Params argument so each route can
-// supply its own parameters; this correctly handles resource types served under
-// multiple parents with differing segment names.
-func anyWildcards(uris []string) bool {
+// needsParams reports whether a resource's provider receives a server.Params:
+// when any URI carries a path parameter, or when the resource is served under
+// several distinct URIs (ignoring trailing-slash variants) so the provider can
+// tell which one was requested.
+func needsParams(uris []string) bool {
+	distinct := map[string]bool{}
 	for _, u := range uris {
 		if len(wildcards(u)) > 0 {
 			return true
 		}
+		if len(u) > 1 {
+			u = strings.TrimSuffix(u, "/")
+		}
+		distinct[u] = true
 	}
-	return false
+	return len(distinct) > 1
 }
 
 // providerArgs renders the path-parameter portion of a provider method
@@ -652,45 +623,11 @@ func callArgs(hasParams bool) string {
 	return ""
 }
 
-// paramsLiteral renders a server.Params literal populated from a URI's
-// wildcards, e.g. `server.Params{"ChassisId": r.PathValue("ChassisId")}`.
-func paramsLiteral(uri string) string {
-	wc := wildcards(uri)
-	var b strings.Builder
-	b.WriteString("server.Params{")
-	for i, name := range wc {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		fmt.Fprintf(&b, "%q: r.PathValue(%q)", name, name)
-	}
-	b.WriteString("}")
-	return b.String()
-}
-
-// writeRoutes registers each URI for method against the handler hVar. When the
-// resource is parameterized, hVar takes (w, r, server.Params) and each route
-// supplies its own parameters; otherwise hVar takes (w, r).
-func writeRoutes(b *bytes.Buffer, method string, uris []string, hVar string, hasParams bool) {
+// writeRoutes registers handler hVar for method on each URI via server.Handle.
+func writeRoutes(b *bytes.Buffer, method string, uris []string, hVar string) {
 	for _, uri := range uris {
-		route := method + " " + pattern(uri)
-		if !hasParams {
-			fmt.Fprintf(b, "\tmux.HandleFunc(%q, %s)\n", route, hVar)
-			continue
-		}
-		fmt.Fprintf(b, "\tmux.HandleFunc(%q, func(w http.ResponseWriter, r *http.Request) {\n", route)
-		fmt.Fprintf(b, "\t\t%s(w, r, %s)\n\t})\n", hVar, paramsLiteral(uri))
+		fmt.Fprintf(b, "\tserver.Handle(mux, %q, %q, %s)\n", method, uri, hVar)
 	}
-}
-
-// pattern converts a Redfish URI into a net/http ServeMux pattern, anchoring
-// trailing-slash variants with {$} so they match exactly rather than as a
-// subtree.
-func pattern(uri string) string {
-	if len(uri) > 1 && strings.HasSuffix(uri, "/") {
-		return uri + "{$}"
-	}
-	return uri
 }
 
 func oneLine(s string) string {
