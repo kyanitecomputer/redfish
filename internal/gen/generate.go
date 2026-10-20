@@ -136,7 +136,7 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
 	fmt.Fprintf(b, "\t\tres, err := p.Get%s(r.Context()%s)\n", r.GoName, callArgs(hasParams))
-	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif res == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	if hasParams {
 		fmt.Fprintf(b, "\t\tif res.ODataID == \"\" {\n\t\t\tres.ODataID = r.URL.Path\n\t\t}\n")
@@ -238,7 +238,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 			fmt.Fprintf(b, "\t\t\tif err := params.UnmarshalJSON(body); err != nil {\n")
 			fmt.Fprintf(b, "\t\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\t\treturn\n\t\t\t}\n\t\t}\n")
 		}
-		fmt.Fprintf(b, "\t\tif err := p.%s(r.Context()%s, &params); err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n", method, callArgs(hasParams))
+		fmt.Fprintf(b, "\t\tif err := p.%s(r.Context()%s, &params); err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n", method, callArgs(hasParams))
 		fmt.Fprintf(b, "\t\tserver.NoContent(w)\n\t}\n")
 		writeRoutes(b, "POST", actionURIs(r.URIs, a.Segment), "h", hasParams)
 		fmt.Fprintf(b, "}\n\n")
@@ -299,7 +299,7 @@ func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
 	canonical := canonicalURI(r.URIs)
 	fmt.Fprintf(b, "\tph := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
 	fmt.Fprintf(b, "\t\tcur, err := p.Get%s(r.Context()%s)\n", r.GoName, callArgs(hasParams))
-	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif cur == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	if hasParams {
 		fmt.Fprintf(b, "\t\tif cur.ODataID == \"\" {\n\t\t\tcur.ODataID = r.URL.Path\n\t\t}\n")
@@ -312,7 +312,7 @@ func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
 	fmt.Fprintf(b, "\t\tif err := patch.UnmarshalJSON(body); err != nil {\n")
 	fmt.Fprintf(b, "\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tupdated, err := p.Patch%s(r.Context()%s, &patch)\n", r.GoName, callArgs(hasParams))
-	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif updated == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	if hasParams {
 		fmt.Fprintf(b, "\t\tif updated.ODataID == \"\" {\n\t\t\tupdated.ODataID = r.URL.Path\n\t\t}\n")
@@ -348,7 +348,7 @@ func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
 	fmt.Fprintf(b, "\t\tids, err := p.List%s(r.Context()%s)\n", r.MemberGoName, callArgs(hasParams))
-	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tc := odata.Collection{\n")
 	fmt.Fprintf(b, "\t\t\tODataType:    %q,\n", r.ODataType)
 	if !hasParams {
@@ -384,7 +384,7 @@ func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider) {\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request%s) {\n", handlerParam(hasParams))
 	fmt.Fprintf(b, "\t\tmembers, err := p.List%s(r.Context()%s)\n", r.MemberGoName, callArgs(hasParams))
-	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\titems := make([][]byte, len(members))\n")
 	fmt.Fprintf(b, "\t\tfor i := range members {\n\t\t\titems[i] = members[i].Bytes()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tc := odata.Collection{\n")

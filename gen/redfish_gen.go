@@ -3253,7 +3253,7 @@ func RegisterServiceRoot(mux *http.ServeMux, p ServiceRootProvider) {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		res, err := p.GetServiceRoot(r.Context())
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -3392,7 +3392,7 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		res, err := p.GetSessionService(r.Context())
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -3408,7 +3408,7 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request) {
 		cur, err := p.GetSessionService(r.Context())
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -3434,7 +3434,7 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 		}
 		updated, err := p.PatchSessionService(r.Context(), &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -3459,7 +3459,7 @@ func RegisterSessionCollection(mux *http.ServeMux, p SessionCollectionProvider) 
 	h := func(w http.ResponseWriter, r *http.Request) {
 		ids, err := p.ListSession(r.Context())
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -3484,7 +3484,7 @@ func RegisterChassisCollection(mux *http.ServeMux, p ChassisCollectionProvider) 
 	h := func(w http.ResponseWriter, r *http.Request) {
 		ids, err := p.ListChassis(r.Context())
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -3827,7 +3827,7 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetChassis(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -3845,7 +3845,7 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetChassis(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -3871,7 +3871,7 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 		}
 		updated, err := p.PatchChassis(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -3956,7 +3956,7 @@ func RegisterResetChassis(mux *http.ServeMux, p ResetChassisProvider) {
 			}
 		}
 		if err := p.ResetChassis(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -3976,7 +3976,7 @@ func RegisterComputerSystemCollection(mux *http.ServeMux, p ComputerSystemCollec
 	h := func(w http.ResponseWriter, r *http.Request) {
 		ids, err := p.ListComputerSystem(r.Context())
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -4342,7 +4342,7 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetComputerSystem(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -4366,7 +4366,7 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetComputerSystem(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -4392,7 +4392,7 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 		}
 		updated, err := p.PatchComputerSystem(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -4489,7 +4489,7 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 			}
 		}
 		if err := p.AddResourceBlockComputerSystem(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -4579,7 +4579,7 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 			}
 		}
 		if err := p.DecommissionComputerSystem(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -4678,7 +4678,7 @@ func RegisterExportConfigurationComputerSystem(mux *http.ServeMux, p ExportConfi
 			}
 		}
 		if err := p.ExportConfigurationComputerSystem(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -4768,7 +4768,7 @@ func RegisterRemoveResourceBlockComputerSystem(mux *http.ServeMux, p RemoveResou
 			}
 		}
 		if err := p.RemoveResourceBlockComputerSystem(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -4852,7 +4852,7 @@ func RegisterResetComputerSystem(mux *http.ServeMux, p ResetComputerSystemProvid
 			}
 		}
 		if err := p.ResetComputerSystem(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -4881,7 +4881,7 @@ func RegisterSetDefaultBootOrderComputerSystem(mux *http.ServeMux, p SetDefaultB
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ComputerSystemSetDefaultBootOrderParameters
 		if err := p.SetDefaultBootOrderComputerSystem(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -4907,7 +4907,7 @@ func RegisterManagerCollection(mux *http.ServeMux, p ManagerCollectionProvider) 
 	h := func(w http.ResponseWriter, r *http.Request) {
 		ids, err := p.ListManager(r.Context())
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -5209,7 +5209,7 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManager(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -5227,7 +5227,7 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetManager(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -5253,7 +5253,7 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 		}
 		updated, err := p.PatchManager(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -5283,7 +5283,7 @@ func RegisterForceFailoverManager(mux *http.ServeMux, p ForceFailoverManagerProv
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerForceFailoverParameters
 		if err := p.ForceFailoverManager(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -5306,7 +5306,7 @@ func RegisterModifyRedundancySetManager(mux *http.ServeMux, p ModifyRedundancySe
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerModifyRedundancySetParameters
 		if err := p.ModifyRedundancySetManager(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -5384,7 +5384,7 @@ func RegisterResetManager(mux *http.ServeMux, p ResetManagerProvider) {
 			}
 		}
 		if err := p.ResetManager(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -5462,7 +5462,7 @@ func RegisterResetToDefaultsManager(mux *http.ServeMux, p ResetToDefaultsManager
 			}
 		}
 		if err := p.ResetToDefaultsManager(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -5547,7 +5547,7 @@ func RegisterUpdateSecurityModeManager(mux *http.ServeMux, p UpdateSecurityModeM
 			}
 		}
 		if err := p.UpdateSecurityModeManager(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -5734,7 +5734,7 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManagerNetworkProtocol(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -5752,7 +5752,7 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetManagerNetworkProtocol(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -5778,7 +5778,7 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 		}
 		updated, err := p.PatchManagerNetworkProtocol(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -6049,7 +6049,7 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetAccountService(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -6070,7 +6070,7 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetAccountService(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -6096,7 +6096,7 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 		}
 		updated, err := p.PatchAccountService(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -6126,7 +6126,7 @@ func RegisterManagerAccountCollection(mux *http.ServeMux, p ManagerAccountCollec
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListManagerAccount(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -6354,7 +6354,7 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManagerAccount(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -6375,7 +6375,7 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetManagerAccount(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -6401,7 +6401,7 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 		}
 		updated, err := p.PatchManagerAccount(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -6495,7 +6495,7 @@ func RegisterChangePasswordManagerAccount(mux *http.ServeMux, p ChangePasswordMa
 			}
 		}
 		if err := p.ChangePasswordManagerAccount(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -6521,7 +6521,7 @@ func RegisterClearSecretKeyManagerAccount(mux *http.ServeMux, p ClearSecretKeyMa
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerAccountClearSecretKeyParameters
 		if err := p.ClearSecretKeyManagerAccount(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -6547,7 +6547,7 @@ func RegisterGenerateSecretKeyManagerAccount(mux *http.ServeMux, p GenerateSecre
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params ManagerAccountGenerateSecretKeyParameters
 		if err := p.GenerateSecretKeyManagerAccount(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -6627,7 +6627,7 @@ func RegisterVerifyTimeBasedOneTimePasswordManagerAccount(mux *http.ServeMux, p 
 			}
 		}
 		if err := p.VerifyTimeBasedOneTimePasswordManagerAccount(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -6776,7 +6776,7 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetThermalSubsystem(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -6794,7 +6794,7 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetThermalSubsystem(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -6820,7 +6820,7 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 		}
 		updated, err := p.PatchThermalSubsystem(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -6902,7 +6902,7 @@ func RegisterPowerSubsystem(mux *http.ServeMux, p PowerSubsystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetPowerSubsystem(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -6929,7 +6929,7 @@ func RegisterSensorCollection(mux *http.ServeMux, p SensorCollectionProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListSensor(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -6971,7 +6971,7 @@ func RegisterControlCollection(mux *http.ServeMux, p ControlCollectionProvider) 
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListControl(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -7083,7 +7083,7 @@ func RegisterEnvironmentMetrics(mux *http.ServeMux, p EnvironmentMetricsProvider
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetEnvironmentMetrics(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -7323,7 +7323,7 @@ func RegisterResetMetricsEnvironmentMetrics(mux *http.ServeMux, p ResetMetricsEn
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params EnvironmentMetricsResetMetricsParameters
 		if err := p.ResetMetricsEnvironmentMetrics(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -7556,7 +7556,7 @@ func RegisterResetToDefaultsEnvironmentMetrics(mux *http.ServeMux, p ResetToDefa
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params EnvironmentMetricsResetToDefaultsParameters
 		if err := p.ResetToDefaultsEnvironmentMetrics(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -7786,7 +7786,7 @@ func RegisterEthernetInterfaceCollection(mux *http.ServeMux, p EthernetInterface
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListEthernetInterface(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -8091,7 +8091,7 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetEthernetInterface(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -8136,7 +8136,7 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetEthernetInterface(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -8162,7 +8162,7 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 		}
 		updated, err := p.PatchEthernetInterface(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -8216,7 +8216,7 @@ func RegisterLogServiceCollection(mux *http.ServeMux, p LogServiceCollectionProv
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		ids, err := p.ListLogService(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		c := odata.Collection{
@@ -8408,7 +8408,7 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetLogService(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -8450,7 +8450,7 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetLogService(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -8476,7 +8476,7 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 		}
 		updated, err := p.PatchLogService(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
@@ -8584,7 +8584,7 @@ func RegisterClearLogLogService(mux *http.ServeMux, p ClearLogLogServiceProvider
 			}
 		}
 		if err := p.ClearLogLogService(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -8722,7 +8722,7 @@ func RegisterCollectDiagnosticDataLogService(mux *http.ServeMux, p CollectDiagno
 			}
 		}
 		if err := p.CollectDiagnosticDataLogService(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -8769,7 +8769,7 @@ func RegisterDownloadRawLogLogService(mux *http.ServeMux, p DownloadRawLogLogSer
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		var params LogServiceDownloadRawLogParameters
 		if err := p.DownloadRawLogLogService(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -8899,7 +8899,7 @@ func RegisterPushDiagnosticDataLogService(mux *http.ServeMux, p PushDiagnosticDa
 			}
 		}
 		if err := p.PushDiagnosticDataLogService(r.Context(), prm, &params); err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		server.NoContent(w)
@@ -8945,7 +8945,7 @@ func RegisterLogEntryCollection(mux *http.ServeMux, p LogEntryCollectionProvider
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		members, err := p.ListLogEntry(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		items := make([][]byte, len(members))
@@ -9172,7 +9172,7 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetLogEntry(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if res == nil {
@@ -9214,7 +9214,7 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		cur, err := p.GetLogEntry(r.Context(), prm)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if cur == nil {
@@ -9240,7 +9240,7 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 		}
 		updated, err := p.PatchLogEntry(r.Context(), prm, &patch)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if updated == nil {
