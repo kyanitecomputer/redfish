@@ -21,7 +21,10 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
   - collections (`Members`, `Members@odata.count`), including AutoExpand collections
   - standard Redfish error bodies
 - Supports sparse `PATCH` on writable properties with `ETag`/`If-Match` checks, and bound actions such as
-  `ComputerSystem.Reset`.
+  `ComputerSystem.Reset` that complete synchronously or asynchronously as tasks.
+- Lets providers return a `server.Error` to choose the HTTP status and base message of an error response.
+- Serves the `UpdateService` with firmware and software inventory, `SimpleUpdate`, multipart HTTP push updates,
+  and `Activate` on top of a pluggable, OS-independent update backend.
 - Ships an in-memory example BMC that passes the DMTF Redfish Service Validator and the Interop Validator against the
   OCP Baseline Hardware Management profile v1.1.1.
 
@@ -31,8 +34,9 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - `$expand`, `$select`, and other query parameters are not implemented.
 - No `Allow` response header yet, so validators cannot test writable properties.
 - Only the resources listed in `gen/doc.go` are generated; other resources need to be added there and regenerated.
-- Backend errors are not yet mapped to the DSP8011 base message registry.
-- No hardware-backed provider implementations; the example uses static fixtures.
+- Only a subset of the DSP8011 base messages is used, and message registries are not served.
+- No hardware-backed provider implementations; the example uses static fixtures, and the RAUC and Intel RSU
+  update backends are stubs.
 
 ## Packages
 
@@ -42,6 +46,9 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - `odata`: hand-written JSON builder and OData payload helpers used by generated code.
 - `server`: response, ETag, and error helpers used by generated handlers.
 - `gen`: generated models, marshalers, and `Register*` functions for the baseline BMC resource set.
+- `task`: runs long-running operations as Redfish tasks and serves the TaskService and task monitors.
+- `update`: serves the UpdateService and firmware/software inventory on top of an update backend.
+- `update/rauc`, `update/rsu`: update backends for RAUC and Intel (Altera) RSU (stubs).
 - `examples/bmc`: minimal in-memory Redfish service built on `gen`.
 - `schema/csdl`: vendored CSDL from DMTF DSP8010 (version in `schema/VERSION`).
 
@@ -73,7 +80,8 @@ go run ./examples/bmc
 `third_party/` with a Python venv at `third_party/.venv`, the extracted DSP8010 schema files in `SchemaFiles/`, and the
 OCP profile at `profiles/OCPBaselineHardwareManagement.v1_1_1.json`.
 
-Design notes are in [docs/design.html](docs/design.html).
+Design notes are in [docs/design.html](docs/design.html). Implementation status is tracked in
+[ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 
