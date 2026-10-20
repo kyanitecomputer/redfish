@@ -724,6 +724,34 @@ const (
 	IPAddressesIPv6AddressOriginSLAAC     IPAddressesIPv6AddressOrigin = "SLAAC"
 )
 
+// KeyECDSACurveType is a Redfish string enumeration.
+type KeyECDSACurveType string
+
+const (
+	KeyECDSACurveTypeNISTP256 KeyECDSACurveType = "NISTP256"
+	KeyECDSACurveTypeNISTP384 KeyECDSACurveType = "NISTP384"
+	KeyECDSACurveTypeNISTP521 KeyECDSACurveType = "NISTP521"
+	KeyECDSACurveTypeNISTK163 KeyECDSACurveType = "NISTK163"
+	KeyECDSACurveTypeNISTP192 KeyECDSACurveType = "NISTP192"
+	KeyECDSACurveTypeNISTP224 KeyECDSACurveType = "NISTP224"
+	KeyECDSACurveTypeNISTK233 KeyECDSACurveType = "NISTK233"
+	KeyECDSACurveTypeNISTB233 KeyECDSACurveType = "NISTB233"
+	KeyECDSACurveTypeNISTK283 KeyECDSACurveType = "NISTK283"
+	KeyECDSACurveTypeNISTK409 KeyECDSACurveType = "NISTK409"
+	KeyECDSACurveTypeNISTB409 KeyECDSACurveType = "NISTB409"
+	KeyECDSACurveTypeNISTT571 KeyECDSACurveType = "NISTT571"
+)
+
+// KeySSHKeyType is a Redfish string enumeration.
+type KeySSHKeyType string
+
+const (
+	KeySSHKeyTypeRSA     KeySSHKeyType = "RSA"
+	KeySSHKeyTypeDSA     KeySSHKeyType = "DSA"
+	KeySSHKeyTypeECDSA   KeySSHKeyType = "ECDSA"
+	KeySSHKeyTypeEd25519 KeySSHKeyType = "Ed25519"
+)
+
 // LogEntryCXLEntryType is a Redfish string enumeration.
 type LogEntryCXLEntryType string
 
@@ -1068,6 +1096,66 @@ const (
 	ManagerSerialConnectTypesSupportedOem    ManagerSerialConnectTypesSupported = "Oem"
 )
 
+// PhysicalContextPhysicalContext is a Redfish string enumeration.
+type PhysicalContextPhysicalContext string
+
+const (
+	PhysicalContextPhysicalContextRoom                     PhysicalContextPhysicalContext = "Room"
+	PhysicalContextPhysicalContextIntake                   PhysicalContextPhysicalContext = "Intake"
+	PhysicalContextPhysicalContextExhaust                  PhysicalContextPhysicalContext = "Exhaust"
+	PhysicalContextPhysicalContextLiquidInlet              PhysicalContextPhysicalContext = "LiquidInlet"
+	PhysicalContextPhysicalContextLiquidOutlet             PhysicalContextPhysicalContext = "LiquidOutlet"
+	PhysicalContextPhysicalContextFront                    PhysicalContextPhysicalContext = "Front"
+	PhysicalContextPhysicalContextBack                     PhysicalContextPhysicalContext = "Back"
+	PhysicalContextPhysicalContextUpper                    PhysicalContextPhysicalContext = "Upper"
+	PhysicalContextPhysicalContextLower                    PhysicalContextPhysicalContext = "Lower"
+	PhysicalContextPhysicalContextCPU                      PhysicalContextPhysicalContext = "CPU"
+	PhysicalContextPhysicalContextCPUSubsystem             PhysicalContextPhysicalContext = "CPUSubsystem"
+	PhysicalContextPhysicalContextGPU                      PhysicalContextPhysicalContext = "GPU"
+	PhysicalContextPhysicalContextGPUSubsystem             PhysicalContextPhysicalContext = "GPUSubsystem"
+	PhysicalContextPhysicalContextFPGA                     PhysicalContextPhysicalContext = "FPGA"
+	PhysicalContextPhysicalContextAccelerator              PhysicalContextPhysicalContext = "Accelerator"
+	PhysicalContextPhysicalContextASIC                     PhysicalContextPhysicalContext = "ASIC"
+	PhysicalContextPhysicalContextBackplane                PhysicalContextPhysicalContext = "Backplane"
+	PhysicalContextPhysicalContextSystemBoard              PhysicalContextPhysicalContext = "SystemBoard"
+	PhysicalContextPhysicalContextPowerSupply              PhysicalContextPhysicalContext = "PowerSupply"
+	PhysicalContextPhysicalContextPowerSubsystem           PhysicalContextPhysicalContext = "PowerSubsystem"
+	PhysicalContextPhysicalContextVoltageRegulator         PhysicalContextPhysicalContext = "VoltageRegulator"
+	PhysicalContextPhysicalContextRectifier                PhysicalContextPhysicalContext = "Rectifier"
+	PhysicalContextPhysicalContextStorageDevice            PhysicalContextPhysicalContext = "StorageDevice"
+	PhysicalContextPhysicalContextStorageSubsystem         PhysicalContextPhysicalContext = "StorageSubsystem"
+	PhysicalContextPhysicalContextNetworkingDevice         PhysicalContextPhysicalContext = "NetworkingDevice"
+	PhysicalContextPhysicalContextExpansionSubsystem       PhysicalContextPhysicalContext = "ExpansionSubsystem"
+	PhysicalContextPhysicalContextComputeBay               PhysicalContextPhysicalContext = "ComputeBay"
+	PhysicalContextPhysicalContextStorageBay               PhysicalContextPhysicalContext = "StorageBay"
+	PhysicalContextPhysicalContextNetworkBay               PhysicalContextPhysicalContext = "NetworkBay"
+	PhysicalContextPhysicalContextExpansionBay             PhysicalContextPhysicalContext = "ExpansionBay"
+	PhysicalContextPhysicalContextPowerSupplyBay           PhysicalContextPhysicalContext = "PowerSupplyBay"
+	PhysicalContextPhysicalContextMemory                   PhysicalContextPhysicalContext = "Memory"
+	PhysicalContextPhysicalContextMemorySubsystem          PhysicalContextPhysicalContext = "MemorySubsystem"
+	PhysicalContextPhysicalContextChassis                  PhysicalContextPhysicalContext = "Chassis"
+	PhysicalContextPhysicalContextFan                      PhysicalContextPhysicalContext = "Fan"
+	PhysicalContextPhysicalContextCoolingSubsystem         PhysicalContextPhysicalContext = "CoolingSubsystem"
+	PhysicalContextPhysicalContextMotor                    PhysicalContextPhysicalContext = "Motor"
+	PhysicalContextPhysicalContextTransformer              PhysicalContextPhysicalContext = "Transformer"
+	PhysicalContextPhysicalContextACUtilityInput           PhysicalContextPhysicalContext = "ACUtilityInput"
+	PhysicalContextPhysicalContextACStaticBypassInput      PhysicalContextPhysicalContext = "ACStaticBypassInput"
+	PhysicalContextPhysicalContextACMaintenanceBypassInput PhysicalContextPhysicalContext = "ACMaintenanceBypassInput"
+	PhysicalContextPhysicalContextDCBus                    PhysicalContextPhysicalContext = "DCBus"
+	PhysicalContextPhysicalContextACOutput                 PhysicalContextPhysicalContext = "ACOutput"
+	PhysicalContextPhysicalContextACInput                  PhysicalContextPhysicalContext = "ACInput"
+	PhysicalContextPhysicalContextPowerOutlet              PhysicalContextPhysicalContext = "PowerOutlet"
+	PhysicalContextPhysicalContextTrustedModule            PhysicalContextPhysicalContext = "TrustedModule"
+	PhysicalContextPhysicalContextBoard                    PhysicalContextPhysicalContext = "Board"
+	PhysicalContextPhysicalContextTransceiver              PhysicalContextPhysicalContext = "Transceiver"
+	PhysicalContextPhysicalContextBattery                  PhysicalContextPhysicalContext = "Battery"
+	PhysicalContextPhysicalContextPump                     PhysicalContextPhysicalContext = "Pump"
+	PhysicalContextPhysicalContextFilter                   PhysicalContextPhysicalContext = "Filter"
+	PhysicalContextPhysicalContextReservoir                PhysicalContextPhysicalContext = "Reservoir"
+	PhysicalContextPhysicalContextSwitch                   PhysicalContextPhysicalContext = "Switch"
+	PhysicalContextPhysicalContextManager                  PhysicalContextPhysicalContext = "Manager"
+)
+
 // PrivilegesPrivilegeType is a Redfish string enumeration.
 type PrivilegesPrivilegeType string
 
@@ -1225,6 +1313,64 @@ const (
 	ResourceStateUpdating           ResourceState = "Updating"
 	ResourceStateQualified          ResourceState = "Qualified"
 	ResourceStateDegraded           ResourceState = "Degraded"
+)
+
+// SoftwareInventoryReleaseType is a Redfish string enumeration.
+type SoftwareInventoryReleaseType string
+
+const (
+	SoftwareInventoryReleaseTypeProduction SoftwareInventoryReleaseType = "Production"
+	SoftwareInventoryReleaseTypePrototype  SoftwareInventoryReleaseType = "Prototype"
+	SoftwareInventoryReleaseTypeOther      SoftwareInventoryReleaseType = "Other"
+)
+
+// SoftwareInventoryVersionScheme is a Redfish string enumeration.
+type SoftwareInventoryVersionScheme string
+
+const (
+	SoftwareInventoryVersionSchemeSemVer             SoftwareInventoryVersionScheme = "SemVer"
+	SoftwareInventoryVersionSchemeDotIntegerNotation SoftwareInventoryVersionScheme = "DotIntegerNotation"
+	SoftwareInventoryVersionSchemeOEM                SoftwareInventoryVersionScheme = "OEM"
+)
+
+// UpdateServiceApplyTime is a Redfish string enumeration.
+type UpdateServiceApplyTime string
+
+const (
+	UpdateServiceApplyTimeImmediate                  UpdateServiceApplyTime = "Immediate"
+	UpdateServiceApplyTimeOnReset                    UpdateServiceApplyTime = "OnReset"
+	UpdateServiceApplyTimeAtMaintenanceWindowStart   UpdateServiceApplyTime = "AtMaintenanceWindowStart"
+	UpdateServiceApplyTimeInMaintenanceWindowOnReset UpdateServiceApplyTime = "InMaintenanceWindowOnReset"
+	UpdateServiceApplyTimeOnStartUpdateRequest       UpdateServiceApplyTime = "OnStartUpdateRequest"
+	UpdateServiceApplyTimeOnTargetReset              UpdateServiceApplyTime = "OnTargetReset"
+)
+
+// UpdateServiceSupportedUpdateImageFormatType is a Redfish string enumeration.
+type UpdateServiceSupportedUpdateImageFormatType string
+
+const (
+	UpdateServiceSupportedUpdateImageFormatTypePLDMv10       UpdateServiceSupportedUpdateImageFormatType = "PLDMv1_0"
+	UpdateServiceSupportedUpdateImageFormatTypePLDMv11       UpdateServiceSupportedUpdateImageFormatType = "PLDMv1_1"
+	UpdateServiceSupportedUpdateImageFormatTypePLDMv12       UpdateServiceSupportedUpdateImageFormatType = "PLDMv1_2"
+	UpdateServiceSupportedUpdateImageFormatTypePLDMv13       UpdateServiceSupportedUpdateImageFormatType = "PLDMv1_3"
+	UpdateServiceSupportedUpdateImageFormatTypeUEFICapsule   UpdateServiceSupportedUpdateImageFormatType = "UEFICapsule"
+	UpdateServiceSupportedUpdateImageFormatTypeVendorDefined UpdateServiceSupportedUpdateImageFormatType = "VendorDefined"
+)
+
+// UpdateServiceTransferProtocolType is a Redfish string enumeration.
+type UpdateServiceTransferProtocolType string
+
+const (
+	UpdateServiceTransferProtocolTypeCIFS  UpdateServiceTransferProtocolType = "CIFS"
+	UpdateServiceTransferProtocolTypeFTP   UpdateServiceTransferProtocolType = "FTP"
+	UpdateServiceTransferProtocolTypeSFTP  UpdateServiceTransferProtocolType = "SFTP"
+	UpdateServiceTransferProtocolTypeHTTP  UpdateServiceTransferProtocolType = "HTTP"
+	UpdateServiceTransferProtocolTypeHTTPS UpdateServiceTransferProtocolType = "HTTPS"
+	UpdateServiceTransferProtocolTypeNSF   UpdateServiceTransferProtocolType = "NSF"
+	UpdateServiceTransferProtocolTypeSCP   UpdateServiceTransferProtocolType = "SCP"
+	UpdateServiceTransferProtocolTypeTFTP  UpdateServiceTransferProtocolType = "TFTP"
+	UpdateServiceTransferProtocolTypeOEM   UpdateServiceTransferProtocolType = "OEM"
+	UpdateServiceTransferProtocolTypeNFS   UpdateServiceTransferProtocolType = "NFS"
 )
 
 // AccountServiceActions is a generated Redfish complex type.
@@ -3707,6 +3853,28 @@ func (x *SessionServiceOemActions) Bytes() []byte {
 	return b.Bytes()
 }
 
+// SoftwareInventoryActions is a generated Redfish complex type.
+type SoftwareInventoryActions struct {
+	Oem      *SoftwareInventoryOemActions
+	Activate *odata.ActionTarget // #SoftwareInventory.Activate
+	Cancel   *odata.ActionTarget // #SoftwareInventory.Cancel
+}
+
+// Bytes encodes SoftwareInventoryActions as Redfish JSON.
+func (x *SoftwareInventoryActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	if x.Activate != nil {
+		b.Raw("#SoftwareInventory.Activate", x.Activate.Bytes())
+	}
+	if x.Cancel != nil {
+		b.Raw("#SoftwareInventory.Cancel", x.Cancel.Bytes())
+	}
+	return b.Bytes()
+}
+
 // SoftwareInventoryAdditionalVersions is a generated Redfish complex type.
 type SoftwareInventoryAdditionalVersions struct {
 	Bootloader           string
@@ -3733,6 +3901,24 @@ func (x *SoftwareInventoryAdditionalVersions) Bytes() []byte {
 	return b.Bytes()
 }
 
+// SoftwareInventoryLinks is a generated Redfish complex type.
+type SoftwareInventoryLinks struct {
+	StagedTargets []odata.Link
+	ActiveTargets []odata.Link
+}
+
+// Bytes encodes SoftwareInventoryLinks as Redfish JSON.
+func (x *SoftwareInventoryLinks) Bytes() []byte {
+	b := odata.NewBuilder()
+	if len(x.StagedTargets) > 0 {
+		b.RefArray("StagedTargets", odata.Strings(x.StagedTargets))
+	}
+	if len(x.ActiveTargets) > 0 {
+		b.RefArray("ActiveTargets", odata.Strings(x.ActiveTargets))
+	}
+	return b.Bytes()
+}
+
 // SoftwareInventoryMeasurementBlock is a generated Redfish complex type.
 type SoftwareInventoryMeasurementBlock struct {
 	MeasurementSpecification *int64
@@ -3748,6 +3934,16 @@ func (x *SoftwareInventoryMeasurementBlock) Bytes() []byte {
 	b.OptInt("MeasurementSize", x.MeasurementSize)
 	b.OptString("Measurement", x.Measurement)
 	b.OptInt("MeasurementIndex", x.MeasurementIndex)
+	return b.Bytes()
+}
+
+// SoftwareInventoryOemActions is a generated Redfish complex type.
+type SoftwareInventoryOemActions struct {
+}
+
+// Bytes encodes SoftwareInventoryOemActions as Redfish JSON.
+func (x *SoftwareInventoryOemActions) Bytes() []byte {
+	b := odata.NewBuilder()
 	return b.Bytes()
 }
 
@@ -3771,6 +3967,82 @@ type ThermalSubsystemOemActions struct {
 
 // Bytes encodes ThermalSubsystemOemActions as Redfish JSON.
 func (x *ThermalSubsystemOemActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	return b.Bytes()
+}
+
+// UpdateServiceActions is a generated Redfish complex type.
+type UpdateServiceActions struct {
+	Oem                        *UpdateServiceOemActions
+	Activate                   *odata.ActionTarget // #UpdateService.Activate
+	GenerateSSHIdentityKeyPair *odata.ActionTarget // #UpdateService.GenerateSSHIdentityKeyPair
+	RemoveSSHIdentityKeyPair   *odata.ActionTarget // #UpdateService.RemoveSSHIdentityKeyPair
+	SimpleUpdate               *odata.ActionTarget // #UpdateService.SimpleUpdate
+	StartUpdate                *odata.ActionTarget // #UpdateService.StartUpdate
+}
+
+// Bytes encodes UpdateServiceActions as Redfish JSON.
+func (x *UpdateServiceActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	if x.Activate != nil {
+		b.Raw("#UpdateService.Activate", x.Activate.Bytes())
+	}
+	if x.GenerateSSHIdentityKeyPair != nil {
+		b.Raw("#UpdateService.GenerateSSHIdentityKeyPair", x.GenerateSSHIdentityKeyPair.Bytes())
+	}
+	if x.RemoveSSHIdentityKeyPair != nil {
+		b.Raw("#UpdateService.RemoveSSHIdentityKeyPair", x.RemoveSSHIdentityKeyPair.Bytes())
+	}
+	if x.SimpleUpdate != nil {
+		b.Raw("#UpdateService.SimpleUpdate", x.SimpleUpdate.Bytes())
+	}
+	if x.StartUpdate != nil {
+		b.Raw("#UpdateService.StartUpdate", x.StartUpdate.Bytes())
+	}
+	return b.Bytes()
+}
+
+// UpdateServiceHttpPushUriApplyTime is a generated Redfish complex type.
+type UpdateServiceHttpPushUriApplyTime struct {
+	ApplyTime                          UpdateServiceApplyTime
+	MaintenanceWindowStartTime         string
+	MaintenanceWindowDurationInSeconds *int64
+}
+
+// Bytes encodes UpdateServiceHttpPushUriApplyTime as Redfish JSON.
+func (x *UpdateServiceHttpPushUriApplyTime) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptString("ApplyTime", string(x.ApplyTime))
+	b.OptString("MaintenanceWindowStartTime", x.MaintenanceWindowStartTime)
+	b.OptInt("MaintenanceWindowDurationInSeconds", x.MaintenanceWindowDurationInSeconds)
+	return b.Bytes()
+}
+
+// UpdateServiceHttpPushUriOptions is a generated Redfish complex type.
+type UpdateServiceHttpPushUriOptions struct {
+	HttpPushUriApplyTime *UpdateServiceHttpPushUriApplyTime
+	ForceUpdate          *bool
+}
+
+// Bytes encodes UpdateServiceHttpPushUriOptions as Redfish JSON.
+func (x *UpdateServiceHttpPushUriOptions) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.HttpPushUriApplyTime != nil {
+		b.Raw("HttpPushUriApplyTime", x.HttpPushUriApplyTime.Bytes())
+	}
+	b.OptBool("ForceUpdate", x.ForceUpdate)
+	return b.Bytes()
+}
+
+// UpdateServiceOemActions is a generated Redfish complex type.
+type UpdateServiceOemActions struct {
+}
+
+// Bytes encodes UpdateServiceOemActions as Redfish JSON.
+func (x *UpdateServiceOemActions) Bytes() []byte {
 	b := odata.NewBuilder()
 	return b.Bytes()
 }
@@ -9325,6 +9597,968 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", ph)
 }
 
+// UpdateService: The `UpdateService` schema describes the update service and the properties for the service itself with links to collections of firmware and software inventory.
+type UpdateService struct {
+	ODataID                               string // @odata.id of this resource instance
+	Oem                                   *ResourceOem
+	Id                                    string
+	Description                           string
+	Name                                  string
+	Status                                *ResourceStatus
+	ServiceEnabled                        *bool
+	Actions                               *UpdateServiceActions
+	HttpPushUri                           string
+	HttpPushUriTargets                    []string
+	HttpPushUriTargetsBusy                *bool
+	HttpPushUriOptions                    *UpdateServiceHttpPushUriOptions
+	HttpPushUriOptionsBusy                *bool
+	MaxImageSizeBytes                     *int64
+	MultipartHttpPushUri                  string
+	VerifyRemoteServerCertificate         *bool
+	VerifyRemoteServerSSHKey              *bool
+	SupportedUpdateImageFormats           []string
+	LocalImageStoreAvailableCapacityBytes *int64
+	LocalImageStoreTotalCapacityBytes     *int64
+	FirmwareInventory                     odata.Link
+	SoftwareInventory                     odata.Link
+	RemoteServerCertificates              odata.Link
+	ClientCertificates                    odata.Link
+	RemoteServerSSHKeys                   odata.Link
+	PublicIdentitySSHKey                  odata.Link
+	UpdateServiceCapabilities             odata.Link
+	LocalImageStore                       odata.Link
+}
+
+// Bytes encodes UpdateService as a Redfish JSON resource.
+func (x *UpdateService) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.String("@odata.type", "#UpdateService.v1_17_1.UpdateService")
+	b.String("@odata.id", x.ODataID)
+	b.String("@odata.context", odata.Context("UpdateService.UpdateService"))
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	b.String("Id", x.Id)
+	b.OptString("Description", x.Description)
+	b.String("Name", x.Name)
+	if x.Status != nil {
+		b.Raw("Status", x.Status.Bytes())
+	}
+	b.OptBool("ServiceEnabled", x.ServiceEnabled)
+	if x.Actions != nil {
+		b.Raw("Actions", x.Actions.Bytes())
+	}
+	b.OptString("HttpPushUri", x.HttpPushUri)
+	b.StrArray("HttpPushUriTargets", x.HttpPushUriTargets)
+	b.OptBool("HttpPushUriTargetsBusy", x.HttpPushUriTargetsBusy)
+	if x.HttpPushUriOptions != nil {
+		b.Raw("HttpPushUriOptions", x.HttpPushUriOptions.Bytes())
+	}
+	b.OptBool("HttpPushUriOptionsBusy", x.HttpPushUriOptionsBusy)
+	b.OptInt("MaxImageSizeBytes", x.MaxImageSizeBytes)
+	b.OptString("MultipartHttpPushUri", x.MultipartHttpPushUri)
+	b.OptBool("VerifyRemoteServerCertificate", x.VerifyRemoteServerCertificate)
+	b.OptBool("VerifyRemoteServerSSHKey", x.VerifyRemoteServerSSHKey)
+	b.StrArray("SupportedUpdateImageFormats", x.SupportedUpdateImageFormats)
+	b.OptInt("LocalImageStoreAvailableCapacityBytes", x.LocalImageStoreAvailableCapacityBytes)
+	b.OptInt("LocalImageStoreTotalCapacityBytes", x.LocalImageStoreTotalCapacityBytes)
+	if x.FirmwareInventory != "" {
+		b.Ref("FirmwareInventory", string(x.FirmwareInventory))
+	}
+	if x.SoftwareInventory != "" {
+		b.Ref("SoftwareInventory", string(x.SoftwareInventory))
+	}
+	if x.RemoteServerCertificates != "" {
+		b.Ref("RemoteServerCertificates", string(x.RemoteServerCertificates))
+	}
+	if x.ClientCertificates != "" {
+		b.Ref("ClientCertificates", string(x.ClientCertificates))
+	}
+	if x.RemoteServerSSHKeys != "" {
+		b.Ref("RemoteServerSSHKeys", string(x.RemoteServerSSHKeys))
+	}
+	if x.PublicIdentitySSHKey != "" {
+		b.Ref("PublicIdentitySSHKey", string(x.PublicIdentitySSHKey))
+	}
+	if x.UpdateServiceCapabilities != "" {
+		b.Ref("UpdateServiceCapabilities", string(x.UpdateServiceCapabilities))
+	}
+	if x.LocalImageStore != "" {
+		b.Ref("LocalImageStore", string(x.LocalImageStore))
+	}
+	return b.Bytes()
+}
+
+// UpdateServicePatch holds the writable properties of UpdateService present in a PATCH body.
+type UpdateServicePatch struct {
+	ServiceEnabled                *bool
+	HttpPushUriTargetsBusy        *bool
+	HttpPushUriOptionsBusy        *bool
+	VerifyRemoteServerCertificate *bool
+	VerifyRemoteServerSSHKey      *bool
+}
+
+// UnmarshalJSON parses the known properties of a UpdateServicePatch body,
+// ignoring unknown and null-valued properties.
+func (p *UpdateServicePatch) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "ServiceEnabled":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.ServiceEnabled = &v
+		case "HttpPushUriTargetsBusy":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.HttpPushUriTargetsBusy = &v
+		case "HttpPushUriOptionsBusy":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.HttpPushUriOptionsBusy = &v
+		case "VerifyRemoteServerCertificate":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.VerifyRemoteServerCertificate = &v
+		case "VerifyRemoteServerSSHKey":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.VerifyRemoteServerSSHKey = &v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// UpdateServiceProvider supplies the UpdateService resource.
+type UpdateServiceProvider interface {
+	GetUpdateService(ctx context.Context) (*UpdateService, error)
+	PatchUpdateService(ctx context.Context, patch *UpdateServicePatch) (*UpdateService, error)
+}
+
+// RegisterUpdateService wires the UpdateService resource into mux. It links into a binary
+// only when referenced, so unused resources are removed by the linker.
+func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		res, err := p.GetUpdateService(r.Context())
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if res == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if res.ODataID == "" {
+			res.ODataID = prm.Path()
+		}
+		server.WriteResource(w, res)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/UpdateService", h)
+	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		cur, err := p.GetUpdateService(r.Context())
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if cur == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if cur.ODataID == "" {
+			cur.ODataID = prm.Path()
+		}
+		if !server.CheckIfMatch(r, cur.Bytes()) {
+			server.PreconditionFailed(w)
+			return
+		}
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch UpdateServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		updated, err := p.PatchUpdateService(r.Context(), &patch)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if updated == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if updated.ODataID == "" {
+			updated.ODataID = prm.Path()
+		}
+		server.WriteResource(w, updated)
+	}
+	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService", ph)
+}
+
+// UpdateServiceActivateParameters holds the input parameters of the #UpdateService.Activate action.
+type UpdateServiceActivateParameters struct {
+	Targets []odata.Link
+}
+
+// UnmarshalJSON parses the known properties of a UpdateServiceActivateParameters body,
+// ignoring unknown and null-valued properties.
+func (p *UpdateServiceActivateParameters) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "Targets":
+			v, err := patchReadLinks(dec)
+			if err != nil {
+				return err
+			}
+			p.Targets = v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ActivateUpdateServiceProvider performs the #UpdateService.Activate action.
+type ActivateUpdateServiceProvider interface {
+	ActivateUpdateService(ctx context.Context, params *UpdateServiceActivateParameters) (*server.ActionResult, error)
+}
+
+// RegisterActivateUpdateService wires a POST handler for the #UpdateService.Activate action into mux.
+func RegisterActivateUpdateService(mux *http.ServeMux, p ActivateUpdateServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params UpdateServiceActivateParameters
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			if err := params.UnmarshalJSON(body); err != nil {
+				server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+				return
+			}
+		}
+		res, err := p.ActivateUpdateService(r.Context(), &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.Activate", h)
+}
+
+// UpdateServiceGenerateSSHIdentityKeyPairParameters holds the input parameters of the #UpdateService.GenerateSSHIdentityKeyPair action.
+type UpdateServiceGenerateSSHIdentityKeyPairParameters struct {
+	KeyType   *KeySSHKeyType
+	KeyLength *int64
+	Curve     *KeyECDSACurveType
+}
+
+// UnmarshalJSON parses the known properties of a UpdateServiceGenerateSSHIdentityKeyPairParameters body,
+// ignoring unknown and null-valued properties.
+func (p *UpdateServiceGenerateSSHIdentityKeyPairParameters) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "KeyType":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			ev := KeySSHKeyType(v)
+			p.KeyType = &ev
+		case "KeyLength":
+			v, err := patchReadInt(dec)
+			if err != nil {
+				return err
+			}
+			p.KeyLength = &v
+		case "Curve":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			ev := KeyECDSACurveType(v)
+			p.Curve = &ev
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// GenerateSSHIdentityKeyPairUpdateServiceProvider performs the #UpdateService.GenerateSSHIdentityKeyPair action.
+type GenerateSSHIdentityKeyPairUpdateServiceProvider interface {
+	GenerateSSHIdentityKeyPairUpdateService(ctx context.Context, params *UpdateServiceGenerateSSHIdentityKeyPairParameters) (*server.ActionResult, error)
+}
+
+// RegisterGenerateSSHIdentityKeyPairUpdateService wires a POST handler for the #UpdateService.GenerateSSHIdentityKeyPair action into mux.
+func RegisterGenerateSSHIdentityKeyPairUpdateService(mux *http.ServeMux, p GenerateSSHIdentityKeyPairUpdateServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params UpdateServiceGenerateSSHIdentityKeyPairParameters
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			if err := params.UnmarshalJSON(body); err != nil {
+				server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+				return
+			}
+		}
+		res, err := p.GenerateSSHIdentityKeyPairUpdateService(r.Context(), &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.GenerateSSHIdentityKeyPair", h)
+}
+
+// UpdateServiceRemoveSSHIdentityKeyPairParameters holds the input parameters of the #UpdateService.RemoveSSHIdentityKeyPair action (none defined).
+type UpdateServiceRemoveSSHIdentityKeyPairParameters struct{}
+
+// RemoveSSHIdentityKeyPairUpdateServiceProvider performs the #UpdateService.RemoveSSHIdentityKeyPair action.
+type RemoveSSHIdentityKeyPairUpdateServiceProvider interface {
+	RemoveSSHIdentityKeyPairUpdateService(ctx context.Context, params *UpdateServiceRemoveSSHIdentityKeyPairParameters) (*server.ActionResult, error)
+}
+
+// RegisterRemoveSSHIdentityKeyPairUpdateService wires a POST handler for the #UpdateService.RemoveSSHIdentityKeyPair action into mux.
+func RegisterRemoveSSHIdentityKeyPairUpdateService(mux *http.ServeMux, p RemoveSSHIdentityKeyPairUpdateServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params UpdateServiceRemoveSSHIdentityKeyPairParameters
+		res, err := p.RemoveSSHIdentityKeyPairUpdateService(r.Context(), &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.RemoveSSHIdentityKeyPair", h)
+}
+
+// UpdateServiceSimpleUpdateParameters holds the input parameters of the #UpdateService.SimpleUpdate action.
+type UpdateServiceSimpleUpdateParameters struct {
+	ImageURI         *string
+	TransferProtocol *UpdateServiceTransferProtocolType
+	Targets          []string
+	Username         *string
+	Password         *string
+	ForceUpdate      *bool
+	Stage            *bool
+	LocalImage       *bool
+	ExcludeTargets   []string
+}
+
+// UnmarshalJSON parses the known properties of a UpdateServiceSimpleUpdateParameters body,
+// ignoring unknown and null-valued properties.
+func (p *UpdateServiceSimpleUpdateParameters) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "ImageURI":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.ImageURI = &v
+		case "TransferProtocol":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			ev := UpdateServiceTransferProtocolType(v)
+			p.TransferProtocol = &ev
+		case "Targets":
+			v, err := patchReadStrings(dec)
+			if err != nil {
+				return err
+			}
+			p.Targets = v
+		case "Username":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.Username = &v
+		case "Password":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.Password = &v
+		case "ForceUpdate":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.ForceUpdate = &v
+		case "Stage":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.Stage = &v
+		case "LocalImage":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.LocalImage = &v
+		case "ExcludeTargets":
+			v, err := patchReadStrings(dec)
+			if err != nil {
+				return err
+			}
+			p.ExcludeTargets = v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// SimpleUpdateUpdateServiceProvider performs the #UpdateService.SimpleUpdate action.
+type SimpleUpdateUpdateServiceProvider interface {
+	SimpleUpdateUpdateService(ctx context.Context, params *UpdateServiceSimpleUpdateParameters) (*server.ActionResult, error)
+}
+
+// RegisterSimpleUpdateUpdateService wires a POST handler for the #UpdateService.SimpleUpdate action into mux.
+func RegisterSimpleUpdateUpdateService(mux *http.ServeMux, p SimpleUpdateUpdateServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params UpdateServiceSimpleUpdateParameters
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			if err := params.UnmarshalJSON(body); err != nil {
+				server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+				return
+			}
+		}
+		res, err := p.SimpleUpdateUpdateService(r.Context(), &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate", h)
+}
+
+// UpdateServiceStartUpdateParameters holds the input parameters of the #UpdateService.StartUpdate action (none defined).
+type UpdateServiceStartUpdateParameters struct{}
+
+// StartUpdateUpdateServiceProvider performs the #UpdateService.StartUpdate action.
+type StartUpdateUpdateServiceProvider interface {
+	StartUpdateUpdateService(ctx context.Context, params *UpdateServiceStartUpdateParameters) (*server.ActionResult, error)
+}
+
+// RegisterStartUpdateUpdateService wires a POST handler for the #UpdateService.StartUpdate action into mux.
+func RegisterStartUpdateUpdateService(mux *http.ServeMux, p StartUpdateUpdateServiceProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params UpdateServiceStartUpdateParameters
+		res, err := p.StartUpdateUpdateService(r.Context(), &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.StartUpdate", h)
+}
+
+// SoftwareInventoryCollectionProvider lists the members of the SoftwareInventoryCollection collection by @odata.id.
+type SoftwareInventoryCollectionProvider interface {
+	ListSoftwareInventory(ctx context.Context, p server.Params) ([]string, error)
+}
+
+// RegisterSoftwareInventoryCollection wires the SoftwareInventoryCollection collection into mux.
+func RegisterSoftwareInventoryCollection(mux *http.ServeMux, p SoftwareInventoryCollectionProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		ids, err := p.ListSoftwareInventory(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		c := odata.Collection{
+			ODataType:    "#SoftwareInventoryCollection.SoftwareInventoryCollection",
+			ODataID:      prm.Path(),
+			ODataContext: odata.Context("SoftwareInventoryCollection.SoftwareInventoryCollection"),
+			Name:         "Software Inventory Collection",
+			Members:      ids,
+		}
+		server.WriteResource(w, c)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/UpdateService/SoftwareInventory", h)
+	server.Handle(mux, "GET", "/redfish/v1/UpdateService/FirmwareInventory", h)
+	server.Handle(mux, "GET", "/redfish/v1/UpdateService/LocalImageStore", h)
+}
+
+// SoftwareInventory: The `SoftwareInventory` schema contains an inventory of software components.
+type SoftwareInventory struct {
+	ODataID                   string // @odata.id of this resource instance
+	Oem                       *ResourceOem
+	Id                        string
+	Description               string
+	Name                      string
+	Status                    *ResourceStatus
+	Version                   string
+	Updateable                *bool
+	Actions                   *SoftwareInventoryActions
+	SoftwareId                string
+	LowestSupportedVersion    string
+	UefiDevicePaths           []string
+	Manufacturer              string
+	ReleaseDate               string
+	WriteProtected            *bool
+	Measurement               *SoftwareInventoryMeasurementBlock
+	AdditionalVersions        *SoftwareInventoryAdditionalVersions
+	VersionScheme             SoftwareInventoryVersionScheme
+	ReleaseType               SoftwareInventoryReleaseType
+	AssociatedPhysicalContext PhysicalContextPhysicalContext
+	Active                    *bool
+	Staged                    *bool
+	ResetRequiredOnUpdate     *bool
+	Links                     *SoftwareInventoryLinks
+	ImageDataURI              string
+	SizeBytes                 *int64
+	RelatedItem               []odata.Link
+}
+
+// Bytes encodes SoftwareInventory as a Redfish JSON resource.
+func (x *SoftwareInventory) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.String("@odata.type", "#SoftwareInventory.v1_14_0.SoftwareInventory")
+	b.String("@odata.id", x.ODataID)
+	b.String("@odata.context", odata.Context("SoftwareInventory.SoftwareInventory"))
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	b.String("Id", x.Id)
+	b.OptString("Description", x.Description)
+	b.String("Name", x.Name)
+	if x.Status != nil {
+		b.Raw("Status", x.Status.Bytes())
+	}
+	b.OptString("Version", x.Version)
+	b.OptBool("Updateable", x.Updateable)
+	if x.Actions != nil {
+		b.Raw("Actions", x.Actions.Bytes())
+	}
+	b.OptString("SoftwareId", x.SoftwareId)
+	b.OptString("LowestSupportedVersion", x.LowestSupportedVersion)
+	b.StrArray("UefiDevicePaths", x.UefiDevicePaths)
+	b.OptString("Manufacturer", x.Manufacturer)
+	b.OptString("ReleaseDate", x.ReleaseDate)
+	b.OptBool("WriteProtected", x.WriteProtected)
+	if x.Measurement != nil {
+		b.Raw("Measurement", x.Measurement.Bytes())
+	}
+	if x.AdditionalVersions != nil {
+		b.Raw("AdditionalVersions", x.AdditionalVersions.Bytes())
+	}
+	b.OptString("VersionScheme", string(x.VersionScheme))
+	b.OptString("ReleaseType", string(x.ReleaseType))
+	b.OptString("AssociatedPhysicalContext", string(x.AssociatedPhysicalContext))
+	b.OptBool("Active", x.Active)
+	b.OptBool("Staged", x.Staged)
+	b.OptBool("ResetRequiredOnUpdate", x.ResetRequiredOnUpdate)
+	if x.Links != nil {
+		b.Raw("Links", x.Links.Bytes())
+	}
+	b.OptString("ImageDataURI", x.ImageDataURI)
+	b.OptInt("SizeBytes", x.SizeBytes)
+	if len(x.RelatedItem) > 0 {
+		b.RefArray("RelatedItem", odata.Strings(x.RelatedItem))
+	}
+	return b.Bytes()
+}
+
+// SoftwareInventoryPatch holds the writable properties of SoftwareInventory present in a PATCH body.
+type SoftwareInventoryPatch struct {
+	WriteProtected *bool
+}
+
+// UnmarshalJSON parses the known properties of a SoftwareInventoryPatch body,
+// ignoring unknown and null-valued properties.
+func (p *SoftwareInventoryPatch) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "WriteProtected":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.WriteProtected = &v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// SoftwareInventoryProvider supplies the SoftwareInventory resource.
+type SoftwareInventoryProvider interface {
+	GetSoftwareInventory(ctx context.Context, p server.Params) (*SoftwareInventory, error)
+	PatchSoftwareInventory(ctx context.Context, p server.Params, patch *SoftwareInventoryPatch) (*SoftwareInventory, error)
+}
+
+// RegisterSoftwareInventory wires the SoftwareInventory resource into mux. It links into a binary
+// only when referenced, so unused resources are removed by the linker.
+func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		res, err := p.GetSoftwareInventory(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if res == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if res.ODataID == "" {
+			res.ODataID = prm.Path()
+		}
+		server.WriteResource(w, res)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", h)
+	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		cur, err := p.GetSoftwareInventory(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if cur == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if cur.ODataID == "" {
+			cur.ODataID = prm.Path()
+		}
+		if !server.CheckIfMatch(r, cur.Bytes()) {
+			server.PreconditionFailed(w)
+			return
+		}
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch SoftwareInventoryPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		updated, err := p.PatchSoftwareInventory(r.Context(), prm, &patch)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if updated == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if updated.ODataID == "" {
+			updated.ODataID = prm.Path()
+		}
+		server.WriteResource(w, updated)
+	}
+	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", ph)
+	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", ph)
+}
+
+// SoftwareInventoryActivateParameters holds the input parameters of the #SoftwareInventory.Activate action.
+type SoftwareInventoryActivateParameters struct {
+	Targets []odata.Link
+}
+
+// UnmarshalJSON parses the known properties of a SoftwareInventoryActivateParameters body,
+// ignoring unknown and null-valued properties.
+func (p *SoftwareInventoryActivateParameters) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "Targets":
+			v, err := patchReadLinks(dec)
+			if err != nil {
+				return err
+			}
+			p.Targets = v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ActivateSoftwareInventoryProvider performs the #SoftwareInventory.Activate action.
+type ActivateSoftwareInventoryProvider interface {
+	ActivateSoftwareInventory(ctx context.Context, p server.Params, params *SoftwareInventoryActivateParameters) (*server.ActionResult, error)
+}
+
+// RegisterActivateSoftwareInventory wires a POST handler for the #SoftwareInventory.Activate action into mux.
+func RegisterActivateSoftwareInventory(mux *http.ServeMux, p ActivateSoftwareInventoryProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params SoftwareInventoryActivateParameters
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			if err := params.UnmarshalJSON(body); err != nil {
+				server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+				return
+			}
+		}
+		res, err := p.ActivateSoftwareInventory(r.Context(), prm, &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
+}
+
+// SoftwareInventoryCancelParameters holds the input parameters of the #SoftwareInventory.Cancel action.
+type SoftwareInventoryCancelParameters struct {
+	Targets []odata.Link
+}
+
+// UnmarshalJSON parses the known properties of a SoftwareInventoryCancelParameters body,
+// ignoring unknown and null-valued properties.
+func (p *SoftwareInventoryCancelParameters) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "Targets":
+			v, err := patchReadLinks(dec)
+			if err != nil {
+				return err
+			}
+			p.Targets = v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// CancelSoftwareInventoryProvider performs the #SoftwareInventory.Cancel action.
+type CancelSoftwareInventoryProvider interface {
+	CancelSoftwareInventory(ctx context.Context, p server.Params, params *SoftwareInventoryCancelParameters) (*server.ActionResult, error)
+}
+
+// RegisterCancelSoftwareInventory wires a POST handler for the #SoftwareInventory.Cancel action into mux.
+func RegisterCancelSoftwareInventory(mux *http.ServeMux, p CancelSoftwareInventoryProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		var params SoftwareInventoryCancelParameters
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		if len(bytes.TrimSpace(body)) > 0 {
+			if err := params.UnmarshalJSON(body); err != nil {
+				server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+				return
+			}
+		}
+		res, err := p.CancelSoftwareInventory(r.Context(), prm, &params)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		server.WriteActionResult(w, res)
+	}
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
+	server.Handle(mux, "POST", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
+}
+
 // metadataXML is the service $metadata (EDMX) document covering the
 // registered resources.
 const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -9411,9 +10645,20 @@ const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
     <edmx:Include Namespace="SessionService"/>
     <edmx:Include Namespace="SessionService.v1_2_0"/>
   </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/SoftwareInventory_v1.xml">
+    <edmx:Include Namespace="SoftwareInventory"/>
+    <edmx:Include Namespace="SoftwareInventory.v1_14_0"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/SoftwareInventoryCollection_v1.xml">
+    <edmx:Include Namespace="SoftwareInventoryCollection"/>
+  </edmx:Reference>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ThermalSubsystem_v1.xml">
     <edmx:Include Namespace="ThermalSubsystem"/>
     <edmx:Include Namespace="ThermalSubsystem.v1_5_0"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/UpdateService_v1.xml">
+    <edmx:Include Namespace="UpdateService"/>
+    <edmx:Include Namespace="UpdateService.v1_17_1"/>
   </edmx:Reference>
   <edmx:DataServices>
     <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="Service">
@@ -9424,7 +10669,7 @@ const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
 `
 
 // odataServiceDoc is the /redfish/v1/odata service document.
-const odataServiceDoc = `{"@odata.context":"/redfish/v1/$metadata","@odata.id":"/redfish/v1/odata","value":[{"name":"Service","kind":"Singleton","url":"/redfish/v1/"},{"name":"Sessions","kind":"Singleton","url":"/redfish/v1/SessionService/Sessions"},{"name":"Chassis","kind":"Singleton","url":"/redfish/v1/Chassis"},{"name":"Systems","kind":"Singleton","url":"/redfish/v1/Systems"},{"name":"Managers","kind":"Singleton","url":"/redfish/v1/Managers"},{"name":"Accounts","kind":"Singleton","url":"/redfish/v1/AccountService/Accounts"},{"name":"Sensors","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Sensors"},{"name":"Controls","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Controls"},{"name":"EthernetInterfaces","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/EthernetInterfaces"},{"name":"LogServices","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices"},{"name":"Entries","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries"}]}`
+const odataServiceDoc = `{"@odata.context":"/redfish/v1/$metadata","@odata.id":"/redfish/v1/odata","value":[{"name":"Service","kind":"Singleton","url":"/redfish/v1/"},{"name":"Sessions","kind":"Singleton","url":"/redfish/v1/SessionService/Sessions"},{"name":"Chassis","kind":"Singleton","url":"/redfish/v1/Chassis"},{"name":"Systems","kind":"Singleton","url":"/redfish/v1/Systems"},{"name":"Managers","kind":"Singleton","url":"/redfish/v1/Managers"},{"name":"Accounts","kind":"Singleton","url":"/redfish/v1/AccountService/Accounts"},{"name":"Sensors","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Sensors"},{"name":"Controls","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Controls"},{"name":"EthernetInterfaces","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/EthernetInterfaces"},{"name":"LogServices","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices"},{"name":"Entries","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries"},{"name":"SoftwareInventory","kind":"Singleton","url":"/redfish/v1/UpdateService/SoftwareInventory"}]}`
 
 // RegisterMetadata serves the service metadata document at /redfish/v1/$metadata.
 func RegisterMetadata(mux *http.ServeMux) {
