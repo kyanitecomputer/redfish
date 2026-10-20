@@ -282,34 +282,39 @@ func (b *Bundle) LatestEntity(typeRef string) (namespace string, et *EntityType,
 // IPAddresses.IPv4Address) declare an abstract, empty type in their unversioned
 // namespace and the concrete, property-bearing type only in a versioned one;
 // exact resolution of the unversioned reference would yield the empty abstract.
+//
+// Versioned references (for example Manager.v1_0_0.Links) are upgraded the same
+// way: later schema versions redefine the type deriving from the earlier one,
+// so the latest definition carries every property added since.
 func (b *Bundle) LatestComplex(typeRef string) (namespace string, ct *ComplexType, ok bool) {
 	inner, _ := StripCollection(typeRef)
 	nsRef, name := SplitQualified(inner)
-	if !isVersioned(nsRef) {
-		var (
-			bestNS string
-			best   version
-			found  bool
-		)
-		for ns, s := range b.schemas {
-			m := versionRE.FindStringSubmatch(ns)
-			if m == nil || m[1] != nsRef {
+	if m := versionRE.FindStringSubmatch(nsRef); m != nil {
+		nsRef = m[1]
+	}
+	var (
+		bestNS string
+		best   version
+		found  bool
+	)
+	for ns, s := range b.schemas {
+		m := versionRE.FindStringSubmatch(ns)
+		if m == nil || m[1] != nsRef {
+			continue
+		}
+		for i := range s.ComplexTypes {
+			if s.ComplexTypes[i].Name != name {
 				continue
 			}
-			for i := range s.ComplexTypes {
-				if s.ComplexTypes[i].Name != name {
-					continue
-				}
-				v := version{atoi(m[2]), atoi(m[3]), atoi(m[4])}
-				if !found || best.less(v) {
-					best, bestNS, found = v, ns, true
-				}
+			v := version{atoi(m[2]), atoi(m[3]), atoi(m[4])}
+			if !found || best.less(v) {
+				best, bestNS, found = v, ns, true
 			}
 		}
-		if found {
-			ct, _ := b.complexIn(bestNS, name)
-			return bestNS, ct, true
-		}
+	}
+	if found {
+		ct, _ := b.complexIn(bestNS, name)
+		return bestNS, ct, true
 	}
 	return b.ResolveComplex(typeRef)
 }

@@ -138,6 +138,25 @@ const (
 	AccountServiceMFABypassTypeOEM                      AccountServiceMFABypassType = "OEM"
 )
 
+// AccountServiceOAuth2Mode is a Redfish string enumeration.
+type AccountServiceOAuth2Mode string
+
+const (
+	AccountServiceOAuth2ModeDiscovery AccountServiceOAuth2Mode = "Discovery"
+	AccountServiceOAuth2ModeOffline   AccountServiceOAuth2Mode = "Offline"
+)
+
+// AccountServiceTACACSplusPasswordExchangeProtocol is a Redfish string enumeration.
+type AccountServiceTACACSplusPasswordExchangeProtocol string
+
+const (
+	AccountServiceTACACSplusPasswordExchangeProtocolASCII    AccountServiceTACACSplusPasswordExchangeProtocol = "ASCII"
+	AccountServiceTACACSplusPasswordExchangeProtocolPAP      AccountServiceTACACSplusPasswordExchangeProtocol = "PAP"
+	AccountServiceTACACSplusPasswordExchangeProtocolCHAP     AccountServiceTACACSplusPasswordExchangeProtocol = "CHAP"
+	AccountServiceTACACSplusPasswordExchangeProtocolMSCHAPv1 AccountServiceTACACSplusPasswordExchangeProtocol = "MSCHAPv1"
+	AccountServiceTACACSplusPasswordExchangeProtocolMSCHAPv2 AccountServiceTACACSplusPasswordExchangeProtocol = "MSCHAPv2"
+)
+
 // ActionInfoParameterTypes is a Redfish string enumeration.
 type ActionInfoParameterTypes string
 
@@ -256,6 +275,23 @@ const (
 	ChassisThermalDirectionSealed      ChassisThermalDirection = "Sealed"
 )
 
+// ComputerSystemAutomaticRetryConfig is a Redfish string enumeration.
+type ComputerSystemAutomaticRetryConfig string
+
+const (
+	ComputerSystemAutomaticRetryConfigDisabled      ComputerSystemAutomaticRetryConfig = "Disabled"
+	ComputerSystemAutomaticRetryConfigRetryAttempts ComputerSystemAutomaticRetryConfig = "RetryAttempts"
+	ComputerSystemAutomaticRetryConfigRetryAlways   ComputerSystemAutomaticRetryConfig = "RetryAlways"
+)
+
+// ComputerSystemBootOrderTypes is a Redfish string enumeration.
+type ComputerSystemBootOrderTypes string
+
+const (
+	ComputerSystemBootOrderTypesBootOrder      ComputerSystemBootOrderTypes = "BootOrder"
+	ComputerSystemBootOrderTypesAliasBootOrder ComputerSystemBootOrderTypes = "AliasBootOrder"
+)
+
 // ComputerSystemBootProgressTypes is a Redfish string enumeration.
 type ComputerSystemBootProgressTypes string
 
@@ -302,6 +338,14 @@ const (
 	ComputerSystemBootSourceOverrideEnabledDisabled   ComputerSystemBootSourceOverrideEnabled = "Disabled"
 	ComputerSystemBootSourceOverrideEnabledOnce       ComputerSystemBootSourceOverrideEnabled = "Once"
 	ComputerSystemBootSourceOverrideEnabledContinuous ComputerSystemBootSourceOverrideEnabled = "Continuous"
+)
+
+// ComputerSystemBootSourceOverrideMode is a Redfish string enumeration.
+type ComputerSystemBootSourceOverrideMode string
+
+const (
+	ComputerSystemBootSourceOverrideModeLegacy ComputerSystemBootSourceOverrideMode = "Legacy"
+	ComputerSystemBootSourceOverrideModeUEFI   ComputerSystemBootSourceOverrideMode = "UEFI"
 )
 
 // ComputerSystemCompositionUseCase is a Redfish string enumeration.
@@ -370,6 +414,24 @@ const (
 	ComputerSystemInterfaceTypeTCM10 ComputerSystemInterfaceType = "TCM1_0"
 )
 
+// ComputerSystemInterfaceTypeSelection is a Redfish string enumeration.
+type ComputerSystemInterfaceTypeSelection string
+
+const (
+	ComputerSystemInterfaceTypeSelectionNone           ComputerSystemInterfaceTypeSelection = "None"
+	ComputerSystemInterfaceTypeSelectionFirmwareUpdate ComputerSystemInterfaceTypeSelection = "FirmwareUpdate"
+	ComputerSystemInterfaceTypeSelectionBiosSetting    ComputerSystemInterfaceTypeSelection = "BiosSetting"
+	ComputerSystemInterfaceTypeSelectionOemMethod      ComputerSystemInterfaceTypeSelection = "OemMethod"
+)
+
+// ComputerSystemKMIPCachePolicy is a Redfish string enumeration.
+type ComputerSystemKMIPCachePolicy string
+
+const (
+	ComputerSystemKMIPCachePolicyNone          ComputerSystemKMIPCachePolicy = "None"
+	ComputerSystemKMIPCachePolicyAfterFirstUse ComputerSystemKMIPCachePolicy = "AfterFirstUse"
+)
+
 // ComputerSystemLastResetCauses is a Redfish string enumeration.
 type ComputerSystemLastResetCauses string
 
@@ -384,6 +446,16 @@ const (
 	ComputerSystemLastResetCausesThermalEvent       ComputerSystemLastResetCauses = "ThermalEvent"
 	ComputerSystemLastResetCausesPowerEvent         ComputerSystemLastResetCauses = "PowerEvent"
 	ComputerSystemLastResetCausesUnknown            ComputerSystemLastResetCauses = "Unknown"
+)
+
+// ComputerSystemMemoryMirroring is a Redfish string enumeration.
+type ComputerSystemMemoryMirroring string
+
+const (
+	ComputerSystemMemoryMirroringSystem ComputerSystemMemoryMirroring = "System"
+	ComputerSystemMemoryMirroringDIMM   ComputerSystemMemoryMirroring = "DIMM"
+	ComputerSystemMemoryMirroringHybrid ComputerSystemMemoryMirroring = "Hybrid"
+	ComputerSystemMemoryMirroringNone   ComputerSystemMemoryMirroring = "None"
 )
 
 // ComputerSystemPowerMode is a Redfish string enumeration.
@@ -409,6 +481,14 @@ const (
 	ComputerSystemPowerRestorePolicyTypesLastState ComputerSystemPowerRestorePolicyTypes = "LastState"
 )
 
+// ComputerSystemStopBootOnFault is a Redfish string enumeration.
+type ComputerSystemStopBootOnFault string
+
+const (
+	ComputerSystemStopBootOnFaultNever    ComputerSystemStopBootOnFault = "Never"
+	ComputerSystemStopBootOnFaultAnyFault ComputerSystemStopBootOnFault = "AnyFault"
+)
+
 // ComputerSystemSystemType is a Redfish string enumeration.
 type ComputerSystemSystemType string
 
@@ -420,6 +500,14 @@ const (
 	ComputerSystemSystemTypeVirtuallyPartitioned  ComputerSystemSystemType = "VirtuallyPartitioned"
 	ComputerSystemSystemTypeComposed              ComputerSystemSystemType = "Composed"
 	ComputerSystemSystemTypeDPU                   ComputerSystemSystemType = "DPU"
+)
+
+// ComputerSystemTrustedModuleRequiredToBoot is a Redfish string enumeration.
+type ComputerSystemTrustedModuleRequiredToBoot string
+
+const (
+	ComputerSystemTrustedModuleRequiredToBootDisabled ComputerSystemTrustedModuleRequiredToBoot = "Disabled"
+	ComputerSystemTrustedModuleRequiredToBootRequired ComputerSystemTrustedModuleRequiredToBoot = "Required"
 )
 
 // ComputerSystemWatchdogTimeoutActions is a Redfish string enumeration.
@@ -443,6 +531,15 @@ const (
 	ComputerSystemWatchdogWarningActionsMessagingInterrupt  ComputerSystemWatchdogWarningActions = "MessagingInterrupt"
 	ComputerSystemWatchdogWarningActionsSCI                 ComputerSystemWatchdogWarningActions = "SCI"
 	ComputerSystemWatchdogWarningActionsOEM                 ComputerSystemWatchdogWarningActions = "OEM"
+)
+
+// EthernetInterfaceDHCPFallback is a Redfish string enumeration.
+type EthernetInterfaceDHCPFallback string
+
+const (
+	EthernetInterfaceDHCPFallbackStatic     EthernetInterfaceDHCPFallback = "Static"
+	EthernetInterfaceDHCPFallbackAutoConfig EthernetInterfaceDHCPFallback = "AutoConfig"
+	EthernetInterfaceDHCPFallbackNone       EthernetInterfaceDHCPFallback = "None"
 )
 
 // EthernetInterfaceDHCPv6OperatingMode is a Redfish string enumeration.
@@ -804,6 +901,52 @@ const (
 	ManagerNetworkProtocolNotifyIPv6ScopeOrganization ManagerNetworkProtocolNotifyIPv6Scope = "Organization"
 )
 
+// ManagerNetworkProtocolSNMPAuthenticationProtocols is a Redfish string enumeration.
+type ManagerNetworkProtocolSNMPAuthenticationProtocols string
+
+const (
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsAccount         ManagerNetworkProtocolSNMPAuthenticationProtocols = "Account"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsCommunityString ManagerNetworkProtocolSNMPAuthenticationProtocols = "CommunityString"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsHMACMD5         ManagerNetworkProtocolSNMPAuthenticationProtocols = "HMAC_MD5"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsHMACSHA96       ManagerNetworkProtocolSNMPAuthenticationProtocols = "HMAC_SHA96"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsHMAC128SHA224   ManagerNetworkProtocolSNMPAuthenticationProtocols = "HMAC128_SHA224"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsHMAC192SHA256   ManagerNetworkProtocolSNMPAuthenticationProtocols = "HMAC192_SHA256"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsHMAC256SHA384   ManagerNetworkProtocolSNMPAuthenticationProtocols = "HMAC256_SHA384"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsHMAC384SHA512   ManagerNetworkProtocolSNMPAuthenticationProtocols = "HMAC384_SHA512"
+	ManagerNetworkProtocolSNMPAuthenticationProtocolsNone            ManagerNetworkProtocolSNMPAuthenticationProtocols = "None"
+)
+
+// ManagerNetworkProtocolSNMPCommunityAccessMode is a Redfish string enumeration.
+type ManagerNetworkProtocolSNMPCommunityAccessMode string
+
+const (
+	ManagerNetworkProtocolSNMPCommunityAccessModeFull    ManagerNetworkProtocolSNMPCommunityAccessMode = "Full"
+	ManagerNetworkProtocolSNMPCommunityAccessModeLimited ManagerNetworkProtocolSNMPCommunityAccessMode = "Limited"
+)
+
+// ManagerNetworkProtocolSNMPEncryptionProtocols is a Redfish string enumeration.
+type ManagerNetworkProtocolSNMPEncryptionProtocols string
+
+const (
+	ManagerNetworkProtocolSNMPEncryptionProtocolsNone         ManagerNetworkProtocolSNMPEncryptionProtocols = "None"
+	ManagerNetworkProtocolSNMPEncryptionProtocolsAccount      ManagerNetworkProtocolSNMPEncryptionProtocols = "Account"
+	ManagerNetworkProtocolSNMPEncryptionProtocolsCBCDES       ManagerNetworkProtocolSNMPEncryptionProtocols = "CBC_DES"
+	ManagerNetworkProtocolSNMPEncryptionProtocolsCFB128AES128 ManagerNetworkProtocolSNMPEncryptionProtocols = "CFB128_AES128"
+	ManagerNetworkProtocolSNMPEncryptionProtocolsCFB128AES192 ManagerNetworkProtocolSNMPEncryptionProtocols = "CFB128_AES192"
+	ManagerNetworkProtocolSNMPEncryptionProtocolsCFB128AES256 ManagerNetworkProtocolSNMPEncryptionProtocols = "CFB128_AES256"
+)
+
+// ManagerNetworkProtocolSSHPreferredAuthentication is a Redfish string enumeration.
+type ManagerNetworkProtocolSSHPreferredAuthentication string
+
+const (
+	ManagerNetworkProtocolSSHPreferredAuthenticationPassword            ManagerNetworkProtocolSSHPreferredAuthentication = "Password"
+	ManagerNetworkProtocolSSHPreferredAuthenticationPublicKey           ManagerNetworkProtocolSSHPreferredAuthentication = "PublicKey"
+	ManagerNetworkProtocolSSHPreferredAuthenticationKeyboardInteractive ManagerNetworkProtocolSSHPreferredAuthentication = "KeyboardInteractive"
+	ManagerNetworkProtocolSSHPreferredAuthenticationGSSAPIWithMIC       ManagerNetworkProtocolSSHPreferredAuthentication = "GSSAPIWithMIC"
+	ManagerNetworkProtocolSSHPreferredAuthenticationHostBased           ManagerNetworkProtocolSSHPreferredAuthentication = "HostBased"
+)
+
 // ManagerResetToDefaultsType is a Redfish string enumeration.
 type ManagerResetToDefaultsType string
 
@@ -1018,6 +1161,8 @@ type AccountServiceAuthentication struct {
 	Token              string
 	KerberosKeytab     string
 	Oem                *ResourceOem
+	EncryptionKey      string
+	EncryptionKeySet   *bool
 }
 
 // Bytes encodes AccountServiceAuthentication as Redfish JSON.
@@ -1031,6 +1176,8 @@ func (x *AccountServiceAuthentication) Bytes() []byte {
 	if x.Oem != nil {
 		b.Raw("Oem", x.Oem.Bytes())
 	}
+	b.OptString("EncryptionKey", x.EncryptionKey)
+	b.OptBool("EncryptionKeySet", x.EncryptionKeySet)
 	return b.Bytes()
 }
 
@@ -1062,6 +1209,13 @@ type AccountServiceExternalAccountProvider struct {
 	Authentication      *AccountServiceAuthentication
 	LDAPService         *AccountServiceLDAPService
 	RemoteRoleMapping   []AccountServiceRoleMapping
+	PasswordSet         *bool
+	TACACSplusService   *AccountServiceTACACSplusService
+	Priority            *int64
+	OAuth2Service       *AccountServiceOAuth2Service
+	Retries             *int64
+	TimeoutSeconds      *int64
+	Certificates        odata.Link
 }
 
 // Bytes encodes AccountServiceExternalAccountProvider as Redfish JSON.
@@ -1082,6 +1236,19 @@ func (x *AccountServiceExternalAccountProvider) Bytes() []byte {
 			items[i] = x.RemoteRoleMapping[i].Bytes()
 		}
 		b.RawArray("RemoteRoleMapping", items)
+	}
+	b.OptBool("PasswordSet", x.PasswordSet)
+	if x.TACACSplusService != nil {
+		b.Raw("TACACSplusService", x.TACACSplusService.Bytes())
+	}
+	b.OptInt("Priority", x.Priority)
+	if x.OAuth2Service != nil {
+		b.Raw("OAuth2Service", x.OAuth2Service.Bytes())
+	}
+	b.OptInt("Retries", x.Retries)
+	b.OptInt("TimeoutSeconds", x.TimeoutSeconds)
+	if x.Certificates != "" {
+		b.Ref("Certificates", string(x.Certificates))
 	}
 	return b.Bytes()
 }
@@ -1108,6 +1275,8 @@ type AccountServiceLDAPSearchSettings struct {
 	UsernameAttribute      string
 	GroupNameAttribute     string
 	GroupsAttribute        string
+	SSHKeyAttribute        string
+	EmailAttribute         string
 }
 
 // Bytes encodes AccountServiceLDAPSearchSettings as Redfish JSON.
@@ -1117,6 +1286,8 @@ func (x *AccountServiceLDAPSearchSettings) Bytes() []byte {
 	b.OptString("UsernameAttribute", x.UsernameAttribute)
 	b.OptString("GroupNameAttribute", x.GroupNameAttribute)
 	b.OptString("GroupsAttribute", x.GroupsAttribute)
+	b.OptString("SSHKeyAttribute", x.SSHKeyAttribute)
+	b.OptString("EmailAttribute", x.EmailAttribute)
 	return b.Bytes()
 }
 
@@ -1168,10 +1339,12 @@ func (x *AccountServiceMicrosoftAuthenticator) Bytes() []byte {
 
 // AccountServiceMultiFactorAuth is a generated Redfish complex type.
 type AccountServiceMultiFactorAuth struct {
-	SecurID                *AccountServiceSecurID
-	GoogleAuthenticator    *AccountServiceGoogleAuthenticator
-	MicrosoftAuthenticator *AccountServiceMicrosoftAuthenticator
-	ClientCertificate      *AccountServiceClientCertificate
+	SecurID                  *AccountServiceSecurID
+	GoogleAuthenticator      *AccountServiceGoogleAuthenticator
+	MicrosoftAuthenticator   *AccountServiceMicrosoftAuthenticator
+	ClientCertificate        *AccountServiceClientCertificate
+	OneTimePasscode          *AccountServiceOneTimePasscode
+	TimeBasedOneTimePassword *AccountServiceTimeBasedOneTimePassword
 }
 
 // Bytes encodes AccountServiceMultiFactorAuth as Redfish JSON.
@@ -1189,6 +1362,34 @@ func (x *AccountServiceMultiFactorAuth) Bytes() []byte {
 	if x.ClientCertificate != nil {
 		b.Raw("ClientCertificate", x.ClientCertificate.Bytes())
 	}
+	if x.OneTimePasscode != nil {
+		b.Raw("OneTimePasscode", x.OneTimePasscode.Bytes())
+	}
+	if x.TimeBasedOneTimePassword != nil {
+		b.Raw("TimeBasedOneTimePassword", x.TimeBasedOneTimePassword.Bytes())
+	}
+	return b.Bytes()
+}
+
+// AccountServiceOAuth2Service is a generated Redfish complex type.
+type AccountServiceOAuth2Service struct {
+	Mode                    AccountServiceOAuth2Mode
+	Issuer                  string
+	Audience                []string
+	OAuthServiceSigningKeys string
+	Oem                     *ResourceOem
+}
+
+// Bytes encodes AccountServiceOAuth2Service as Redfish JSON.
+func (x *AccountServiceOAuth2Service) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptString("Mode", string(x.Mode))
+	b.OptString("Issuer", x.Issuer)
+	b.StrArray("Audience", x.Audience)
+	b.OptString("OAuthServiceSigningKeys", x.OAuthServiceSigningKeys)
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
 	return b.Bytes()
 }
 
@@ -1202,12 +1403,27 @@ func (x *AccountServiceOemActions) Bytes() []byte {
 	return b.Bytes()
 }
 
+// AccountServiceOneTimePasscode is a generated Redfish complex type.
+type AccountServiceOneTimePasscode struct {
+	Enabled *bool
+}
+
+// Bytes encodes AccountServiceOneTimePasscode as Redfish JSON.
+func (x *AccountServiceOneTimePasscode) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptBool("Enabled", x.Enabled)
+	return b.Bytes()
+}
+
 // AccountServiceRoleMapping is a generated Redfish complex type.
 type AccountServiceRoleMapping struct {
-	RemoteGroup string
-	RemoteUser  string
-	LocalRole   string
-	Oem         *ResourceOem
+	RemoteGroup          string
+	RemoteUser           string
+	LocalRole            string
+	Oem                  *ResourceOem
+	MFABypass            *AccountServiceMFABypass
+	LocalAccountTypes    []string
+	LocalOEMAccountTypes []string
 }
 
 // Bytes encodes AccountServiceRoleMapping as Redfish JSON.
@@ -1219,6 +1435,11 @@ func (x *AccountServiceRoleMapping) Bytes() []byte {
 	if x.Oem != nil {
 		b.Raw("Oem", x.Oem.Bytes())
 	}
+	if x.MFABypass != nil {
+		b.Raw("MFABypass", x.MFABypass.Bytes())
+	}
+	b.StrArray("LocalAccountTypes", x.LocalAccountTypes)
+	b.StrArray("LocalOEMAccountTypes", x.LocalOEMAccountTypes)
 	return b.Bytes()
 }
 
@@ -1243,6 +1464,40 @@ func (x *AccountServiceSecurID) Bytes() []byte {
 	if x.Certificates != "" {
 		b.Ref("Certificates", string(x.Certificates))
 	}
+	return b.Bytes()
+}
+
+// AccountServiceTACACSplusService is a generated Redfish complex type.
+type AccountServiceTACACSplusService struct {
+	PrivilegeLevelArgument    string
+	PasswordExchangeProtocols []string
+	AuthorizationService      string
+	Oem                       *ResourceOem
+}
+
+// Bytes encodes AccountServiceTACACSplusService as Redfish JSON.
+func (x *AccountServiceTACACSplusService) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptString("PrivilegeLevelArgument", x.PrivilegeLevelArgument)
+	b.StrArray("PasswordExchangeProtocols", x.PasswordExchangeProtocols)
+	b.OptString("AuthorizationService", x.AuthorizationService)
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	return b.Bytes()
+}
+
+// AccountServiceTimeBasedOneTimePassword is a generated Redfish complex type.
+type AccountServiceTimeBasedOneTimePassword struct {
+	Enabled         *bool
+	TimeStepSeconds *int64
+}
+
+// Bytes encodes AccountServiceTimeBasedOneTimePassword as Redfish JSON.
+func (x *AccountServiceTimeBasedOneTimePassword) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptBool("Enabled", x.Enabled)
+	b.OptInt("TimeStepSeconds", x.TimeStepSeconds)
 	return b.Bytes()
 }
 
@@ -1340,13 +1595,29 @@ func (x *ChassisDoors) Bytes() []byte {
 
 // ChassisLinks is a generated Redfish complex type.
 type ChassisLinks struct {
-	Oem             *ResourceOem
-	ComputerSystems []odata.Link
-	ManagedBy       []odata.Link
-	ContainedBy     odata.Link
-	Contains        []odata.Link
-	PoweredBy       []odata.Link
-	CooledBy        []odata.Link
+	Oem                   *ResourceOem
+	ComputerSystems       []odata.Link
+	ManagedBy             []odata.Link
+	ContainedBy           odata.Link
+	Contains              []odata.Link
+	PoweredBy             []odata.Link
+	CooledBy              []odata.Link
+	ManagersInChassis     []odata.Link
+	Drives                []odata.Link
+	Storage               []odata.Link
+	PCIeDevices           []odata.Link
+	ResourceBlocks        []odata.Link
+	Switches              []odata.Link
+	Processors            []odata.Link
+	Facility              odata.Link
+	Cables                []odata.Link
+	PowerOutlets          []odata.Link
+	PowerSupplies         []odata.Link
+	Fans                  []odata.Link
+	PowerDistribution     odata.Link
+	CoolingUnits          []odata.Link
+	ConnectedCoolingLoops []odata.Link
+	AutomationNodes       []odata.Link
 }
 
 // Bytes encodes ChassisLinks as Redfish JSON.
@@ -1372,6 +1643,54 @@ func (x *ChassisLinks) Bytes() []byte {
 	}
 	if len(x.CooledBy) > 0 {
 		b.RefArray("CooledBy", odata.Strings(x.CooledBy))
+	}
+	if len(x.ManagersInChassis) > 0 {
+		b.RefArray("ManagersInChassis", odata.Strings(x.ManagersInChassis))
+	}
+	if len(x.Drives) > 0 {
+		b.RefArray("Drives", odata.Strings(x.Drives))
+	}
+	if len(x.Storage) > 0 {
+		b.RefArray("Storage", odata.Strings(x.Storage))
+	}
+	if len(x.PCIeDevices) > 0 {
+		b.RefArray("PCIeDevices", odata.Strings(x.PCIeDevices))
+	}
+	if len(x.ResourceBlocks) > 0 {
+		b.RefArray("ResourceBlocks", odata.Strings(x.ResourceBlocks))
+	}
+	if len(x.Switches) > 0 {
+		b.RefArray("Switches", odata.Strings(x.Switches))
+	}
+	if len(x.Processors) > 0 {
+		b.RefArray("Processors", odata.Strings(x.Processors))
+	}
+	if x.Facility != "" {
+		b.Ref("Facility", string(x.Facility))
+	}
+	if len(x.Cables) > 0 {
+		b.RefArray("Cables", odata.Strings(x.Cables))
+	}
+	if len(x.PowerOutlets) > 0 {
+		b.RefArray("PowerOutlets", odata.Strings(x.PowerOutlets))
+	}
+	if len(x.PowerSupplies) > 0 {
+		b.RefArray("PowerSupplies", odata.Strings(x.PowerSupplies))
+	}
+	if len(x.Fans) > 0 {
+		b.RefArray("Fans", odata.Strings(x.Fans))
+	}
+	if x.PowerDistribution != "" {
+		b.Ref("PowerDistribution", string(x.PowerDistribution))
+	}
+	if len(x.CoolingUnits) > 0 {
+		b.RefArray("CoolingUnits", odata.Strings(x.CoolingUnits))
+	}
+	if len(x.ConnectedCoolingLoops) > 0 {
+		b.RefArray("ConnectedCoolingLoops", odata.Strings(x.ConnectedCoolingLoops))
+	}
+	if len(x.AutomationNodes) > 0 {
+		b.RefArray("AutomationNodes", odata.Strings(x.AutomationNodes))
 	}
 	return b.Bytes()
 }
@@ -1442,9 +1761,22 @@ func (x *ComputerSystemActions) Bytes() []byte {
 
 // ComputerSystemBoot is a generated Redfish complex type.
 type ComputerSystemBoot struct {
-	BootSourceOverrideTarget     ComputerSystemBootSource
-	BootSourceOverrideEnabled    ComputerSystemBootSourceOverrideEnabled
-	UefiTargetBootSourceOverride string
+	BootSourceOverrideTarget        ComputerSystemBootSource
+	BootSourceOverrideEnabled       ComputerSystemBootSourceOverrideEnabled
+	UefiTargetBootSourceOverride    string
+	BootSourceOverrideMode          ComputerSystemBootSourceOverrideMode
+	BootNext                        string
+	BootOrder                       []string
+	AliasBootOrder                  []string
+	BootOrderPropertySelection      ComputerSystemBootOrderTypes
+	HttpBootUri                     string
+	AutomaticRetryConfig            ComputerSystemAutomaticRetryConfig
+	AutomaticRetryAttempts          *int64
+	RemainingAutomaticRetryAttempts *int64
+	TrustedModuleRequiredToBoot     ComputerSystemTrustedModuleRequiredToBoot
+	StopBootOnFault                 ComputerSystemStopBootOnFault
+	BootOptions                     odata.Link
+	Certificates                    odata.Link
 }
 
 // Bytes encodes ComputerSystemBoot as Redfish JSON.
@@ -1453,15 +1785,33 @@ func (x *ComputerSystemBoot) Bytes() []byte {
 	b.OptString("BootSourceOverrideTarget", string(x.BootSourceOverrideTarget))
 	b.OptString("BootSourceOverrideEnabled", string(x.BootSourceOverrideEnabled))
 	b.OptString("UefiTargetBootSourceOverride", x.UefiTargetBootSourceOverride)
+	b.OptString("BootSourceOverrideMode", string(x.BootSourceOverrideMode))
+	b.OptString("BootNext", x.BootNext)
+	b.StrArray("BootOrder", x.BootOrder)
+	b.StrArray("AliasBootOrder", x.AliasBootOrder)
+	b.OptString("BootOrderPropertySelection", string(x.BootOrderPropertySelection))
+	b.OptString("HttpBootUri", x.HttpBootUri)
+	b.OptString("AutomaticRetryConfig", string(x.AutomaticRetryConfig))
+	b.OptInt("AutomaticRetryAttempts", x.AutomaticRetryAttempts)
+	b.OptInt("RemainingAutomaticRetryAttempts", x.RemainingAutomaticRetryAttempts)
+	b.OptString("TrustedModuleRequiredToBoot", string(x.TrustedModuleRequiredToBoot))
+	b.OptString("StopBootOnFault", string(x.StopBootOnFault))
+	if x.BootOptions != "" {
+		b.Ref("BootOptions", string(x.BootOptions))
+	}
+	if x.Certificates != "" {
+		b.Ref("Certificates", string(x.Certificates))
+	}
 	return b.Bytes()
 }
 
 // ComputerSystemBootProgress is a generated Redfish complex type.
 type ComputerSystemBootProgress struct {
-	LastState     ComputerSystemBootProgressTypes
-	LastStateTime string
-	OemLastState  string
-	Oem           *ResourceOem
+	LastState           ComputerSystemBootProgressTypes
+	LastStateTime       string
+	OemLastState        string
+	Oem                 *ResourceOem
+	LastBootTimeSeconds *float64
 }
 
 // Bytes encodes ComputerSystemBootProgress as Redfish JSON.
@@ -1473,6 +1823,7 @@ func (x *ComputerSystemBootProgress) Bytes() []byte {
 	if x.Oem != nil {
 		b.Raw("Oem", x.Oem.Bytes())
 	}
+	b.OptFloat("LastBootTimeSeconds", x.LastBootTimeSeconds)
 	return b.Bytes()
 }
 
@@ -1512,6 +1863,7 @@ type ComputerSystemHostSerialConsole struct {
 	SSH                   *ComputerSystemSerialConsoleProtocol
 	Telnet                *ComputerSystemSerialConsoleProtocol
 	IPMI                  *ComputerSystemSerialConsoleProtocol
+	WebSocket             *ComputerSystemWebSocketConsole
 }
 
 // Bytes encodes ComputerSystemHostSerialConsole as Redfish JSON.
@@ -1526,6 +1878,9 @@ func (x *ComputerSystemHostSerialConsole) Bytes() []byte {
 	}
 	if x.IPMI != nil {
 		b.Raw("IPMI", x.IPMI.Bytes())
+	}
+	if x.WebSocket != nil {
+		b.Raw("WebSocket", x.WebSocket.Bytes())
 	}
 	return b.Bytes()
 }
@@ -1582,10 +1937,12 @@ func (x *ComputerSystemIdlePowerSaver) Bytes() []byte {
 
 // ComputerSystemKMIPServer is a generated Redfish complex type.
 type ComputerSystemKMIPServer struct {
-	Address  string
-	Port     *int64
-	Username string
-	Password string
+	Address       string
+	Port          *int64
+	Username      string
+	Password      string
+	CachePolicy   ComputerSystemKMIPCachePolicy
+	CacheDuration string
 }
 
 // Bytes encodes ComputerSystemKMIPServer as Redfish JSON.
@@ -1595,13 +1952,16 @@ func (x *ComputerSystemKMIPServer) Bytes() []byte {
 	b.OptInt("Port", x.Port)
 	b.OptString("Username", x.Username)
 	b.OptString("Password", x.Password)
+	b.OptString("CachePolicy", string(x.CachePolicy))
+	b.OptString("CacheDuration", x.CacheDuration)
 	return b.Bytes()
 }
 
 // ComputerSystemKeyManagement is a generated Redfish complex type.
 type ComputerSystemKeyManagement struct {
-	KMIPServers      []ComputerSystemKMIPServer
-	KMIPCertificates odata.Link
+	KMIPServers            []ComputerSystemKMIPServer
+	KMIPCertificates       odata.Link
+	KMIPClientCertificates odata.Link
 }
 
 // Bytes encodes ComputerSystemKeyManagement as Redfish JSON.
@@ -1617,16 +1977,27 @@ func (x *ComputerSystemKeyManagement) Bytes() []byte {
 	if x.KMIPCertificates != "" {
 		b.Ref("KMIPCertificates", string(x.KMIPCertificates))
 	}
+	if x.KMIPClientCertificates != "" {
+		b.Ref("KMIPClientCertificates", string(x.KMIPClientCertificates))
+	}
 	return b.Bytes()
 }
 
 // ComputerSystemLinks is a generated Redfish complex type.
 type ComputerSystemLinks struct {
-	Oem       *ResourceOem
-	Chassis   []odata.Link
-	ManagedBy []odata.Link
-	PoweredBy []odata.Link
-	CooledBy  []odata.Link
+	Oem                             *ResourceOem
+	Chassis                         []odata.Link
+	ManagedBy                       []odata.Link
+	PoweredBy                       []odata.Link
+	CooledBy                        []odata.Link
+	Endpoints                       []odata.Link
+	ResourceBlocks                  []odata.Link
+	ConsumingComputerSystems        []odata.Link
+	SupplyingComputerSystems        []odata.Link
+	OffloadedNetworkDeviceFunctions []odata.Link
+	TrustedComponents               []odata.Link
+	HostingComputerSystem           odata.Link
+	VirtualMachines                 []odata.Link
 }
 
 // Bytes encodes ComputerSystemLinks as Redfish JSON.
@@ -1647,13 +2018,40 @@ func (x *ComputerSystemLinks) Bytes() []byte {
 	if len(x.CooledBy) > 0 {
 		b.RefArray("CooledBy", odata.Strings(x.CooledBy))
 	}
+	if len(x.Endpoints) > 0 {
+		b.RefArray("Endpoints", odata.Strings(x.Endpoints))
+	}
+	if len(x.ResourceBlocks) > 0 {
+		b.RefArray("ResourceBlocks", odata.Strings(x.ResourceBlocks))
+	}
+	if len(x.ConsumingComputerSystems) > 0 {
+		b.RefArray("ConsumingComputerSystems", odata.Strings(x.ConsumingComputerSystems))
+	}
+	if len(x.SupplyingComputerSystems) > 0 {
+		b.RefArray("SupplyingComputerSystems", odata.Strings(x.SupplyingComputerSystems))
+	}
+	if len(x.OffloadedNetworkDeviceFunctions) > 0 {
+		b.RefArray("OffloadedNetworkDeviceFunctions", odata.Strings(x.OffloadedNetworkDeviceFunctions))
+	}
+	if len(x.TrustedComponents) > 0 {
+		b.RefArray("TrustedComponents", odata.Strings(x.TrustedComponents))
+	}
+	if x.HostingComputerSystem != "" {
+		b.Ref("HostingComputerSystem", string(x.HostingComputerSystem))
+	}
+	if len(x.VirtualMachines) > 0 {
+		b.RefArray("VirtualMachines", odata.Strings(x.VirtualMachines))
+	}
 	return b.Bytes()
 }
 
 // ComputerSystemMemorySummary is a generated Redfish complex type.
 type ComputerSystemMemorySummary struct {
-	TotalSystemMemoryGiB *float64
-	Status               *ResourceStatus
+	TotalSystemMemoryGiB           *float64
+	Status                         *ResourceStatus
+	MemoryMirroring                ComputerSystemMemoryMirroring
+	TotalSystemPersistentMemoryGiB *float64
+	Metrics                        odata.Link
 }
 
 // Bytes encodes ComputerSystemMemorySummary as Redfish JSON.
@@ -1662,6 +2060,11 @@ func (x *ComputerSystemMemorySummary) Bytes() []byte {
 	b.OptFloat("TotalSystemMemoryGiB", x.TotalSystemMemoryGiB)
 	if x.Status != nil {
 		b.Raw("Status", x.Status.Bytes())
+	}
+	b.OptString("MemoryMirroring", string(x.MemoryMirroring))
+	b.OptFloat("TotalSystemPersistentMemoryGiB", x.TotalSystemPersistentMemoryGiB)
+	if x.Metrics != "" {
+		b.Ref("Metrics", string(x.Metrics))
 	}
 	return b.Bytes()
 }
@@ -1678,9 +2081,13 @@ func (x *ComputerSystemOemActions) Bytes() []byte {
 
 // ComputerSystemProcessorSummary is a generated Redfish complex type.
 type ComputerSystemProcessorSummary struct {
-	Count  *int64
-	Model  string
-	Status *ResourceStatus
+	Count                 *int64
+	Model                 string
+	Status                *ResourceStatus
+	LogicalProcessorCount *int64
+	CoreCount             *int64
+	ThreadingEnabled      *bool
+	Metrics               odata.Link
 }
 
 // Bytes encodes ComputerSystemProcessorSummary as Redfish JSON.
@@ -1690,6 +2097,12 @@ func (x *ComputerSystemProcessorSummary) Bytes() []byte {
 	b.OptString("Model", x.Model)
 	if x.Status != nil {
 		b.Raw("Status", x.Status.Bytes())
+	}
+	b.OptInt("LogicalProcessorCount", x.LogicalProcessorCount)
+	b.OptInt("CoreCount", x.CoreCount)
+	b.OptBool("ThreadingEnabled", x.ThreadingEnabled)
+	if x.Metrics != "" {
+		b.Ref("Metrics", string(x.Metrics))
 	}
 	return b.Bytes()
 }
@@ -1716,10 +2129,12 @@ func (x *ComputerSystemSerialConsoleProtocol) Bytes() []byte {
 
 // ComputerSystemTrustedModules is a generated Redfish complex type.
 type ComputerSystemTrustedModules struct {
-	FirmwareVersion string
-	InterfaceType   ComputerSystemInterfaceType
-	Status          *ResourceStatus
-	Oem             *ResourceOem
+	FirmwareVersion        string
+	InterfaceType          ComputerSystemInterfaceType
+	Status                 *ResourceStatus
+	Oem                    *ResourceOem
+	FirmwareVersion2       string
+	InterfaceTypeSelection ComputerSystemInterfaceTypeSelection
 }
 
 // Bytes encodes ComputerSystemTrustedModules as Redfish JSON.
@@ -1733,6 +2148,8 @@ func (x *ComputerSystemTrustedModules) Bytes() []byte {
 	if x.Oem != nil {
 		b.Raw("Oem", x.Oem.Bytes())
 	}
+	b.OptString("FirmwareVersion2", x.FirmwareVersion2)
+	b.OptString("InterfaceTypeSelection", string(x.InterfaceTypeSelection))
 	return b.Bytes()
 }
 
@@ -1785,6 +2202,22 @@ func (x *ComputerSystemWatchdogTimer) Bytes() []byte {
 	if x.Oem != nil {
 		b.Raw("Oem", x.Oem.Bytes())
 	}
+	return b.Bytes()
+}
+
+// ComputerSystemWebSocketConsole is a generated Redfish complex type.
+type ComputerSystemWebSocketConsole struct {
+	ServiceEnabled *bool
+	ConsoleURI     string
+	Interactive    *bool
+}
+
+// Bytes encodes ComputerSystemWebSocketConsole as Redfish JSON.
+func (x *ComputerSystemWebSocketConsole) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptBool("ServiceEnabled", x.ServiceEnabled)
+	b.OptString("ConsoleURI", x.ConsoleURI)
+	b.OptBool("Interactive", x.Interactive)
 	return b.Bytes()
 }
 
@@ -1842,6 +2275,7 @@ type EthernetInterfaceDHCPv4Configuration struct {
 	UseGateway      *bool
 	UseNTPServers   *bool
 	UseStaticRoutes *bool
+	FallbackAddress EthernetInterfaceDHCPFallback
 }
 
 // Bytes encodes EthernetInterfaceDHCPv4Configuration as Redfish JSON.
@@ -1853,6 +2287,7 @@ func (x *EthernetInterfaceDHCPv4Configuration) Bytes() []byte {
 	b.OptBool("UseGateway", x.UseGateway)
 	b.OptBool("UseNTPServers", x.UseNTPServers)
 	b.OptBool("UseStaticRoutes", x.UseStaticRoutes)
+	b.OptString("FallbackAddress", string(x.FallbackAddress))
 	return b.Bytes()
 }
 
@@ -1894,8 +2329,15 @@ func (x *EthernetInterfaceIPv6AddressPolicyEntry) Bytes() []byte {
 
 // EthernetInterfaceLinks is a generated Redfish complex type.
 type EthernetInterfaceLinks struct {
-	Oem       *ResourceOem
-	Endpoints []odata.Link
+	Oem                    *ResourceOem
+	Endpoints              []odata.Link
+	HostInterface          odata.Link
+	Chassis                odata.Link
+	NetworkDeviceFunction  odata.Link
+	NetworkDeviceFunctions []odata.Link
+	Ports                  []odata.Link
+	RelatedInterfaces      []odata.Link
+	AffiliatedInterfaces   []odata.Link
 }
 
 // Bytes encodes EthernetInterfaceLinks as Redfish JSON.
@@ -1906,6 +2348,27 @@ func (x *EthernetInterfaceLinks) Bytes() []byte {
 	}
 	if len(x.Endpoints) > 0 {
 		b.RefArray("Endpoints", odata.Strings(x.Endpoints))
+	}
+	if x.HostInterface != "" {
+		b.Ref("HostInterface", string(x.HostInterface))
+	}
+	if x.Chassis != "" {
+		b.Ref("Chassis", string(x.Chassis))
+	}
+	if x.NetworkDeviceFunction != "" {
+		b.Ref("NetworkDeviceFunction", string(x.NetworkDeviceFunction))
+	}
+	if len(x.NetworkDeviceFunctions) > 0 {
+		b.RefArray("NetworkDeviceFunctions", odata.Strings(x.NetworkDeviceFunctions))
+	}
+	if len(x.Ports) > 0 {
+		b.RefArray("Ports", odata.Strings(x.Ports))
+	}
+	if len(x.RelatedInterfaces) > 0 {
+		b.RefArray("RelatedInterfaces", odata.Strings(x.RelatedInterfaces))
+	}
+	if len(x.AffiliatedInterfaces) > 0 {
+		b.RefArray("AffiliatedInterfaces", odata.Strings(x.AffiliatedInterfaces))
 	}
 	return b.Bytes()
 }
@@ -2050,6 +2513,8 @@ func (x *LogEntryCPER) Bytes() []byte {
 type LogEntryLinks struct {
 	Oem               *ResourceOem
 	OriginOfCondition odata.Link
+	RelatedItem       []odata.Link
+	RelatedLogEntries []odata.Link
 }
 
 // Bytes encodes LogEntryLinks as Redfish JSON.
@@ -2060,6 +2525,12 @@ func (x *LogEntryLinks) Bytes() []byte {
 	}
 	if x.OriginOfCondition != "" {
 		b.Ref("OriginOfCondition", string(x.OriginOfCondition))
+	}
+	if len(x.RelatedItem) > 0 {
+		b.RefArray("RelatedItem", odata.Strings(x.RelatedItem))
+	}
+	if len(x.RelatedLogEntries) > 0 {
+		b.RefArray("RelatedLogEntries", odata.Strings(x.RelatedLogEntries))
 	}
 	return b.Bytes()
 }
@@ -2210,6 +2681,8 @@ type ManagerAccountSNMPUserInfo struct {
 	AuthenticationProtocol ManagerAccountSNMPAuthenticationProtocols
 	EncryptionKey          string
 	EncryptionProtocol     ManagerAccountSNMPEncryptionProtocols
+	AuthenticationKeySet   *bool
+	EncryptionKeySet       *bool
 }
 
 // Bytes encodes ManagerAccountSNMPUserInfo as Redfish JSON.
@@ -2219,6 +2692,8 @@ func (x *ManagerAccountSNMPUserInfo) Bytes() []byte {
 	b.OptString("AuthenticationProtocol", string(x.AuthenticationProtocol))
 	b.OptString("EncryptionKey", x.EncryptionKey)
 	b.OptString("EncryptionProtocol", string(x.EncryptionProtocol))
+	b.OptBool("AuthenticationKeySet", x.AuthenticationKeySet)
+	b.OptBool("EncryptionKeySet", x.EncryptionKeySet)
 	return b.Bytes()
 }
 
@@ -2308,9 +2783,17 @@ func (x *ManagerGraphicalConsole) Bytes() []byte {
 
 // ManagerLinks is a generated Redfish complex type.
 type ManagerLinks struct {
-	Oem               *ResourceOem
-	ManagerForServers []odata.Link
-	ManagerForChassis []odata.Link
+	Oem                 *ResourceOem
+	ManagerForServers   []odata.Link
+	ManagerForChassis   []odata.Link
+	ManagerInChassis    odata.Link
+	ManagerForSwitches  []odata.Link
+	ActiveSoftwareImage odata.Link
+	SoftwareImages      []odata.Link
+	ManagedBy           []odata.Link
+	ManagerForManagers  []odata.Link
+	SelectedNetworkPort odata.Link
+	ManagerForFabrics   []odata.Link
 }
 
 // Bytes encodes ManagerLinks as Redfish JSON.
@@ -2324,6 +2807,30 @@ func (x *ManagerLinks) Bytes() []byte {
 	}
 	if len(x.ManagerForChassis) > 0 {
 		b.RefArray("ManagerForChassis", odata.Strings(x.ManagerForChassis))
+	}
+	if x.ManagerInChassis != "" {
+		b.Ref("ManagerInChassis", string(x.ManagerInChassis))
+	}
+	if len(x.ManagerForSwitches) > 0 {
+		b.RefArray("ManagerForSwitches", odata.Strings(x.ManagerForSwitches))
+	}
+	if x.ActiveSoftwareImage != "" {
+		b.Ref("ActiveSoftwareImage", string(x.ActiveSoftwareImage))
+	}
+	if len(x.SoftwareImages) > 0 {
+		b.RefArray("SoftwareImages", odata.Strings(x.SoftwareImages))
+	}
+	if len(x.ManagedBy) > 0 {
+		b.RefArray("ManagedBy", odata.Strings(x.ManagedBy))
+	}
+	if len(x.ManagerForManagers) > 0 {
+		b.RefArray("ManagerForManagers", odata.Strings(x.ManagerForManagers))
+	}
+	if x.SelectedNetworkPort != "" {
+		b.Ref("SelectedNetworkPort", string(x.SelectedNetworkPort))
+	}
+	if len(x.ManagerForFabrics) > 0 {
+		b.RefArray("ManagerForFabrics", odata.Strings(x.ManagerForFabrics))
 	}
 	return b.Bytes()
 }
@@ -2342,10 +2849,27 @@ func (x *ManagerNetworkProtocolActions) Bytes() []byte {
 	return b.Bytes()
 }
 
+// ManagerNetworkProtocolEngineId is a generated Redfish complex type.
+type ManagerNetworkProtocolEngineId struct {
+	PrivateEnterpriseId      string
+	EnterpriseSpecificMethod string
+	ArchitectureId           string
+}
+
+// Bytes encodes ManagerNetworkProtocolEngineId as Redfish JSON.
+func (x *ManagerNetworkProtocolEngineId) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptString("PrivateEnterpriseId", x.PrivateEnterpriseId)
+	b.OptString("EnterpriseSpecificMethod", x.EnterpriseSpecificMethod)
+	b.OptString("ArchitectureId", x.ArchitectureId)
+	return b.Bytes()
+}
+
 // ManagerNetworkProtocolHTTPSProtocol is a generated Redfish complex type.
 type ManagerNetworkProtocolHTTPSProtocol struct {
 	ProtocolEnabled *bool
 	Port            *int64
+	Certificates    odata.Link
 }
 
 // Bytes encodes ManagerNetworkProtocolHTTPSProtocol as Redfish JSON.
@@ -2353,6 +2877,9 @@ func (x *ManagerNetworkProtocolHTTPSProtocol) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ProtocolEnabled", x.ProtocolEnabled)
 	b.OptInt("Port", x.Port)
+	if x.Certificates != "" {
+		b.Ref("Certificates", string(x.Certificates))
+	}
 	return b.Bytes()
 }
 
@@ -2384,9 +2911,10 @@ func (x *ManagerNetworkProtocolModbusProtocol) Bytes() []byte {
 
 // ManagerNetworkProtocolNTPProtocol is a generated Redfish complex type.
 type ManagerNetworkProtocolNTPProtocol struct {
-	ProtocolEnabled *bool
-	Port            *int64
-	NTPServers      []string
+	ProtocolEnabled        *bool
+	Port                   *int64
+	NTPServers             []string
+	NetworkSuppliedServers []string
 }
 
 // Bytes encodes ManagerNetworkProtocolNTPProtocol as Redfish JSON.
@@ -2395,6 +2923,7 @@ func (x *ManagerNetworkProtocolNTPProtocol) Bytes() []byte {
 	b.OptBool("ProtocolEnabled", x.ProtocolEnabled)
 	b.OptInt("Port", x.Port)
 	b.StrArray("NTPServers", x.NTPServers)
+	b.StrArray("NetworkSuppliedServers", x.NetworkSuppliedServers)
 	return b.Bytes()
 }
 
@@ -2446,10 +2975,42 @@ func (x *ManagerNetworkProtocolProxyConfiguration) Bytes() []byte {
 	return b.Bytes()
 }
 
+// ManagerNetworkProtocolSNMPCommunity is a generated Redfish complex type.
+type ManagerNetworkProtocolSNMPCommunity struct {
+	Name                                string
+	CommunityString                     string
+	AccessMode                          ManagerNetworkProtocolSNMPCommunityAccessMode
+	RestrictCommunityToIPv4AddressRange *bool
+	IPv4AddressRangeLower               string
+	IPv4AddressRangeUpper               string
+}
+
+// Bytes encodes ManagerNetworkProtocolSNMPCommunity as Redfish JSON.
+func (x *ManagerNetworkProtocolSNMPCommunity) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptString("Name", x.Name)
+	b.OptString("CommunityString", x.CommunityString)
+	b.OptString("AccessMode", string(x.AccessMode))
+	b.OptBool("RestrictCommunityToIPv4AddressRange", x.RestrictCommunityToIPv4AddressRange)
+	b.OptString("IPv4AddressRangeLower", x.IPv4AddressRangeLower)
+	b.OptString("IPv4AddressRangeUpper", x.IPv4AddressRangeUpper)
+	return b.Bytes()
+}
+
 // ManagerNetworkProtocolSNMPProtocol is a generated Redfish complex type.
 type ManagerNetworkProtocolSNMPProtocol struct {
-	ProtocolEnabled *bool
-	Port            *int64
+	ProtocolEnabled        *bool
+	Port                   *int64
+	EnableSNMPv1           *bool
+	EnableSNMPv2c          *bool
+	EnableSNMPv3           *bool
+	CommunityStrings       []ManagerNetworkProtocolSNMPCommunity
+	CommunityAccessMode    ManagerNetworkProtocolSNMPCommunityAccessMode
+	EngineId               *ManagerNetworkProtocolEngineId
+	HideCommunityStrings   *bool
+	AuthenticationProtocol ManagerNetworkProtocolSNMPAuthenticationProtocols
+	EncryptionProtocol     ManagerNetworkProtocolSNMPEncryptionProtocols
+	TrapPort               *int64
 }
 
 // Bytes encodes ManagerNetworkProtocolSNMPProtocol as Redfish JSON.
@@ -2457,6 +3018,24 @@ func (x *ManagerNetworkProtocolSNMPProtocol) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ProtocolEnabled", x.ProtocolEnabled)
 	b.OptInt("Port", x.Port)
+	b.OptBool("EnableSNMPv1", x.EnableSNMPv1)
+	b.OptBool("EnableSNMPv2c", x.EnableSNMPv2c)
+	b.OptBool("EnableSNMPv3", x.EnableSNMPv3)
+	if x.CommunityStrings != nil {
+		items := make([][]byte, len(x.CommunityStrings))
+		for i := range x.CommunityStrings {
+			items[i] = x.CommunityStrings[i].Bytes()
+		}
+		b.RawArray("CommunityStrings", items)
+	}
+	b.OptString("CommunityAccessMode", string(x.CommunityAccessMode))
+	if x.EngineId != nil {
+		b.Raw("EngineId", x.EngineId.Bytes())
+	}
+	b.OptBool("HideCommunityStrings", x.HideCommunityStrings)
+	b.OptString("AuthenticationProtocol", string(x.AuthenticationProtocol))
+	b.OptString("EncryptionProtocol", string(x.EncryptionProtocol))
+	b.OptInt("TrapPort", x.TrapPort)
 	return b.Bytes()
 }
 
@@ -2482,8 +3061,9 @@ func (x *ManagerNetworkProtocolSSDProtocol) Bytes() []byte {
 
 // ManagerNetworkProtocolSSHProtocol is a generated Redfish complex type.
 type ManagerNetworkProtocolSSHProtocol struct {
-	ProtocolEnabled *bool
-	Port            *int64
+	ProtocolEnabled          *bool
+	Port                     *int64
+	PreferredAuthentications []string
 }
 
 // Bytes encodes ManagerNetworkProtocolSSHProtocol as Redfish JSON.
@@ -2491,6 +3071,7 @@ func (x *ManagerNetworkProtocolSSHProtocol) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ProtocolEnabled", x.ProtocolEnabled)
 	b.OptInt("Port", x.Port)
+	b.StrArray("PreferredAuthentications", x.PreferredAuthentications)
 	return b.Bytes()
 }
 
@@ -2796,6 +3377,9 @@ type ResourcePlacement struct {
 	Rack            string
 	RackOffsetUnits ResourceRackUnits
 	RackOffset      *int64
+	AdditionalInfo  string
+	Room            string
+	FacilityName    string
 }
 
 // Bytes encodes ResourcePlacement as Redfish JSON.
@@ -2805,6 +3389,9 @@ func (x *ResourcePlacement) Bytes() []byte {
 	b.OptString("Rack", x.Rack)
 	b.OptString("RackOffsetUnits", string(x.RackOffsetUnits))
 	b.OptInt("RackOffset", x.RackOffset)
+	b.OptString("AdditionalInfo", x.AdditionalInfo)
+	b.OptString("Room", x.Room)
+	b.OptString("FacilityName", x.FacilityName)
 	return b.Bytes()
 }
 
@@ -2842,6 +3429,7 @@ type ResourcePostalAddress struct {
 	RoadPreModifier        string
 	RoadPostModifier       string
 	GPSCoords              string
+	AdditionalInfo         string
 }
 
 // Bytes encodes ResourcePostalAddress as Redfish JSON.
@@ -2879,6 +3467,7 @@ func (x *ResourcePostalAddress) Bytes() []byte {
 	b.OptString("RoadPreModifier", x.RoadPreModifier)
 	b.OptString("RoadPostModifier", x.RoadPostModifier)
 	b.OptString("GPSCoords", x.GPSCoords)
+	b.OptString("AdditionalInfo", x.AdditionalInfo)
 	return b.Bytes()
 }
 
@@ -2910,6 +3499,22 @@ func (x *ResourceStatus) Bytes() []byte {
 	return b.Bytes()
 }
 
+// ServiceRootDeepOperations is a generated Redfish complex type.
+type ServiceRootDeepOperations struct {
+	DeepPATCH *bool
+	DeepPOST  *bool
+	MaxLevels *int64
+}
+
+// Bytes encodes ServiceRootDeepOperations as Redfish JSON.
+func (x *ServiceRootDeepOperations) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.OptBool("DeepPATCH", x.DeepPATCH)
+	b.OptBool("DeepPOST", x.DeepPOST)
+	b.OptInt("MaxLevels", x.MaxLevels)
+	return b.Bytes()
+}
+
 // ServiceRootExpand is a generated Redfish complex type.
 type ServiceRootExpand struct {
 	Links     *bool
@@ -2932,8 +3537,9 @@ func (x *ServiceRootExpand) Bytes() []byte {
 
 // ServiceRootLinks is a generated Redfish complex type.
 type ServiceRootLinks struct {
-	Oem      *ResourceOem
-	Sessions odata.Link
+	Oem                     *ResourceOem
+	Sessions                odata.Link
+	ManagerProvidingService odata.Link
 }
 
 // Bytes encodes ServiceRootLinks as Redfish JSON.
@@ -2945,14 +3551,26 @@ func (x *ServiceRootLinks) Bytes() []byte {
 	if x.Sessions != "" {
 		b.Ref("Sessions", string(x.Sessions))
 	}
+	if x.ManagerProvidingService != "" {
+		b.Ref("ManagerProvidingService", string(x.ManagerProvidingService))
+	}
 	return b.Bytes()
 }
 
 // ServiceRootProtocolFeaturesSupported is a generated Redfish complex type.
 type ServiceRootProtocolFeaturesSupported struct {
-	ExpandQuery *ServiceRootExpand
-	FilterQuery *bool
-	SelectQuery *bool
+	ExpandQuery                     *ServiceRootExpand
+	FilterQuery                     *bool
+	SelectQuery                     *bool
+	ExcerptQuery                    *bool
+	OnlyMemberQuery                 *bool
+	DeepOperations                  *ServiceRootDeepOperations
+	MultipleHTTPRequests            *bool
+	TopSkipQuery                    *bool
+	FilterQueryComparisonOperations *bool
+	FilterQueryCompoundOperations   *bool
+	IncludeOriginOfConditionQuery   *bool
+	ClientContextQuery              *bool
 }
 
 // Bytes encodes ServiceRootProtocolFeaturesSupported as Redfish JSON.
@@ -2963,6 +3581,17 @@ func (x *ServiceRootProtocolFeaturesSupported) Bytes() []byte {
 	}
 	b.OptBool("FilterQuery", x.FilterQuery)
 	b.OptBool("SelectQuery", x.SelectQuery)
+	b.OptBool("ExcerptQuery", x.ExcerptQuery)
+	b.OptBool("OnlyMemberQuery", x.OnlyMemberQuery)
+	if x.DeepOperations != nil {
+		b.Raw("DeepOperations", x.DeepOperations.Bytes())
+	}
+	b.OptBool("MultipleHTTPRequests", x.MultipleHTTPRequests)
+	b.OptBool("TopSkipQuery", x.TopSkipQuery)
+	b.OptBool("FilterQueryComparisonOperations", x.FilterQueryComparisonOperations)
+	b.OptBool("FilterQueryCompoundOperations", x.FilterQueryCompoundOperations)
+	b.OptBool("IncludeOriginOfConditionQuery", x.IncludeOriginOfConditionQuery)
+	b.OptBool("ClientContextQuery", x.ClientContextQuery)
 	return b.Bytes()
 }
 
