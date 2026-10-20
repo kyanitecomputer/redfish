@@ -212,7 +212,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 
 		fmt.Fprintf(b, "// %sProvider performs the %s action.\n", method, a.WireName)
 		fmt.Fprintf(b, "type %sProvider interface {\n", method)
-		fmt.Fprintf(b, "\t%s(ctx context.Context%s, params *%s) error\n", method, providerArgs(hasParams), paramsType)
+		fmt.Fprintf(b, "\t%s(ctx context.Context%s, params *%s) (*server.ActionResult, error)\n", method, providerArgs(hasParams), paramsType)
 		fmt.Fprintf(b, "}\n\n")
 
 		fmt.Fprintf(b, "// Register%s wires a POST handler for the %s action into mux.\n", method, a.WireName)
@@ -225,8 +225,9 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 			fmt.Fprintf(b, "\t\t\tif err := params.UnmarshalJSON(body); err != nil {\n")
 			fmt.Fprintf(b, "\t\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\t\treturn\n\t\t\t}\n\t\t}\n")
 		}
-		fmt.Fprintf(b, "\t\tif err := p.%s(r.Context()%s, &params); err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n", method, callArgs(hasParams))
-		fmt.Fprintf(b, "\t\tserver.NoContent(w)\n\t}\n")
+		fmt.Fprintf(b, "\t\tres, err := p.%s(r.Context()%s, &params)\n", method, callArgs(hasParams))
+		fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
+		fmt.Fprintf(b, "\t\tserver.WriteActionResult(w, res)\n\t}\n")
 		writeRoutes(b, "POST", actionURIs(r.URIs, a.Segment), "h")
 		fmt.Fprintf(b, "}\n\n")
 	}
