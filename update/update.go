@@ -75,6 +75,10 @@ type Installer interface {
 // Service implements the generated UpdateService and SoftwareInventory
 // providers on top of a Backend, running updates as tasks.
 type Service struct {
+	// MaxImageSizeBytes limits the size of pushed update images; zero means
+	// no limit. Set it before Register.
+	MaxImageSizeBytes int64
+
 	backend Backend
 	tasks   *task.Manager
 
@@ -96,6 +100,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	gen.RegisterSoftwareInventory(mux, s)
 	if _, ok := s.backend.(Installer); ok {
 		gen.RegisterSimpleUpdateUpdateService(mux, s)
+		server.Handle(mux, "POST", MultipartPushURI, s.servePush)
 	}
 }
 
@@ -114,6 +119,10 @@ func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error
 	if _, ok := s.backend.(Installer); ok {
 		us.Actions = &gen.UpdateServiceActions{
 			SimpleUpdate: &odata.ActionTarget{Target: SimpleUpdateURI},
+		}
+		us.MultipartHttpPushUri = MultipartPushURI
+		if size := s.MaxImageSizeBytes; size > 0 {
+			us.MaxImageSizeBytes = &size
 		}
 	}
 	return us, nil

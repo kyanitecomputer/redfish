@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -147,8 +148,9 @@ type fakeInstaller struct {
 }
 
 type installCall struct {
-	img Image
-	req Request
+	img  Image
+	req  Request
+	data string // the pushed image, read from img.Body
 }
 
 func newFakeInstaller() *fakeInstaller {
@@ -156,7 +158,15 @@ func newFakeInstaller() *fakeInstaller {
 }
 
 func (f *fakeInstaller) Install(_ context.Context, img Image, req Request, progress func(int)) error {
-	f.got <- installCall{img, req}
+	call := installCall{img: img, req: req}
+	if img.Body != nil {
+		data, err := io.ReadAll(img.Body)
+		if err != nil {
+			return err
+		}
+		call.data, call.img.Body = string(data), nil
+	}
+	f.got <- call
 	progress(50)
 	return <-f.release
 }
