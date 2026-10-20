@@ -81,7 +81,7 @@ func buildODataDoc(m *Model) string {
 	var entries []string
 	entries = append(entries, odataEntry("Service", "/redfish/v1/"))
 	for _, res := range m.Resources {
-		if !res.IsCollection {
+		if !res.IsCollection || len(res.URIs) == 0 {
 			continue
 		}
 		url := canonicalURI(res.URIs)
