@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/task"
 	"src.kyanite.computer/redfish/update"
 )
 
@@ -50,6 +51,8 @@ func newMux(b *backend) *http.ServeMux {
 	gen.RegisterLogService(mux, b)
 	gen.RegisterLogEntryCollection(mux, b)
 	gen.RegisterLogEntry(mux, b)
-	update.New(b).Register(mux)
+	tasks := task.New()
+	tasks.Register(mux)
+	update.New(b, tasks).Register(mux)
 	return mux
 }

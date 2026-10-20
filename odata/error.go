@@ -12,6 +12,10 @@ const (
 	MsgInternalError    = "Base.1.0.InternalError"
 	MsgPropertyNotWrite = "Base.1.0.PropertyNotWritable"
 	MsgUnrecognizedProp = "Base.1.0.PropertyUnknown"
+
+	MsgActionParameterMissing      = "Base.1.0.ActionParameterMissing"
+	MsgActionParameterNotSupported = "Base.1.0.ActionParameterNotSupported"
+	MsgServiceUnavailable          = "Base.1.0.ServiceTemporarilyUnavailable"
 )
 
 // ExtendedInfo is one entry of the @Message.ExtendedInfo array.

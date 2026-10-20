@@ -9,6 +9,7 @@ package update
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
+	"src.kyanite.computer/redfish/task"
 )
 
 // URIs of the resources the service serves.
@@ -23,6 +25,7 @@ const (
 	ServiceURI           = "/redfish/v1/UpdateService"
 	FirmwareInventoryURI = ServiceURI + "/FirmwareInventory"
 	SoftwareInventoryURI = ServiceURI + "/SoftwareInventory"
+	SimpleUpdateURI      = ServiceURI + "/Actions/UpdateService.SimpleUpdate"
 )
 
 // Inventory lists the components a backend reports. Each entry needs an Id
@@ -38,26 +41,62 @@ type Backend interface {
 	Inventory(ctx context.Context) (*Inventory, error)
 }
 
+// Image is an update image. A SimpleUpdate request sets URI, and optionally
+// credentials, leaving the transfer to the backend; a push update sets Body.
+type Image struct {
+	URI      string
+	Username string
+	Password string
+	Body     io.Reader
+}
+
+// Request carries the parameters common to all update methods.
+type Request struct {
+	// Targets lists the @odata.id of the resources to update; when empty the
+	// backend chooses the applicable targets.
+	Targets []string
+	// ExcludeTargets lists the @odata.id of resources not to update.
+	ExcludeTargets []string
+	// ForceUpdate requests the update even if the image is not newer.
+	ForceUpdate bool
+	// Stage requests the image to be staged but not activated.
+	Stage bool
+}
+
+// Installer is implemented by backends that can install update images. The
+// service only advertises the update actions when its backend implements it.
+type Installer interface {
+	// Install installs img and reports its progress in percent. It runs in a
+	// task; returning a *server.Error chooses the error a client reads from the
+	// task monitor. Only one Install runs at a time.
+	Install(ctx context.Context, img Image, req Request, progress func(percent int)) error
+}
+
 // Service implements the generated UpdateService and SoftwareInventory
-// providers on top of a Backend.
+// providers on top of a Backend, running updates as tasks.
 type Service struct {
 	backend Backend
+	tasks   *task.Manager
 
 	mu      sync.Mutex
 	enabled bool
+	busy    bool
 }
 
-// New returns a Service backed by b.
-func New(b Backend) *Service {
-	return &Service{backend: b, enabled: true}
+// New returns a Service backed by b that runs updates as tasks of tasks.
+func New(b Backend, tasks *task.Manager) *Service {
+	return &Service{backend: b, tasks: tasks, enabled: true}
 }
 
-// Register wires the UpdateService and the inventory collections and members
-// into mux.
+// Register wires the UpdateService, the inventory collections and members, and
+// the update actions the backend supports into mux.
 func (s *Service) Register(mux *http.ServeMux) {
 	gen.RegisterUpdateService(mux, s)
 	gen.RegisterSoftwareInventoryCollection(mux, s)
 	gen.RegisterSoftwareInventory(mux, s)
+	if _, ok := s.backend.(Installer); ok {
+		gen.RegisterSimpleUpdateUpdateService(mux, s)
+	}
 }
 
 // GetUpdateService implements gen.UpdateServiceProvider.
@@ -65,13 +104,92 @@ func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error
 	s.mu.Lock()
 	enabled := s.enabled
 	s.mu.Unlock()
-	return &gen.UpdateService{
+	us := &gen.UpdateService{
 		Id:                "UpdateService",
 		Name:              "Update Service",
 		ServiceEnabled:    &enabled,
 		FirmwareInventory: odata.Link(FirmwareInventoryURI),
 		SoftwareInventory: odata.Link(SoftwareInventoryURI),
-	}, nil
+	}
+	if _, ok := s.backend.(Installer); ok {
+		us.Actions = &gen.UpdateServiceActions{
+			SimpleUpdate: &odata.ActionTarget{Target: SimpleUpdateURI},
+		}
+	}
+	return us, nil
+}
+
+// SimpleUpdateUpdateService implements gen.SimpleUpdateUpdateServiceProvider:
+// it hands the image URI to the backend's Installer in a new task.
+func (s *Service) SimpleUpdateUpdateService(_ context.Context, params *gen.UpdateServiceSimpleUpdateParameters) (*server.ActionResult, error) {
+	const action = "UpdateService.SimpleUpdate"
+	if params.ImageURI == nil || *params.ImageURI == "" {
+		return nil, &server.Error{
+			Status:    http.StatusBadRequest,
+			MessageID: odata.MsgActionParameterMissing,
+			Message:   "The action " + action + " requires the parameter ImageURI to be present in the request body.",
+		}
+	}
+	if params.LocalImage != nil && *params.LocalImage {
+		return nil, &server.Error{
+			Status:    http.StatusBadRequest,
+			MessageID: odata.MsgActionParameterNotSupported,
+			Message:   "The parameter LocalImage for the action " + action + " is not supported on the target resource.",
+		}
+	}
+	img := Image{URI: imageURI(*params.ImageURI, params.TransferProtocol)}
+	if params.Username != nil {
+		img.Username = *params.Username
+	}
+	if params.Password != nil {
+		img.Password = *params.Password
+	}
+	req := Request{
+		Targets:        params.Targets,
+		ExcludeTargets: params.ExcludeTargets,
+		ForceUpdate:    params.ForceUpdate != nil && *params.ForceUpdate,
+		Stage:          params.Stage != nil && *params.Stage,
+	}
+	inst := s.backend.(Installer)
+	return s.start("Simple Update", func(ctx context.Context, progress func(int)) error {
+		return inst.Install(ctx, img, req, progress)
+	})
+}
+
+// imageURI combines a SimpleUpdate ImageURI with the deprecated
+// TransferProtocol parameter, which applies only to URIs without a scheme.
+func imageURI(uri string, proto *gen.UpdateServiceTransferProtocolType) string {
+	if proto == nil || *proto == "" || strings.Contains(uri, "://") {
+		return uri
+	}
+	return strings.ToLower(string(*proto)) + "://" + uri
+}
+
+// start runs an update operation as a task, rejecting it while the service is
+// disabled or another update is running.
+func (s *Service) start(name string, fn task.Func) (*server.ActionResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.enabled || s.busy {
+		reason := "The update service is disabled."
+		if s.busy {
+			reason = "Another update is in progress."
+		}
+		return nil, &server.Error{
+			Status:    http.StatusServiceUnavailable,
+			MessageID: odata.MsgServiceUnavailable,
+			Message:   "The service is temporarily unavailable. " + reason,
+		}
+	}
+	s.busy = true
+	return s.tasks.Start(name, func(ctx context.Context, progress func(int)) error {
+		defer func() {
+			s.mu.Lock()
+			s.busy = false
+			s.mu.Unlock()
+		}()
+		return fn(ctx, progress)
+	}), nil
 }
 
 // PatchUpdateService implements gen.UpdateServiceProvider. Only ServiceEnabled

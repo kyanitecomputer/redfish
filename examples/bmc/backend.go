@@ -6,6 +6,7 @@ import (
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
+	"src.kyanite.computer/redfish/task"
 	"src.kyanite.computer/redfish/update"
 )
 
@@ -74,6 +75,7 @@ func (b *backend) GetServiceRoot(_ context.Context) (*gen.ServiceRoot, error) {
 		SessionService: odata.Link("/redfish/v1/SessionService"),
 		AccountService: odata.Link("/redfish/v1/AccountService"),
 		UpdateService:  odata.Link(update.ServiceURI),
+		Tasks:          odata.Link(task.ServiceURI),
 		Links:          gen.ServiceRootLinks{Sessions: odata.Link("/redfish/v1/SessionService/Sessions")},
 	}, nil
 }
