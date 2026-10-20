@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newServer(t *testing.T) *httptest.Server {
@@ -288,5 +290,54 @@ func TestFirmwareInventory(t *testing.T) {
 	fw := getJSON(t, srv.URL, id)
 	if fw["Version"] != "1.0.0" || fw["Version"] != mgr["FirmwareVersion"] {
 		t.Errorf("BMC firmware version = %v, Manager.FirmwareVersion = %v", fw["Version"], mgr["FirmwareVersion"])
+	}
+}
+
+func TestPushUpdate(t *testing.T) {
+	srv := newServer(t)
+	us := getJSON(t, srv.URL, "/redfish/v1/UpdateService")
+	pushURI, _ := us["MultipartHttpPushUri"].(string)
+	if pushURI == "" {
+		t.Fatalf("MultipartHttpPushUri missing: %v", us)
+	}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	params, _ := mw.CreateFormField("UpdateParameters")
+	params.Write([]byte(`{"Targets":["/redfish/v1/UpdateService/FirmwareInventory/bmc"]}`))
+	file, _ := mw.CreateFormFile("UpdateFile", "bmc.bin")
+	file.Write([]byte("image"))
+	mw.Close()
+
+	resp, err := http.Post(srv.URL+pushURI, mw.FormDataContentType(), &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	monitor := resp.Header.Get("Location")
+	if resp.StatusCode != http.StatusAccepted || monitor == "" {
+		t.Fatalf("push: status %d, Location %q", resp.StatusCode, monitor)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		resp, err := http.Get(srv.URL + monitor)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusNoContent {
+			break
+		}
+		if resp.StatusCode != http.StatusAccepted || time.Now().After(deadline) {
+			t.Fatalf("task monitor: status %d", resp.StatusCode)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	tasks := getJSON(t, srv.URL, "/redfish/v1/TaskService/Tasks")
+	members := tasks["Members"].([]any)
+	last := members[len(members)-1].(map[string]any)["@odata.id"].(string)
+	if task := getJSON(t, srv.URL, last); task["TaskState"] != "Completed" {
+		t.Errorf("task = %v", task)
 	}
 }
