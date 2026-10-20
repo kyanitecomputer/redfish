@@ -79,13 +79,13 @@ func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error
 func (s *Service) PatchUpdateService(ctx context.Context, patch *gen.UpdateServicePatch) (*gen.UpdateService, error) {
 	switch {
 	case patch.HttpPushUriTargetsBusy != nil:
-		return nil, notWritable("HttpPushUriTargetsBusy")
+		return nil, server.NotWritable("HttpPushUriTargetsBusy")
 	case patch.HttpPushUriOptionsBusy != nil:
-		return nil, notWritable("HttpPushUriOptionsBusy")
+		return nil, server.NotWritable("HttpPushUriOptionsBusy")
 	case patch.VerifyRemoteServerCertificate != nil:
-		return nil, notWritable("VerifyRemoteServerCertificate")
+		return nil, server.NotWritable("VerifyRemoteServerCertificate")
 	case patch.VerifyRemoteServerSSHKey != nil:
-		return nil, notWritable("VerifyRemoteServerSSHKey")
+		return nil, server.NotWritable("VerifyRemoteServerSSHKey")
 	}
 	if patch.ServiceEnabled != nil {
 		s.mu.Lock()
@@ -130,7 +130,7 @@ func (s *Service) GetSoftwareInventory(ctx context.Context, p server.Params) (*g
 // inventory property is writable.
 func (s *Service) PatchSoftwareInventory(ctx context.Context, p server.Params, patch *gen.SoftwareInventoryPatch) (*gen.SoftwareInventory, error) {
 	if patch.WriteProtected != nil {
-		return nil, notWritable("WriteProtected")
+		return nil, server.NotWritable("WriteProtected")
 	}
 	return s.GetSoftwareInventory(ctx, p)
 }
@@ -162,12 +162,4 @@ func (s *Service) inventory(ctx context.Context, p server.Params) ([]*gen.Softwa
 		return inv.Firmware, base, nil
 	}
 	return inv.Software, base, nil
-}
-
-func notWritable(property string) error {
-	return &server.Error{
-		Status:    http.StatusBadRequest,
-		MessageID: odata.MsgPropertyNotWrite,
-		Message:   "The property " + property + " is a read-only property and cannot be assigned a value.",
-	}
 }

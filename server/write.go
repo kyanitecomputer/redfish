@@ -125,6 +125,15 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Message }
 
+// NotWritable returns the 400 error for a PATCH of a read-only property.
+func NotWritable(property string) *Error {
+	return &Error{
+		Status:    http.StatusBadRequest,
+		MessageID: odata.MsgPropertyNotWrite,
+		Message:   "The property " + property + " is a read-only property and cannot be assigned a value.",
+	}
+}
+
 // WriteErr writes err as a Redfish error response, using the status and
 // message of an *Error in err's chain or a generic 500 otherwise.
 func WriteErr(w http.ResponseWriter, err error) {
