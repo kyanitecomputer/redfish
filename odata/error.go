@@ -15,6 +15,7 @@ const (
 
 	MsgActionParameterMissing      = "Base.1.0.ActionParameterMissing"
 	MsgActionParameterNotSupported = "Base.1.0.ActionParameterNotSupported"
+	MsgActionParameterValueFormat  = "Base.1.0.ActionParameterValueFormatError"
 	MsgServiceUnavailable          = "Base.1.0.ServiceTemporarilyUnavailable"
 	MsgUnrecognizedBody            = "Base.1.0.UnrecognizedRequestBody"
 )
