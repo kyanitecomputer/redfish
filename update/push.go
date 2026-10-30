@@ -77,6 +77,11 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 		return
 	}
 
+	if err := s.validate(r.Context(), Image{Body: file}, req); err != nil {
+		server.WriteErr(w, err)
+		return
+	}
+
 	pr, pw := io.Pipe()
 	inst := s.backend.(Installer)
 	res, err := s.start("Multipart Update", func(ctx context.Context, progress func(int)) error {
