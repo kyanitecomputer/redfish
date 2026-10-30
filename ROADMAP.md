@@ -37,11 +37,11 @@ Implementation status of the Redfish service library. Status values: **done**, *
 | `MultipartHttpPushUri` (push) | done | Streamed to the backend; optional `MaxImageSizeBytes` |
 | `UpdateService.Activate`, `SoftwareInventory.Activate` | done | Optional `update.Activator` |
 | Pluggable update backend interface | done | `update.Backend`, `Installer`, `Activator`; core is OS-independent |
-| RAUC backend | stub | `update/rauc`; CLI-based implementation later |
+| RAUC backend | partial | `update/rauc`, using the `rauc` CLI; not yet tested on hardware |
 | Intel/Altera RSU backend | stub | `update/rsu`; CLI-based implementation later |
 | In-service image download (HTTP/HTTPS client) | later | Backends fetch `ImageURI` themselves for now |
 | `SoftwareInventory.Cancel`, `UpdateService.StartUpdate` | later | |
-| Validation of update `Targets` against the inventory | later | Left to the backend |
+| Validation of update `Targets` against the inventory | done | Backends implement `update.Validator` |
 | `Update` message registry progress messages in tasks | later | |
 | `LocalImageStore` | later | |
 | Remote server certificate handling | later | |
