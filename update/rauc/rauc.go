@@ -37,12 +37,6 @@ var (
 	_ update.Activator = (*Backend)(nil)
 )
 
-var errNotImplemented = &server.Error{
-	Status:    http.StatusNotImplemented,
-	MessageID: odata.MsgGeneralError,
-	Message:   "Activating with the RAUC update backend is not implemented yet.",
-}
-
 // Config configures a Backend. The zero value uses the defaults.
 type Config struct {
 	// Command is the rauc executable; "rauc" when empty.
@@ -325,9 +319,33 @@ func parseProgress(line string) (int, bool) {
 	return n, err == nil
 }
 
-// Activate implements update.Activator. It is not implemented yet.
-func (*Backend) Activate(context.Context, []string, []string, func(int)) error {
-	return errNotImplemented
+// Activate implements update.Activator: it marks the slot of one firmware
+// inventory item as the one to boot next.
+func (b *Backend) Activate(ctx context.Context, images, devices []string, _ func(int)) error {
+	if len(devices) > 0 {
+		return notSupported("Targets")
+	}
+	if len(images) != 1 {
+		return &server.Error{
+			Status:    http.StatusBadRequest,
+			MessageID: odata.MsgActionParameterValueFormat,
+			Message:   "The RAUC update backend activates exactly one slot at a time.",
+		}
+	}
+	slots, _, err := b.slots(ctx)
+	if err != nil {
+		return err
+	}
+	s, ok := find(slots, images[0])
+	if !ok {
+		return &server.Error{
+			Status:    http.StatusBadRequest,
+			MessageID: odata.MsgActionParameterValueFormat,
+			Message:   "The value " + images[0] + " for the parameter Targets is not a RAUC slot of class " + b.cfg.Class + ".",
+		}
+	}
+	_, err = b.run(ctx, "status", "mark-active", s.name)
+	return err
 }
 
 // run runs rauc with args and returns its standard output. The error of a
