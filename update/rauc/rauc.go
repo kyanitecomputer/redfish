@@ -12,13 +12,16 @@
 package rauc
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"src.kyanite.computer/redfish/gen"
@@ -30,13 +33,14 @@ import (
 var (
 	_ update.Backend   = (*Backend)(nil)
 	_ update.Installer = (*Backend)(nil)
+	_ update.Validator = (*Backend)(nil)
 	_ update.Activator = (*Backend)(nil)
 )
 
 var errNotImplemented = &server.Error{
 	Status:    http.StatusNotImplemented,
 	MessageID: odata.MsgGeneralError,
-	Message:   "Installing and activating with the RAUC update backend is not implemented yet.",
+	Message:   "Activating with the RAUC update backend is not implemented yet.",
 }
 
 // Config configures a Backend. The zero value uses the defaults.
@@ -173,9 +177,152 @@ func (b *Backend) item(s namedSlot, compatible string) *gen.SoftwareInventory {
 	return it
 }
 
-// Install implements update.Installer. It is not implemented yet.
-func (*Backend) Install(context.Context, update.Image, update.Request, func(int)) error {
-	return errNotImplemented
+// Validate implements update.Validator. RAUC always installs into the
+// inactive slot and activates it, and takes no credentials for bundle URLs.
+func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Request) error {
+	switch {
+	case req.Stage:
+		return notSupported("Stage")
+	case len(req.ExcludeTargets) > 0:
+		return notSupported("ExcludeTargets")
+	case img.Username != "" || img.Password != "":
+		return notSupported("Username")
+	case len(req.Targets) == 0:
+		return nil
+	}
+	slots, _, err := b.slots(ctx)
+	if err != nil {
+		return err
+	}
+	for _, t := range req.Targets {
+		s, ok := find(slots, t)
+		if !ok || s.State == "booted" {
+			return &server.Error{
+				Status:    http.StatusBadRequest,
+				MessageID: odata.MsgActionParameterValueFormat,
+				Message:   "The value " + t + " for the parameter Targets is not an inactive RAUC slot of class " + b.cfg.Class + ".",
+			}
+		}
+	}
+	return nil
+}
+
+// find returns the slot whose firmware inventory item has the @odata.id uri.
+func find(slots []namedSlot, uri string) (namedSlot, bool) {
+	id, ok := strings.CutPrefix(uri, update.FirmwareInventoryURI+"/")
+	if !ok {
+		return namedSlot{}, false
+	}
+	for _, s := range slots {
+		if s.id == id {
+			return s, true
+		}
+	}
+	return namedSlot{}, false
+}
+
+func notSupported(param string) error {
+	return &server.Error{
+		Status:    http.StatusBadRequest,
+		MessageID: odata.MsgActionParameterNotSupported,
+		Message:   "The parameter " + param + " is not supported by the RAUC update backend.",
+	}
+}
+
+// Install implements update.Installer. A pushed bundle is written to a file
+// in SpoolDir, which is removed after the installation.
+func (b *Backend) Install(ctx context.Context, img update.Image, _ update.Request, progress func(int)) error {
+	bundle := img.URI
+	if img.Body != nil {
+		path, err := b.spool(img.Body)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(path)
+		bundle = path
+	}
+	return b.install(ctx, bundle, progress)
+}
+
+// spool writes a pushed bundle to a new file in SpoolDir.
+func (b *Backend) spool(r io.Reader) (path string, err error) {
+	if err := os.MkdirAll(b.cfg.SpoolDir, 0o700); err != nil {
+		return "", err
+	}
+	f, err := os.CreateTemp(b.cfg.SpoolDir, "bundle-*.raucb")
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+		if err != nil {
+			os.Remove(f.Name())
+		}
+	}()
+	if _, err := io.Copy(f, r); err != nil {
+		return "", fmt.Errorf("receiving bundle: %w", err)
+	}
+	return f.Name(), nil
+}
+
+// install runs "rauc install", reporting the percentages of its progress
+// lines ("NN% message"). On failure the error carries RAUC's LastError.
+func (b *Backend) install(ctx context.Context, bundle string, progress func(int)) error {
+	cmd := exec.CommandContext(ctx, b.cfg.Command, "install", bundle)
+	r, w := io.Pipe()
+	cmd.Stdout, cmd.Stderr = w, w
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	var lastErr, lastLine string
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		sc := bufio.NewScanner(r)
+		for sc.Scan() {
+			line := strings.TrimSpace(sc.Text())
+			if pct, ok := parseProgress(line); ok {
+				progress(pct)
+			} else if msg, ok := strings.CutPrefix(line, "LastError: "); ok {
+				lastErr = msg
+			} else if line != "" {
+				lastLine = line
+			}
+		}
+		_, _ = io.Copy(io.Discard, r) // unblock rauc after an overlong line
+	}()
+	err := cmd.Wait()
+	w.Close()
+	<-done
+
+	if err == nil {
+		return nil
+	}
+	msg := lastErr
+	if msg == "" {
+		msg = lastLine
+	}
+	if msg == "" {
+		msg = err.Error()
+	}
+	return errors.New("rauc install: " + msg)
+}
+
+// parseProgress parses a "rauc install" progress line such as
+// "65% Copying image to rootfs".
+func parseProgress(line string) (int, bool) {
+	pct, _, ok := strings.Cut(line, "% ")
+	if !ok {
+		pct, ok = strings.CutSuffix(line, "%")
+	}
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.Atoi(pct)
+	return n, err == nil
 }
 
 // Activate implements update.Activator. It is not implemented yet.
