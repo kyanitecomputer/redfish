@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/odata"
+	"src.kyanite.computer/redfish/server"
 	"src.kyanite.computer/redfish/task"
 )
 
@@ -259,4 +262,40 @@ func TestSimpleUpdateRejected(t *testing.T) {
 			}
 		})
 	}
+}
+
+// stagelessInstaller rejects staged updates before they start.
+type stagelessInstaller struct{ *fakeInstaller }
+
+func (stagelessInstaller) Validate(_ context.Context, img Image, req Request) error {
+	if img.Body == nil && img.URI == "" {
+		return errors.New("image without URI or body")
+	}
+	if req.Stage {
+		return &server.Error{Status: http.StatusBadRequest, MessageID: odata.MsgActionParameterNotSupported, Message: "no staging"}
+	}
+	return nil
+}
+
+func TestValidator(t *testing.T) {
+	b := stagelessInstaller{newFakeInstaller()}
+	srv := newTestServer(t, b)
+	if code, _ := do(t, "POST", srv.URL+SimpleUpdateURI, `{"ImageURI":"http://x/i","Stage":true}`); code != http.StatusBadRequest {
+		t.Errorf("staged SimpleUpdate: status %d, want 400", code)
+	}
+	ct, body := pushBody(t, [2]string{"UpdateParameters", `{"Stage":true}`}, [2]string{"UpdateFile", "x"})
+	if resp := push(t, srv.URL+MultipartPushURI, ct, body); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("staged push: status %d, want 400", resp.StatusCode)
+	}
+	select {
+	case c := <-b.got:
+		t.Fatalf("Install called for a rejected request: %+v", c)
+	default:
+	}
+
+	if code, _ := do(t, "POST", srv.URL+SimpleUpdateURI, `{"ImageURI":"http://x/i"}`); code != http.StatusAccepted {
+		t.Fatalf("valid SimpleUpdate: status %d, want 202", code)
+	}
+	<-b.got
+	b.release <- nil
 }

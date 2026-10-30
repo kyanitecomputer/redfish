@@ -72,6 +72,14 @@ type Installer interface {
 	Install(ctx context.Context, img Image, req Request, progress func(percent int)) error
 }
 
+// Validator is implemented by Installers that support only some update
+// requests. The service calls Validate before it starts an update and answers
+// its error, typically a 400 *server.Error, instead of starting a task.
+// Validate must not read img.Body.
+type Validator interface {
+	Validate(ctx context.Context, img Image, req Request) error
+}
+
 // Service implements the generated UpdateService and SoftwareInventory
 // providers on top of a Backend, running updates as tasks.
 type Service struct {
@@ -138,7 +146,7 @@ func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error
 
 // SimpleUpdateUpdateService implements gen.SimpleUpdateUpdateServiceProvider:
 // it hands the image URI to the backend's Installer in a new task.
-func (s *Service) SimpleUpdateUpdateService(_ context.Context, params *gen.UpdateServiceSimpleUpdateParameters) (*server.ActionResult, error) {
+func (s *Service) SimpleUpdateUpdateService(ctx context.Context, params *gen.UpdateServiceSimpleUpdateParameters) (*server.ActionResult, error) {
 	const action = "UpdateService.SimpleUpdate"
 	if params.ImageURI == nil || *params.ImageURI == "" {
 		return nil, &server.Error{
@@ -167,6 +175,9 @@ func (s *Service) SimpleUpdateUpdateService(_ context.Context, params *gen.Updat
 		ForceUpdate:    params.ForceUpdate != nil && *params.ForceUpdate,
 		Stage:          params.Stage != nil && *params.Stage,
 	}
+	if err := s.validate(ctx, img, req); err != nil {
+		return nil, err
+	}
 	inst := s.backend.(Installer)
 	return s.start("Simple Update", func(ctx context.Context, progress func(int)) error {
 		return inst.Install(ctx, img, req, progress)
@@ -180,6 +191,14 @@ func imageURI(uri string, proto *gen.UpdateServiceTransferProtocolType) string {
 		return uri
 	}
 	return strings.ToLower(string(*proto)) + "://" + uri
+}
+
+// validate checks an update request with the backend's Validator, if any.
+func (s *Service) validate(ctx context.Context, img Image, req Request) error {
+	if v, ok := s.backend.(Validator); ok {
+		return v.Validate(ctx, img, req)
+	}
+	return nil
 }
 
 // start runs an update operation as a task, rejecting it while the service is
