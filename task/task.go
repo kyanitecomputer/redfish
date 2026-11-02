@@ -100,6 +100,7 @@ func (m *Manager) run(e *entry, fn Func) {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	defer m.prune()
 	e.done, e.err = true, err
 	e.task.EndTime = now()
 	if err == nil {

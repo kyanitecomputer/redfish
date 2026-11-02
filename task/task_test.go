@@ -143,6 +143,34 @@ func TestTaskRetention(t *testing.T) {
 	}
 }
 
+func TestTaskRetentionConcurrent(t *testing.T) {
+	m, srv := newTestServer(t)
+	release := make(chan struct{})
+	var monitors []string
+	for range retainCompleted + 5 {
+		monitors = append(monitors, m.Start("Wait", func(context.Context, func(int)) error {
+			<-release
+			return nil
+		}).TaskMonitor)
+	}
+	close(release)
+	for _, mon := range monitors[len(monitors)-retainCompleted:] {
+		waitDone(t, srv.URL+mon)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		_, body := get(t, srv.URL+CollectionURI)
+		count := int(body["Members@odata.count"].(float64))
+		if count == retainCompleted {
+			break
+		}
+		if count < retainCompleted || time.Now().After(deadline) {
+			t.Fatalf("collection holds %d tasks after all finished, want %d", count, retainCompleted)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
 func TestTaskServiceAndSubTasks(t *testing.T) {
 	m, srv := newTestServer(t)
 	_, body := get(t, srv.URL+ServiceURI)
