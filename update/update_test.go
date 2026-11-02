@@ -299,3 +299,27 @@ func TestValidator(t *testing.T) {
 	<-b.got
 	b.release <- nil
 }
+
+func TestBusy(t *testing.T) {
+	b := newFakeInstaller()
+	s := New(b, task.New())
+	if s.Busy() {
+		t.Fatal("Busy before any update")
+	}
+	uri := "http://x/i"
+	if _, err := s.SimpleUpdateUpdateService(context.Background(), &gen.UpdateServiceSimpleUpdateParameters{ImageURI: &uri}); err != nil {
+		t.Fatal(err)
+	}
+	<-b.got
+	if !s.Busy() {
+		t.Error("not Busy while installing")
+	}
+	b.release <- nil
+	deadline := time.Now().Add(5 * time.Second)
+	for s.Busy() {
+		if time.Now().After(deadline) {
+			t.Fatal("still Busy after the install returned")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}

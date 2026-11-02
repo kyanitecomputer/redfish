@@ -201,6 +201,14 @@ func (s *Service) validate(ctx context.Context, img Image, req Request) error {
 	return nil
 }
 
+// Busy reports whether an update or activation is running, for example to
+// refuse a reset that would cut it off.
+func (s *Service) Busy() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.busy
+}
+
 // start runs an update operation as a task, rejecting it while the service is
 // disabled or another update is running.
 func (s *Service) start(name string, fn task.Func) (*server.ActionResult, error) {
