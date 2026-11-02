@@ -173,6 +173,7 @@ func (b *Backend) item(s namedSlot, compatible string) *gen.SoftwareInventory {
 
 // Validate implements update.Validator. RAUC always installs into the
 // inactive slot and activates it, and takes no credentials for bundle URLs.
+// An ImageURI starting with "-" would be read as an option of rauc install.
 func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Request) error {
 	switch {
 	case req.Stage:
@@ -181,6 +182,12 @@ func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Req
 		return notSupported("ExcludeTargets")
 	case img.Username != "" || img.Password != "":
 		return notSupported("Username")
+	case img.Body == nil && strings.HasPrefix(img.URI, "-"):
+		return &server.Error{
+			Status:    http.StatusBadRequest,
+			MessageID: odata.MsgActionParameterValueFormat,
+			Message:   "The value for the parameter ImageURI must not start with '-'.",
+		}
 	case len(req.Targets) == 0:
 		return nil
 	}
