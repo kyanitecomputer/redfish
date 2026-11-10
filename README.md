@@ -35,8 +35,8 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - No `Allow` response header yet, so validators cannot test writable properties.
 - Only the resources listed in `gen/doc.go` are generated; other resources need to be added there and regenerated.
 - Only a subset of the DSP8011 base messages is used, and message registries are not served.
-- The example uses static fixtures. The RAUC update backend drives the `rauc` command line tool but has not
-  been tested on hardware yet; the Intel RSU backend is a stub.
+- The example uses static fixtures. The RAUC and Intel RSU update backends drive the `rauc` and `rsu_client`
+  command line tools but have not been tested on hardware yet.
 
 ## Packages
 
@@ -47,9 +47,11 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - `server`: response, ETag, and error helpers used by generated handlers.
 - `gen`: generated models, marshalers, and `Register*` functions for the baseline BMC resource set.
 - `task`: runs long-running operations as Redfish tasks and serves the TaskService and task monitors.
-- `update`: serves the UpdateService and firmware/software inventory on top of an update backend.
+- `update`: serves the UpdateService and firmware/software inventory on top of an update backend, or of
+  several joined with `update.Join`.
 - `update/rauc`: update backend for Linux systems updated with RAUC, using the `rauc` command line tool.
-- `update/rsu`: update backend for Intel (Altera) RSU (stub).
+- `update/rsu`: update backend for Intel (Altera) RSU, using `rsu_client` from LIBRSU and an installer
+  command that reports like `rauc install`.
 - `examples/bmc`: minimal in-memory Redfish service built on `gen`.
 - `schema/csdl`: vendored CSDL from DMTF DSP8010 (version in `schema/VERSION`).
 

@@ -38,7 +38,8 @@ Implementation status of the Redfish service library. Status values: **done**, *
 | `UpdateService.Activate`, `SoftwareInventory.Activate` | done | Optional `update.Activator` |
 | Pluggable update backend interface | done | `update.Backend`, `Installer`, `Activator`; core is OS-independent |
 | RAUC backend | partial | `update/rauc`, using the `rauc` CLI; not yet tested on hardware |
-| Intel/Altera RSU backend | stub | `update/rsu`; CLI-based implementation later |
+| Intel/Altera RSU backend | partial | `update/rsu`, using `rsu_client` and an installer command; not yet tested on hardware |
+| Several backends behind one UpdateService | done | `update.Join`; updates and activations go to the backend owning their targets |
 | In-service image download (HTTP/HTTPS client) | later | Backends fetch `ImageURI` themselves for now |
 | `SoftwareInventory.Cancel`, `UpdateService.StartUpdate` | later | |
 | Validation of update `Targets` against the inventory | done | Backends implement `update.Validator` |
