@@ -229,6 +229,7 @@ func TestValidate(t *testing.T) {
 		{"local path", update.Image{URI: "/data/rsu.raucb"}, update.Request{}, 0},
 		{"free slot", update.Image{URI: "/data/rsu.raucb"}, update.Request{Targets: []string{fw + "p2"}}, 0},
 		{"running slot", update.Image{URI: "/data/rsu.raucb"}, update.Request{Targets: []string{fw + "p1"}}, 400},
+		{"two slots", update.Image{URI: "/data/rsu.raucb"}, update.Request{Targets: []string{fw + "p2", fw + "p2"}}, 400},
 		{"factory", update.Image{URI: "/data/rsu.raucb"}, update.Request{Targets: []string{fw + "factory"}}, 400},
 		{"URL", update.Image{URI: "https://fw.example/rsu.raucb"}, update.Request{}, 400},
 		{"option", update.Image{URI: "--help"}, update.Request{}, 400},
@@ -253,14 +254,31 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-func TestValidateTargetsFromFactory(t *testing.T) {
-	// From the factory image, both slots are free and the installer picks
-	// one, so a target cannot be honoured.
+func TestInstallTarget(t *testing.T) {
+	// From the factory image both slots are free; the target chooses one.
 	f, b := newFakeRSU(t)
 	f.write(t, "log", strings.Replace(logP1, "0x0000000002000000", "0x0000000000210000", 1))
-	err := b.Validate(context.Background(), update.Image{URI: "/data/rsu.raucb"}, update.Request{Targets: []string{fw + "p2"}})
+	req := update.Request{Targets: []string{fw + "p1"}}
+	if err := b.Validate(context.Background(), update.Image{URI: "/data/rsu.raucb"}, req); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Install(context.Background(), update.Image{URI: "/data/rsu.raucb"}, req, func(int) {}); err != nil {
+		t.Fatal(err)
+	}
+	if w := f.writes(t); !slices.Equal(w, []string{"installer install --slot P1 /data/rsu.raucb"}) {
+		t.Errorf("calls = %q", w)
+	}
+}
+
+func TestInstallRunningSlot(t *testing.T) {
+	f, b := newFakeRSU(t)
+	err := b.Install(context.Background(), update.Image{URI: "/data/rsu.raucb"},
+		update.Request{Targets: []string{fw + "p1"}}, func(int) {})
 	if se, ok := errors.AsType[*server.Error](err); !ok || se.Status != http.StatusBadRequest {
 		t.Errorf("err = %v, want 400", err)
+	}
+	if w := f.writes(t); len(w) != 0 {
+		t.Errorf("calls = %q", w)
 	}
 }
 
