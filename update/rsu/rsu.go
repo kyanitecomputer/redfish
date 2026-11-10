@@ -13,8 +13,9 @@
 //     for the factory image it only requests it, so a power cycle loads the top
 //     slot again.
 //
-// The installer chooses the slot it writes, a slot that is not running, so
-// staged updates and explicit targets other than that slot are rejected.
+// The installer writes a slot that is not running, the one named by the
+// update's target or else one it chooses, and requests it, so staged updates
+// and targets other than one slot that is not running are rejected.
 package rsu
 
 import (
@@ -33,7 +34,7 @@ import (
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
 	"src.kyanite.computer/redfish/update"
-	"src.kyanite.computer/redfish/update/rauc"
+	"src.kyanite.computer/redfish/update/internal/installer"
 )
 
 var (
@@ -52,10 +53,11 @@ type Config struct {
 	// Command is the rsu_client executable; "rsu_client" when empty.
 	Command string
 	// Installer is the command that installs an update image, called as
-	// "Installer install <file>". It writes the image into a slot that is not
-	// running, requests that slot for the next reconfiguration, and reports
-	// like "rauc install": "NN% message" progress lines and "LastError:
-	// message" on failure. Without it, updates fail with 501 Not Implemented.
+	// "Installer install [--slot <name>] <file>". It writes the image into
+	// the slot named, or else into a slot of its choice, refuses the running
+	// slot, requests the slot for the next reconfiguration, and reports like
+	// "rauc install": "NN% message" progress lines and "LastError: message"
+	// on failure. Without it, updates fail with 501 Not Implemented.
 	Installer string
 	// SpoolDir holds pushed images while they are installed; it is created if
 	// needed. os.TempDir() when empty.
@@ -222,9 +224,9 @@ func (b *Backend) version(ctx context.Context, slot string) string {
 	return v
 }
 
-// Validate implements update.Validator. The installer writes a slot that is
-// not running and requests it; it takes a local file and no credentials. An
-// ImageURI starting with "-" would be read as an option of the installer.
+// Validate implements update.Validator. The installer writes one slot that
+// is not running and requests it; it takes a local file and no credentials.
+// An ImageURI starting with "-" would be read as an option of the installer.
 func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Request) error {
 	switch {
 	case b.cfg.Installer == "":
@@ -240,23 +242,29 @@ func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Req
 	case len(req.Targets) == 0:
 		return nil
 	}
+	_, err := b.target(ctx, req.Targets)
+	return err
+}
+
+// target returns the slot an update of targets goes to: one slot that is
+// not running, or none when targets is empty.
+func (b *Backend) target(ctx context.Context, targets []string) (*slot, error) {
+	if len(targets) == 0 {
+		return nil, nil
+	}
+	if len(targets) > 1 {
+		return nil, badValue("The RSU update backend updates exactly one slot at a time.")
+	}
 	st, err := b.state(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	run, _ := st.running()
-	var free []slot
 	for _, s := range st.slots {
-		if s.offset != run.offset || run.name == "" {
-			free = append(free, s)
+		if targets[0] == update.FirmwareInventoryURI+"/"+s.id() && s.offset != st.current {
+			return &s, nil
 		}
 	}
-	for _, t := range req.Targets {
-		if len(free) != 1 || t != update.FirmwareInventoryURI+"/"+free[0].id() {
-			return badValue("The value " + t + " for the parameter Targets is not the one RSU slot that is not running.")
-		}
-	}
-	return nil
+	return nil, badValue("The value " + targets[0] + " for the parameter Targets is not an RSU slot that is not running.")
 }
 
 var errNoInstaller = &server.Error{
@@ -287,9 +295,24 @@ func (b *Backend) Install(ctx context.Context, img update.Image, req update.Requ
 	if b.cfg.Installer == "" {
 		return errNoInstaller
 	}
-	// The installer follows "rauc install", so the RAUC backend runs it.
-	inst := rauc.New(rauc.Config{Command: b.cfg.Installer, SpoolDir: b.cfg.SpoolDir})
-	return inst.Install(ctx, img, req, progress)
+	target, err := b.target(ctx, req.Targets)
+	if err != nil {
+		return err
+	}
+	file := img.URI
+	if img.Body != nil {
+		path, err := installer.Spool(b.cfg.SpoolDir, "rsu-*.raucb", img.Body)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(path)
+		file = path
+	}
+	args := []string{"install"}
+	if target != nil {
+		args = append(args, "--slot", target.name)
+	}
+	return installer.Run(ctx, b.cfg.Installer, append(args, file), progress)
 }
 
 // Activate implements update.Activator: it makes the slot of one firmware
