@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -269,7 +270,9 @@ func (b *Backend) spool(r io.Reader) (path string, err error) {
 }
 
 // install runs "rauc install", reporting the percentages of its progress
-// lines ("NN% message"). On failure the error carries RAUC's LastError.
+// lines ("NN% message"). On failure the error carries RAUC's LastError and
+// starts with the name of the command, which need not be rauc: the RSU
+// backend runs an installer that reports the same way.
 func (b *Backend) install(ctx context.Context, bundle string, progress func(int)) error {
 	cmd := exec.CommandContext(ctx, b.cfg.Command, "install", bundle)
 	r, w := io.Pipe()
@@ -309,7 +312,7 @@ func (b *Backend) install(ctx context.Context, bundle string, progress func(int)
 	if msg == "" {
 		msg = err.Error()
 	}
-	return errors.New("rauc install: " + msg)
+	return errors.New(filepath.Base(b.cfg.Command) + " install: " + msg)
 }
 
 // parseProgress parses a "rauc install" progress line such as
