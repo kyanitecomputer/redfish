@@ -12,23 +12,20 @@
 package rauc
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strconv"
 	"strings"
 
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
 	"src.kyanite.computer/redfish/update"
+	"src.kyanite.computer/redfish/update/internal/installer"
 )
 
 var (
@@ -232,101 +229,20 @@ func notSupported(param string) error {
 }
 
 // Install implements update.Installer. A pushed bundle is written to a file
-// in SpoolDir, which is removed after the installation.
+// in SpoolDir, which is removed after the installation. The percentages of
+// rauc's progress lines ("NN% message") are the progress; on failure the
+// error carries RAUC's LastError.
 func (b *Backend) Install(ctx context.Context, img update.Image, _ update.Request, progress func(int)) error {
 	bundle := img.URI
 	if img.Body != nil {
-		path, err := b.spool(img.Body)
+		path, err := installer.Spool(b.cfg.SpoolDir, "bundle-*.raucb", img.Body)
 		if err != nil {
 			return err
 		}
 		defer os.Remove(path)
 		bundle = path
 	}
-	return b.install(ctx, bundle, progress)
-}
-
-// spool writes a pushed bundle to a new file in SpoolDir.
-func (b *Backend) spool(r io.Reader) (path string, err error) {
-	if err := os.MkdirAll(b.cfg.SpoolDir, 0o700); err != nil {
-		return "", err
-	}
-	f, err := os.CreateTemp(b.cfg.SpoolDir, "bundle-*.raucb")
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if cerr := f.Close(); err == nil {
-			err = cerr
-		}
-		if err != nil {
-			os.Remove(f.Name())
-		}
-	}()
-	if _, err := io.Copy(f, r); err != nil {
-		return "", fmt.Errorf("receiving bundle: %w", err)
-	}
-	return f.Name(), nil
-}
-
-// install runs "rauc install", reporting the percentages of its progress
-// lines ("NN% message"). On failure the error carries RAUC's LastError and
-// starts with the name of the command, which need not be rauc: the RSU
-// backend runs an installer that reports the same way.
-func (b *Backend) install(ctx context.Context, bundle string, progress func(int)) error {
-	cmd := exec.CommandContext(ctx, b.cfg.Command, "install", bundle)
-	r, w := io.Pipe()
-	cmd.Stdout, cmd.Stderr = w, w
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	var lastErr, lastLine string
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		sc := bufio.NewScanner(r)
-		for sc.Scan() {
-			line := strings.TrimSpace(sc.Text())
-			if pct, ok := parseProgress(line); ok {
-				progress(pct)
-			} else if msg, ok := strings.CutPrefix(line, "LastError: "); ok {
-				lastErr = msg
-			} else if line != "" {
-				lastLine = line
-			}
-		}
-		_, _ = io.Copy(io.Discard, r) // unblock rauc after an overlong line
-	}()
-	err := cmd.Wait()
-	w.Close()
-	<-done
-
-	if err == nil {
-		return nil
-	}
-	msg := lastErr
-	if msg == "" {
-		msg = lastLine
-	}
-	if msg == "" {
-		msg = err.Error()
-	}
-	return errors.New(filepath.Base(b.cfg.Command) + " install: " + msg)
-}
-
-// parseProgress parses a "rauc install" progress line such as
-// "65% Copying image to rootfs".
-func parseProgress(line string) (int, bool) {
-	pct, _, ok := strings.Cut(line, "% ")
-	if !ok {
-		pct, ok = strings.CutSuffix(line, "%")
-	}
-	if !ok {
-		return 0, false
-	}
-	n, err := strconv.Atoi(pct)
-	return n, err == nil
+	return installer.Run(ctx, b.cfg.Command, []string{"install", bundle}, progress)
 }
 
 // Activate implements update.Activator: it marks the slot of one firmware
