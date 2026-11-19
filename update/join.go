@@ -11,11 +11,12 @@ import (
 )
 
 var (
-	_ Backend       = (*Joined)(nil)
-	_ Installer     = (*Joined)(nil)
-	_ Validator     = (*Joined)(nil)
-	_ ItemActivator = (*Joined)(nil)
-	_ partial       = (*Joined)(nil)
+	_ Backend           = (*Joined)(nil)
+	_ Installer         = (*Joined)(nil)
+	_ Validator         = (*Joined)(nil)
+	_ ItemActivator     = (*Joined)(nil)
+	_ OptionalInstaller = (*Joined)(nil)
+	_ OptionalActivator = (*Joined)(nil)
 )
 
 // Joined serves the inventory of several backends as one, for example the
@@ -23,8 +24,8 @@ var (
 // inventory items need distinct Ids.
 //
 // An update or activation goes to the backend whose inventory holds all of its
-// targets; an update without targets goes to the first backend that is an
-// Installer. The service offers updates and activation only when one of the
+// targets; an update without targets goes to the first backend that can
+// install. The service offers updates and activation only when one of the
 // backends supports them, and SoftwareInventory.Activate only on the items of
 // a backend that can activate them; a request that goes to a backend that
 // does not support it fails with 400.
@@ -66,14 +67,18 @@ func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 	return all, nil
 }
 
-func (j *Joined) installs() bool {
+// Installs implements OptionalInstaller: whether one of the backends can
+// install.
+func (j *Joined) Installs() bool {
 	return slices.ContainsFunc(j.backends, func(b Backend) bool {
 		_, ok := installerOf(b)
 		return ok
 	})
 }
 
-func (j *Joined) activates() bool {
+// Activates implements OptionalActivator: whether one of the backends can
+// activate.
+func (j *Joined) Activates() bool {
 	return slices.ContainsFunc(j.backends, func(b Backend) bool {
 		_, ok := activatorOf(b)
 		return ok
@@ -166,14 +171,15 @@ func (j *Joined) Install(ctx context.Context, img Image, req Request, progress f
 	return inst.Install(ctx, img, req, progress)
 }
 
-// Activate implements Activator.
+// Activate implements Activator. It refuses images whose backend cannot
+// activate them.
 func (j *Joined) Activate(ctx context.Context, images, devices []string, progress func(int)) error {
 	b, err := j.owner(ctx, images)
 	if err != nil {
 		return err
 	}
 	act, ok := activatorOf(b)
-	if !ok {
+	if !ok || slices.ContainsFunc(images, func(image string) bool { return !canActivate(ctx, act, image) }) {
 		return unsupported("activation")
 	}
 	return act.Activate(ctx, images, devices, progress)

@@ -347,6 +347,13 @@ func TestInstallRunningSlot(t *testing.T) {
 	}
 }
 
+func TestInstalls(t *testing.T) {
+	_, b := newFakeRSU(t)
+	if !b.Installs() || New(Config{}).Installs() {
+		t.Error("Installs does not follow Config.Installer")
+	}
+}
+
 func TestNoInstaller(t *testing.T) {
 	f, _ := newFakeRSU(t)
 	b := New(Config{Command: filepath.Join(f.dir, "rsu_client")})

@@ -45,6 +45,8 @@ var (
 	_ update.Installer = (*Backend)(nil)
 	_ update.Validator = (*Backend)(nil)
 	_ update.Activator = (*Backend)(nil)
+
+	_ update.OptionalInstaller = (*Backend)(nil)
 )
 
 // FactoryID is the inventory Id of the factory image.
@@ -223,6 +225,10 @@ func (b *Backend) Inventory(ctx context.Context) (*update.Inventory, error) {
 	})
 	return inv, nil
 }
+
+// Installs implements update.OptionalInstaller: the backend installs images
+// only with an installer configured.
+func (b *Backend) Installs() bool { return b.cfg.Installer != "" }
 
 func (b *Backend) version(ctx context.Context, slot string) string {
 	if b.cfg.Version == nil {

@@ -72,19 +72,20 @@ type Installer interface {
 	Install(ctx context.Context, img Image, req Request, progress func(percent int)) error
 }
 
-// partial is implemented by backends that implement Installer and Activator
-// but may support neither, such as Joined; the service offers only what they
-// report.
-type partial interface {
-	installs() bool
-	activates() bool
+// OptionalInstaller is implemented by Installers that may be unable to
+// install, for example for lack of configuration, or Joined when none of its
+// backends installs. The service offers updates only when Installs reports
+// true, and Joined sends updates without targets only to such a backend.
+type OptionalInstaller interface {
+	Installer
+	Installs() bool
 }
 
-// installerOf returns b as an Installer, unless it is none or one whose
-// updates are unsupported (see partial).
+// installerOf returns b as an Installer, unless it is none or an
+// OptionalInstaller that cannot install.
 func installerOf(b Backend) (Installer, bool) {
 	inst, ok := b.(Installer)
-	if p, isPartial := b.(partial); ok && isPartial && !p.installs() {
+	if oi, isOptional := b.(OptionalInstaller); ok && isOptional && !oi.Installs() {
 		return nil, false
 	}
 	return inst, ok

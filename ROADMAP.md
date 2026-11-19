@@ -41,7 +41,7 @@ Implementation status of the Redfish service library. Status values: **done**, *
 | RAUC backend | done | `update/rauc`, using the `rauc` CLI; tested on an Agilex 7 SoM |
 | Intel/Altera RSU backend | done | `update/rsu`, using `rsu_client` (with `--check-running-factory`) and an installer command; tested on an Agilex 7 SoM |
 | Refusing resets while an update runs | done | `Service.Stop` disables updates atomically unless one runs; `Resume` |
-| Several backends behind one UpdateService | done | `update.Join`; updates and activations go to the backend owning their targets; actions advertised only where supported (`update.ItemActivator`) |
+| Several backends behind one UpdateService | done | `update.Join`; updates and activations go to the backend owning their targets; actions offered only where supported (`update.OptionalInstaller`, `OptionalActivator`, `ItemActivator`) |
 | In-service image download (HTTP/HTTPS client) | later | Backends fetch `ImageURI` themselves for now |
 | `SoftwareInventory.Cancel`, `UpdateService.StartUpdate` | later | |
 | Validation of update `Targets` against the inventory | done | Backends implement `update.Validator` |

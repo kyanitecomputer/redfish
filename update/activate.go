@@ -24,9 +24,18 @@ type Activator interface {
 	Activate(ctx context.Context, images, devices []string, progress func(percent int)) error
 }
 
+// OptionalActivator is implemented by Activators that may be unable to
+// activate, such as Joined when none of its backends activates. The service
+// offers activation only when Activates reports true.
+type OptionalActivator interface {
+	Activator
+	Activates() bool
+}
+
 // ItemActivator is implemented by Activators that can activate only some of
 // their inventory items. The service advertises SoftwareInventory.Activate
-// only on the items for which CanActivate reports true.
+// only on the items for which CanActivate reports true, and refuses
+// UpdateService.Activate for the others.
 type ItemActivator interface {
 	Activator
 	// CanActivate reports whether the inventory item with the @odata.id
@@ -34,11 +43,11 @@ type ItemActivator interface {
 	CanActivate(ctx context.Context, image string) bool
 }
 
-// activatorOf returns b as an Activator, unless it is none or one whose
-// activation is unsupported (see partial).
+// activatorOf returns b as an Activator, unless it is none or an
+// OptionalActivator that cannot activate.
 func activatorOf(b Backend) (Activator, bool) {
 	act, ok := b.(Activator)
-	if p, isPartial := b.(partial); ok && isPartial && !p.activates() {
+	if oa, isOptional := b.(OptionalActivator); ok && isOptional && !oa.Activates() {
 		return nil, false
 	}
 	return act, ok
@@ -54,7 +63,7 @@ func canActivate(ctx context.Context, act Activator, image string) bool {
 
 // ActivateUpdateService implements gen.ActivateUpdateServiceProvider: it
 // activates the staged images listed in Targets.
-func (s *Service) ActivateUpdateService(_ context.Context, params *gen.UpdateServiceActivateParameters) (*server.ActionResult, error) {
+func (s *Service) ActivateUpdateService(ctx context.Context, params *gen.UpdateServiceActivateParameters) (*server.ActionResult, error) {
 	if len(params.Targets) == 0 {
 		return nil, &server.Error{
 			Status:    http.StatusBadRequest,
@@ -62,7 +71,14 @@ func (s *Service) ActivateUpdateService(_ context.Context, params *gen.UpdateSer
 			Message:   "The action UpdateService.Activate requires the parameter Targets to be present in the request body.",
 		}
 	}
-	return s.activate(odata.Strings(params.Targets), nil)
+	images := odata.Strings(params.Targets)
+	act, _ := activatorOf(s.backend)
+	for _, image := range images {
+		if !canActivate(ctx, act, image) {
+			return nil, unsupported("activation")
+		}
+	}
+	return s.activate(images, nil)
 }
 
 // ActivateSoftwareInventory implements gen.ActivateSoftwareInventoryProvider:
