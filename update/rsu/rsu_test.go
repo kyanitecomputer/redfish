@@ -84,7 +84,7 @@ exit "$(cat "$D/install.rc")"
 		SpoolDir:  filepath.Join(f.dir, "spool"),
 		Version: func(_ context.Context, slot string) (string, error) {
 			if slot == "P1" {
-				return "hps-v4-2-g1234567", nil
+				return "v2.0.1", nil
 			}
 			return "", errors.New("no version")
 		},
@@ -143,7 +143,7 @@ func TestInventory(t *testing.T) {
 		id, name, version, state, health string
 		active, updateable, protected    bool
 	}{
-		{"p1", "RSU slot P1", "hps-v4-2-g1234567", "Enabled", "OK", true, false, false},
+		{"p1", "RSU slot P1", "v2.0.1", "Enabled", "OK", true, false, false},
 		{"p2", "RSU slot P2", "", "Enabled", "Critical", false, true, false},
 		{"factory", "RSU factory image", "", "Enabled", "", false, false, true},
 	}
