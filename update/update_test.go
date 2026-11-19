@@ -323,3 +323,70 @@ func TestBusy(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+func TestStop(t *testing.T) {
+	b := newFakeInstaller()
+	s := New(b, task.New())
+	uri := "http://x/i"
+	params := &gen.UpdateServiceSimpleUpdateParameters{ImageURI: &uri}
+	ctx := context.Background()
+
+	if _, err := s.SimpleUpdateUpdateService(ctx, params); err != nil {
+		t.Fatal(err)
+	}
+	<-b.got
+	if s.Stop() {
+		t.Fatal("Stop succeeded while an update runs")
+	}
+	b.release <- nil
+	deadline := time.Now().Add(5 * time.Second)
+	for !s.Stop() {
+		if time.Now().After(deadline) {
+			t.Fatal("Stop still fails after the update returned")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	if us, _ := s.GetUpdateService(ctx); *us.ServiceEnabled {
+		t.Error("ServiceEnabled after Stop")
+	}
+	_, err := s.SimpleUpdateUpdateService(ctx, params)
+	if e, ok := errors.AsType[*server.Error](err); !ok || e.Status != http.StatusServiceUnavailable {
+		t.Errorf("update after Stop: err %v, want 503", err)
+	}
+	on := true
+	_, err = s.PatchUpdateService(ctx, &gen.UpdateServicePatch{ServiceEnabled: &on})
+	if e, ok := errors.AsType[*server.Error](err); !ok || e.Status != http.StatusServiceUnavailable {
+		t.Errorf("enabling after Stop: err %v, want 503", err)
+	}
+
+	s.Resume()
+	if us, _ := s.GetUpdateService(ctx); !*us.ServiceEnabled {
+		t.Error("not ServiceEnabled after Resume")
+	}
+	if _, err := s.SimpleUpdateUpdateService(ctx, params); err != nil {
+		t.Errorf("update after Resume: %v", err)
+	}
+	<-b.got
+	b.release <- nil
+}
+
+func TestResumeKeepsDisabled(t *testing.T) {
+	s := New(newFake(), task.New())
+	ctx := context.Background()
+	off := false
+	if _, err := s.PatchUpdateService(ctx, &gen.UpdateServicePatch{ServiceEnabled: &off}); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Stop() {
+		t.Fatal("Stop failed")
+	}
+	// Disabling is not refused while stopped; it changes nothing visible.
+	if _, err := s.PatchUpdateService(ctx, &gen.UpdateServicePatch{ServiceEnabled: &off}); err != nil {
+		t.Errorf("disabling after Stop: %v", err)
+	}
+	s.Resume()
+	if us, _ := s.GetUpdateService(ctx); *us.ServiceEnabled {
+		t.Error("ServiceEnabled after Resume of a disabled service")
+	}
+}

@@ -92,6 +92,7 @@ type Service struct {
 
 	mu      sync.Mutex
 	enabled bool
+	stopped bool
 	busy    bool
 }
 
@@ -119,7 +120,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 // GetUpdateService implements gen.UpdateServiceProvider.
 func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error) {
 	s.mu.Lock()
-	enabled := s.enabled
+	enabled := s.enabled && !s.stopped
 	s.mu.Unlock()
 	us := &gen.UpdateService{
 		Id:                "UpdateService",
@@ -201,23 +202,49 @@ func (s *Service) validate(ctx context.Context, img Image, req Request) error {
 	return nil
 }
 
-// Busy reports whether an update or activation is running, for example to
-// refuse a reset that would cut it off.
+// Busy reports whether an update or activation is running. To refuse a reset
+// that would cut one off, use Stop.
 func (s *Service) Busy() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.busy
 }
 
+// Stop disables updates unless one is running, and reports whether it did:
+// call it before a reset or reboot that would cut an update off, and refuse
+// the reset if it returns false. Starting an update checks the same state
+// under the same lock, so none can start between Stop and the reboot.
+// ServiceEnabled reads false until Resume, and a client cannot set it.
+func (s *Service) Stop() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.busy {
+		return false
+	}
+	s.stopped = true
+	return true
+}
+
+// Resume undoes Stop, for example when the reboot failed. ServiceEnabled is
+// then what it was before Stop.
+func (s *Service) Resume() {
+	s.mu.Lock()
+	s.stopped = false
+	s.mu.Unlock()
+}
+
 // start runs an update operation as a task, rejecting it while the service is
-// disabled or another update is running.
+// disabled or stopped, or another update is running.
 func (s *Service) start(name string, fn task.Func) (*server.ActionResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.enabled || s.busy {
+	if !s.enabled || s.stopped || s.busy {
 		reason := "The update service is disabled."
-		if s.busy {
+		switch {
+		case s.busy:
 			reason = "Another update is in progress."
+		case s.stopped:
+			reason = "The update service is stopped for a reset."
 		}
 		return nil, &server.Error{
 			Status:    http.StatusServiceUnavailable,
@@ -251,8 +278,18 @@ func (s *Service) PatchUpdateService(ctx context.Context, patch *gen.UpdateServi
 	}
 	if patch.ServiceEnabled != nil {
 		s.mu.Lock()
-		s.enabled = *patch.ServiceEnabled
+		refused := s.stopped && *patch.ServiceEnabled
+		if !refused {
+			s.enabled = *patch.ServiceEnabled
+		}
 		s.mu.Unlock()
+		if refused {
+			return nil, &server.Error{
+				Status:    http.StatusServiceUnavailable,
+				MessageID: odata.MsgServiceUnavailable,
+				Message:   "The service is temporarily unavailable. The update service is stopped for a reset.",
+			}
+		}
 	}
 	return s.GetUpdateService(ctx)
 }
