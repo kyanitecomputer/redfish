@@ -5,7 +5,6 @@ import (
 	"context"
 	"net/http"
 	"slices"
-	"sync"
 
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
@@ -23,21 +22,21 @@ var (
 // Joined serves the inventory of several backends as one, for example the
 // operating system slots of one backend and the FPGA images of another. Their
 // inventory items need distinct Ids; an Id that two backends report belongs
-// to the first. A backend whose inventory fails is left out, so the others
-// can still be listed and updated, and the joined inventory fails only when
-// all fail.
+// to the first. A backend whose inventory fails is left out of the joined
+// inventory, which fails only when all fail.
 //
-// An update or activation goes to the backend whose inventory holds all of its
-// targets; an update without targets goes to the first backend that can
-// install. The service offers updates and activation only when one of the
-// backends supports them, and SoftwareInventory.Activate only on the items of
-// a backend that can activate them; a request that goes to a backend that
-// does not support it fails with 400.
+// An update or activation goes to the backend that owns its targets, the
+// first backend that reports each of them; targets of different backends are
+// refused with 400. When a backend fails before the owner of every target is
+// found, the request fails with its error, as that backend might report one
+// of them. An update without targets goes to the first backend that can
+// install. An update is validated by the backend it goes to, also when the
+// service validated it before. The service offers updates and activation
+// only when one of the backends supports them, and SoftwareInventory.Activate
+// only on the items of a backend that can activate them; a request that goes
+// to a backend that does not support it fails with 400.
 type Joined struct {
 	backends []Backend
-
-	mu     sync.Mutex
-	owners map[string]Backend // by @odata.id, as of the last Inventory
 }
 
 // Join returns a Backend that joins backends.
@@ -50,7 +49,6 @@ func Join(backends ...Backend) *Joined {
 // when every backend fails.
 func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 	all := &Inventory{}
-	owners := map[string]Backend{}
 	var firstErr error
 	failed := 0
 	for _, b := range j.backends {
@@ -65,18 +63,10 @@ func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 		}
 		all.Firmware = append(all.Firmware, inv.Firmware...)
 		all.Software = append(all.Software, inv.Software...)
-		for _, u := range itemURIs(inv) {
-			if _, taken := owners[u]; !taken {
-				owners[u] = b
-			}
-		}
 	}
 	if failed > 0 && failed == len(j.backends) {
 		return nil, firstErr
 	}
-	j.mu.Lock()
-	j.owners = owners
-	j.mu.Unlock()
 	return all, nil
 }
 
@@ -110,51 +100,56 @@ func (j *Joined) Activates() bool {
 	})
 }
 
-// CanActivate implements ItemActivator: it reports whether the backend of
-// image can activate it. It looks the backend up in the owners of the last
-// Inventory, which the service lists right before for a GET of an item, and
-// asks the backends for their inventories only for an item not listed there.
+// CanActivate implements ItemActivator: it reports whether the owner of
+// image can activate it, asking the backends for their inventories.
 func (j *Joined) CanActivate(ctx context.Context, image string) bool {
-	j.mu.Lock()
-	b, ok := j.owners[image]
-	j.mu.Unlock()
-	if !ok {
-		var err error
-		if b, err = j.owner(ctx, []string{image}); err != nil {
-			return false
-		}
+	b, err := j.owner(ctx, []string{image})
+	if err != nil {
+		return false
 	}
 	act, ok := activatorOf(b)
 	return ok && canActivate(ctx, act, image)
 }
 
-// owner returns the first backend whose inventory holds all of uris. A
-// backend that fails is passed over; its error is returned only when no
-// other backend holds uris, as it might have.
+// owner returns the backend that owns uris, the first one that reports each
+// of them. It fails with 400 when uris belong to different backends or one
+// belongs to none, and with a backend's error when that backend fails before
+// every URI has its owner.
 func (j *Joined) owner(ctx context.Context, uris []string) (Backend, error) {
-	var firstErr error
-	for _, b := range j.backends {
+	pending := slices.Clone(uris)
+	owner := -1
+	for i, b := range j.backends {
+		if len(pending) == 0 {
+			break
+		}
 		inv, err := b.Inventory(ctx)
 		if err != nil {
-			firstErr = cmp.Or(firstErr, err)
-			continue
+			return nil, err
 		}
 		var own []string
 		if inv != nil {
 			own = itemURIs(inv)
 		}
-		if !slices.ContainsFunc(uris, func(u string) bool { return !slices.Contains(own, u) }) {
-			return b, nil
+		n := len(pending)
+		pending = slices.DeleteFunc(pending, func(u string) bool { return slices.Contains(own, u) })
+		if len(pending) == n {
+			continue
 		}
+		if owner >= 0 {
+			return nil, badTargets
+		}
+		owner = i
 	}
-	if firstErr != nil {
-		return nil, firstErr
+	if owner < 0 || len(pending) > 0 {
+		return nil, badTargets
 	}
-	return nil, &server.Error{
-		Status:    http.StatusBadRequest,
-		MessageID: odata.MsgActionParameterValueFormat,
-		Message:   "The value for the parameter Targets does not name inventory items of one update backend.",
-	}
+	return j.backends[owner], nil
+}
+
+var badTargets = &server.Error{
+	Status:    http.StatusBadRequest,
+	MessageID: odata.MsgActionParameterValueFormat,
+	Message:   "The value for the parameter Targets does not name inventory items of one update backend.",
 }
 
 // installer returns the Installer for an update of targets.
@@ -190,11 +185,18 @@ func (j *Joined) Validate(ctx context.Context, img Image, req Request) error {
 	return nil
 }
 
-// Install implements Installer.
+// Install implements Installer. It validates the update with the backend it
+// goes to, which may not be the one Validate found when an inventory changed
+// in between.
 func (j *Joined) Install(ctx context.Context, img Image, req Request, progress func(int)) error {
 	inst, err := j.installer(ctx, req.Targets)
 	if err != nil {
 		return err
+	}
+	if v, ok := inst.(Validator); ok {
+		if err := v.Validate(ctx, img, req); err != nil {
+			return err
+		}
 	}
 	return inst.Install(ctx, img, req, progress)
 }
