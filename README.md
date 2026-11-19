@@ -36,7 +36,7 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - Only the resources listed in `gen/doc.go` are generated; other resources need to be added there and regenerated.
 - Only a subset of the DSP8011 base messages is used, and message registries are not served.
 - The example uses static fixtures. The RAUC and Intel RSU update backends drive the `rauc` and `rsu_client`
-  command line tools but have not been tested on hardware yet.
+  command line tools and have been tested on one board only (an Agilex 7 SoM).
 
 ## Packages
 
