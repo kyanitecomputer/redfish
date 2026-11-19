@@ -23,6 +23,7 @@ func TestBodyIdleTimeout(t *testing.T) {
 	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n, err := io.Copy(io.Discard, r.Body)
 		got <- result{int(n), err}
+		WriteError(w, http.StatusBadRequest, "Base.1.0.GeneralError", err.Error())
 	}), 100*time.Millisecond)
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
@@ -45,6 +46,74 @@ func TestBodyIdleTimeout(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("reading a stalled body did not time out")
+	}
+	// The client, which still has the connection open, gets the response:
+	// net/http does not wait for the rest of the body before sending it.
+	if line := readStatus(t, conn); !strings.HasPrefix(line, "HTTP/1.1 400") {
+		t.Errorf("response = %q, want 400", line)
+	}
+}
+
+// readStatus reads the status line of the response on conn, or fails after
+// five seconds.
+func readStatus(t *testing.T, conn net.Conn) string {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		t.Errorf("reading the response: %v", err)
+	}
+	return line
+}
+
+// TestBodyIdleTimeoutUnreadRest answers after reading only the start of a
+// body whose client then stalls. net/http drains the rest before it sends
+// the response, and the limit applies to that as well.
+func TestBodyIdleTimeoutUnreadRest(t *testing.T) {
+	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := make([]byte, 10)
+		if _, err := io.ReadFull(r.Body, buf); err != nil {
+			t.Errorf("read: %v", err)
+		}
+		WriteError(w, http.StatusRequestEntityTooLarge, "Base.1.0.GeneralError", "too large")
+	}), 100*time.Millisecond)
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 100\r\n\r\n0123456789abcdef")
+	if line := readStatus(t, conn); !strings.HasPrefix(line, "HTTP/1.1 413") {
+		t.Errorf("response = %q, want 413", line)
+	}
+}
+
+// TestBodyIdleTimeoutMultipartFiles parses a multipart form into files: they
+// are removed after the request, as net/http removes those of its own request.
+func TestBodyIdleTimeoutMultipartFiles(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(1); err != nil {
+			t.Errorf("ParseMultipartForm: %v", err)
+		}
+		if files, _ := os.ReadDir(tmp); len(files) == 0 {
+			t.Error("no file for the uploaded part")
+		}
+	}), time.Minute)
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	body := "--b\r\nContent-Disposition: form-data; name=\"f\"; filename=\"f.bin\"\r\n\r\n" +
+		strings.Repeat("x", 32<<10) + "\r\n--b--\r\n"
+	resp, err := http.Post(srv.URL, "multipart/form-data; boundary=b", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if files, _ := os.ReadDir(tmp); len(files) != 0 {
+		t.Errorf("files left after the request: %v", files)
 	}
 }
 
@@ -83,10 +152,8 @@ func TestBodyIdleTimeoutExpectContinue(t *testing.T) {
 	}
 	defer conn.Close()
 	fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 1000000\r\nExpect: 100-continue\r\n\r\n")
-	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	line, err := bufio.NewReader(conn).ReadString('\n')
-	if err != nil || !strings.HasPrefix(line, "HTTP/1.1 413") {
-		t.Errorf("response = %q, %v; want 413 at once", line, err)
+	if line := readStatus(t, conn); !strings.HasPrefix(line, "HTTP/1.1 413") {
+		t.Errorf("response = %q, want 413 at once", line)
 	}
 }
 
