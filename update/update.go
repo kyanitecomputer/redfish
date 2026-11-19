@@ -72,6 +72,24 @@ type Installer interface {
 	Install(ctx context.Context, img Image, req Request, progress func(percent int)) error
 }
 
+// partial is implemented by backends that implement Installer and Activator
+// but may support neither, such as Joined; the service offers only what they
+// report.
+type partial interface {
+	installs() bool
+	activates() bool
+}
+
+// installerOf returns b as an Installer, unless it is none or one whose
+// updates are unsupported (see partial).
+func installerOf(b Backend) (Installer, bool) {
+	inst, ok := b.(Installer)
+	if p, isPartial := b.(partial); ok && isPartial && !p.installs() {
+		return nil, false
+	}
+	return inst, ok
+}
+
 // Validator is implemented by Installers that support only some update
 // requests. The service calls Validate before it starts an update and answers
 // its error, typically a 400 *server.Error, instead of starting a task.
@@ -107,11 +125,11 @@ func (s *Service) Register(mux *http.ServeMux) {
 	gen.RegisterUpdateService(mux, s)
 	gen.RegisterSoftwareInventoryCollection(mux, s)
 	gen.RegisterSoftwareInventory(mux, s)
-	if _, ok := s.backend.(Installer); ok {
+	if _, ok := installerOf(s.backend); ok {
 		gen.RegisterSimpleUpdateUpdateService(mux, s)
 		server.Handle(mux, "POST", MultipartPushURI, s.servePush)
 	}
-	if _, ok := s.backend.(Activator); ok {
+	if _, ok := activatorOf(s.backend); ok {
 		gen.RegisterActivateUpdateService(mux, s)
 		gen.RegisterActivateSoftwareInventory(mux, s)
 	}
@@ -130,7 +148,7 @@ func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error
 		SoftwareInventory: odata.Link(SoftwareInventoryURI),
 	}
 	actions := &gen.UpdateServiceActions{}
-	if _, ok := s.backend.(Installer); ok {
+	if _, ok := installerOf(s.backend); ok {
 		actions.SimpleUpdate = &odata.ActionTarget{Target: SimpleUpdateURI}
 		us.Actions = actions
 		us.MultipartHttpPushUri = MultipartPushURI
@@ -138,7 +156,7 @@ func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error
 			us.MaxImageSizeBytes = &size
 		}
 	}
-	if _, ok := s.backend.(Activator); ok {
+	if _, ok := activatorOf(s.backend); ok {
 		actions.Activate = &odata.ActionTarget{Target: ActivateURI}
 		us.Actions = actions
 	}
@@ -179,7 +197,7 @@ func (s *Service) SimpleUpdateUpdateService(ctx context.Context, params *gen.Upd
 	if err := s.validate(ctx, img, req); err != nil {
 		return nil, err
 	}
-	inst := s.backend.(Installer)
+	inst, _ := installerOf(s.backend)
 	return s.start("Simple Update", func(ctx context.Context, progress func(int)) error {
 		return inst.Install(ctx, img, req, progress)
 	})
@@ -226,7 +244,8 @@ func (s *Service) Stop() bool {
 }
 
 // Resume undoes Stop, for example when the reboot failed. ServiceEnabled is
-// then what it was before Stop.
+// then what it was before Stop, or false if a client disabled the service
+// while it was stopped.
 func (s *Service) Resume() {
 	s.mu.Lock()
 	s.stopped = false
@@ -319,7 +338,7 @@ func (s *Service) GetSoftwareInventory(ctx context.Context, p server.Params) (*g
 		if it.Id == id {
 			c := *it
 			c.ODataID = base + "/" + id
-			if _, ok := s.backend.(Activator); ok {
+			if act, ok := activatorOf(s.backend); ok && canActivate(ctx, act, c.ODataID) {
 				actions := gen.SoftwareInventoryActions{}
 				if c.Actions != nil {
 					actions = *c.Actions
