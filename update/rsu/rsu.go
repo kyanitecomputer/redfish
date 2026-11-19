@@ -258,23 +258,28 @@ func (b *Backend) version(ctx context.Context, slot string) string {
 // Validate implements update.Validator. The installer writes one slot that
 // is not running and requests it; it takes a local file and no credentials.
 // An ImageURI starting with "-" would be read as an option of the installer.
+// Install makes the same checks.
 func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Request) error {
+	_, err := b.check(ctx, img, req)
+	return err
+}
+
+// check checks an update like Validate and returns the slot of its target,
+// nil without targets.
+func (b *Backend) check(ctx context.Context, img update.Image, req update.Request) (*slot, error) {
 	switch {
 	case b.cfg.Installer == "":
-		return errNoInstaller
+		return nil, errNoInstaller
 	case req.Stage:
-		return notSupported("Stage")
+		return nil, notSupported("Stage")
 	case len(req.ExcludeTargets) > 0:
-		return notSupported("ExcludeTargets")
+		return nil, notSupported("ExcludeTargets")
 	case img.Username != "" || img.Password != "":
-		return notSupported("Username")
+		return nil, notSupported("Username")
 	case img.Body == nil && (strings.Contains(img.URI, "://") || strings.HasPrefix(img.URI, "-")):
-		return badValue("The value for the parameter ImageURI must be a local path; the RSU update backend does not download images.")
-	case len(req.Targets) == 0:
-		return nil
+		return nil, badValue("The value for the parameter ImageURI must be a local path; the RSU update backend does not download images.")
 	}
-	_, err := b.target(ctx, req.Targets)
-	return err
+	return b.target(ctx, req.Targets)
 }
 
 // target returns the slot an update of targets goes to: one slot that is
@@ -323,10 +328,7 @@ func badValue(msg string) error {
 // Install implements update.Installer. A pushed image is written to a file in
 // SpoolDir, which is removed after the installation.
 func (b *Backend) Install(ctx context.Context, img update.Image, req update.Request, progress func(int)) error {
-	if b.cfg.Installer == "" {
-		return errNoInstaller
-	}
-	target, err := b.target(ctx, req.Targets)
+	target, err := b.check(ctx, img, req)
 	if err != nil {
 		return err
 	}

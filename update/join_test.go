@@ -85,10 +85,10 @@ func TestJoinRoutes(t *testing.T) {
 	}{
 		{"install without targets", func(ctx context.Context, j *Joined) error {
 			return j.Install(ctx, Image{}, Request{}, func(int) {})
-		}, 0, []string{"rauc install"}},
-		{"install into the second backend", func(ctx context.Context, j *Joined) error {
+		}, 0, []string{"rauc validate", "rauc install"}},
+		{"install validated by the second backend", func(ctx context.Context, j *Joined) error {
 			return j.Install(ctx, Image{}, Request{Targets: []string{fw + "p2"}}, func(int) {})
-		}, 0, []string{"rsu install"}},
+		}, http.StatusBadRequest, []string{"rsu validate"}},
 		{"validate by the owner", func(ctx context.Context, j *Joined) error {
 			return j.Validate(ctx, Image{}, Request{Targets: []string{fw + "p1"}})
 		}, http.StatusBadRequest, []string{"rsu validate"}},
@@ -222,7 +222,7 @@ func TestJoinOptionalInstaller(t *testing.T) {
 	)
 	ctx := context.Background()
 	// An update without targets skips the backend that cannot install.
-	if err := j.Install(ctx, Image{}, Request{}, func(int) {}); err != nil || !slices.Equal(*calls, []string{"rauc install"}) {
+	if err := j.Install(ctx, Image{}, Request{}, func(int) {}); err != nil || !slices.Equal(*calls, []string{"rauc validate", "rauc install"}) {
 		t.Errorf("install without targets: err = %v, calls = %v", err, *calls)
 	}
 	err := j.Install(ctx, Image{}, Request{Targets: []string{fw + "p1"}}, func(int) {})
@@ -249,13 +249,16 @@ func (failing) Inventory(context.Context) (*Inventory, error) {
 	return nil, errors.New("rsu_client missing")
 }
 
-// TestJoinFailingBackend checks that a failing backend does not keep the
-// others from being listed and updated.
+// TestJoinFailingBackend checks that a failing backend leaves the others
+// listed, and updated when it comes after their owner, but that a target is
+// not routed past it, as it might report the target.
 func TestJoinFailingBackend(t *testing.T) {
 	calls := &[]string{}
 	fw := FirmwareInventoryURI + "/"
-	j := Join(failing{}, &joinPart{name: "rauc", firmware: []string{"slot_a"}, calls: calls})
+	rauc := &joinPart{name: "rauc", firmware: []string{"slot_a"}, calls: calls}
 	ctx := context.Background()
+
+	j := Join(rauc, failing{})
 	inv, err := j.Inventory(ctx)
 	if err != nil || len(inv.Firmware) != 1 || inv.Firmware[0].Id != "slot_a" {
 		t.Fatalf("inventory = %v, %v; want slot_a", inv, err)
@@ -266,15 +269,56 @@ func TestJoinFailingBackend(t *testing.T) {
 	if err := j.Activate(ctx, []string{fw + "slot_a"}, nil, func(int) {}); err != nil {
 		t.Errorf("activate slot_a: %v", err)
 	}
-	if !slices.Equal(*calls, []string{"rauc install", "rauc activate"}) {
+	if !slices.Equal(*calls, []string{"rauc validate", "rauc install", "rauc activate"}) {
 		t.Errorf("calls = %v", *calls)
 	}
-	// A target no working backend holds may be the failing one's.
 	if err := j.Install(ctx, Image{}, Request{Targets: []string{fw + "p1"}}, func(int) {}); err == nil || err.Error() != "rsu_client missing" {
 		t.Errorf("install into p1: err = %v, want the failing backend's error", err)
 	}
+
+	*calls = nil
+	j = Join(failing{}, rauc)
+	if inv, err := j.Inventory(ctx); err != nil || len(inv.Firmware) != 1 {
+		t.Errorf("inventory = %v, %v; want slot_a", inv, err)
+	}
+	if err := j.Install(ctx, Image{}, Request{Targets: []string{fw + "slot_a"}}, func(int) {}); err == nil || err.Error() != "rsu_client missing" {
+		t.Errorf("install into slot_a behind a failing backend: err = %v, want its error", err)
+	}
+	if j.CanActivate(ctx, fw+"slot_a") || len(*calls) != 0 {
+		t.Errorf("slot_a behind a failing backend: CanActivate true or calls %v", *calls)
+	}
 	if _, err := Join(failing{}, failing{}).Inventory(ctx); err == nil {
 		t.Error("inventory of failing backends did not fail")
+	}
+}
+
+// TestJoinFirstOwner routes each target to the first backend that reports
+// it, and refuses targets of different backends.
+func TestJoinFirstOwner(t *testing.T) {
+	calls := &[]string{}
+	fw := FirmwareInventoryURI + "/"
+	j := Join(
+		&joinPart{name: "a", firmware: []string{"x"}, calls: calls},
+		&joinPart{name: "b", firmware: []string{"x", "y"}, calls: calls},
+	)
+	ctx := context.Background()
+	for _, tt := range []struct {
+		targets []string
+		want    []string
+	}{
+		{[]string{"x"}, []string{"a validate", "a install"}},
+		{[]string{"y"}, []string{"b validate", "b install"}},
+		{[]string{"x", "y"}, nil},
+	} {
+		*calls = nil
+		var targets []string
+		for _, id := range tt.targets {
+			targets = append(targets, fw+id)
+		}
+		err := j.Install(ctx, Image{}, Request{Targets: targets}, func(int) {})
+		if !slices.Equal(*calls, tt.want) || (tt.want == nil) != (err != nil) {
+			t.Errorf("install into %v: err = %v, calls = %v; want %v", tt.targets, err, *calls, tt.want)
+		}
 	}
 }
 

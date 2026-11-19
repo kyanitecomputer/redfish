@@ -348,6 +348,19 @@ func TestInstallRunningSlot(t *testing.T) {
 	}
 }
 
+// TestInstallChecks calls Install without Validate, as a joined backend
+// may be: it refuses what Validate refuses, without running the installer.
+func TestInstallChecks(t *testing.T) {
+	f, b := newFakeRSU(t)
+	err := b.Install(context.Background(), update.Image{URI: "/data/rsu.raucb"}, update.Request{Stage: true}, func(int) {})
+	if se, ok := errors.AsType[*server.Error](err); !ok || se.Status != http.StatusBadRequest {
+		t.Errorf("staged install: err = %v, want 400", err)
+	}
+	if w := f.writes(t); len(w) != 0 {
+		t.Errorf("staged install ran %q", w)
+	}
+}
+
 func TestInstalls(t *testing.T) {
 	_, b := newFakeRSU(t)
 	if !b.Installs() || New(Config{}).Installs() {
