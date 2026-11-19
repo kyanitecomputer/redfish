@@ -142,9 +142,13 @@ func TestItemActivatorRefuses(t *testing.T) {
 	if actions, _ := m["Actions"].(map[string]any); actions["#SoftwareInventory.Activate"] != nil {
 		t.Errorf("Actions = %v, want no Activate", actions)
 	}
-	for _, uri := range []string{FirmwareInventoryURI + "/bmc/Actions/SoftwareInventory.Activate", ActivateURI} {
-		if code, _ := do(t, "POST", srv.URL+uri, `{"Targets":["`+FirmwareInventoryURI+`/bmc"]}`); code != http.StatusBadRequest {
-			t.Errorf("POST %s: status %d, want 400", uri, code)
+	for _, tt := range []struct{ uri, body string }{
+		{FirmwareInventoryURI + "/bmc/Actions/SoftwareInventory.Activate", `{}`},
+		{ActivateURI, `{"Targets":[{"@odata.id":"` + FirmwareInventoryURI + `/bmc"}]}`},
+	} {
+		code, m := do(t, "POST", srv.URL+tt.uri, tt.body)
+		if code != http.StatusBadRequest || errMessage(m) != unsupportedActivation {
+			t.Errorf("POST %s: status %d, message %q; want 400, %q", tt.uri, code, errMessage(m), unsupportedActivation)
 		}
 	}
 	select {

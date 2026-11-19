@@ -1,6 +1,7 @@
 package update
 
 import (
+	"cmp"
 	"context"
 	"net/http"
 	"slices"
@@ -21,7 +22,10 @@ var (
 
 // Joined serves the inventory of several backends as one, for example the
 // operating system slots of one backend and the FPGA images of another. Their
-// inventory items need distinct Ids.
+// inventory items need distinct Ids; an Id that two backends report belongs
+// to the first. A backend whose inventory fails is left out, so the others
+// can still be listed and updated, and the joined inventory fails only when
+// all fail.
 //
 // An update or activation goes to the backend whose inventory holds all of its
 // targets; an update without targets goes to the first backend that can
@@ -41,30 +45,51 @@ func Join(backends ...Backend) *Joined {
 	return &Joined{backends: backends}
 }
 
-// Inventory implements Backend. It fails when one of the backends fails.
+// Inventory implements Backend. A backend that fails leaves its items out,
+// so that the others can still be listed and updated; Inventory fails only
+// when every backend fails.
 func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 	all := &Inventory{}
 	owners := map[string]Backend{}
+	var firstErr error
+	failed := 0
 	for _, b := range j.backends {
 		inv, err := b.Inventory(ctx)
 		if err != nil {
-			return nil, err
+			firstErr = cmp.Or(firstErr, err)
+			failed++
+			continue
 		}
-		if inv != nil {
-			all.Firmware = append(all.Firmware, inv.Firmware...)
-			all.Software = append(all.Software, inv.Software...)
-			for _, it := range inv.Firmware {
-				owners[FirmwareInventoryURI+"/"+it.Id] = b
-			}
-			for _, it := range inv.Software {
-				owners[SoftwareInventoryURI+"/"+it.Id] = b
+		if inv == nil {
+			continue
+		}
+		all.Firmware = append(all.Firmware, inv.Firmware...)
+		all.Software = append(all.Software, inv.Software...)
+		for _, u := range itemURIs(inv) {
+			if _, taken := owners[u]; !taken {
+				owners[u] = b
 			}
 		}
+	}
+	if failed > 0 && failed == len(j.backends) {
+		return nil, firstErr
 	}
 	j.mu.Lock()
 	j.owners = owners
 	j.mu.Unlock()
 	return all, nil
+}
+
+// itemURIs returns the @odata.id of the items of inv.
+func itemURIs(inv *Inventory) []string {
+	var uris []string
+	for _, it := range inv.Firmware {
+		uris = append(uris, FirmwareInventoryURI+"/"+it.Id)
+	}
+	for _, it := range inv.Software {
+		uris = append(uris, SoftwareInventoryURI+"/"+it.Id)
+	}
+	return uris
 }
 
 // Installs implements OptionalInstaller: whether one of the backends can
@@ -86,8 +111,9 @@ func (j *Joined) Activates() bool {
 }
 
 // CanActivate implements ItemActivator: it reports whether the backend of
-// image can activate it. The service calls it right after Inventory, whose
-// owners it uses rather than asking every backend for its inventory again.
+// image can activate it. It looks the backend up in the owners of the last
+// Inventory, which the service lists right before for a GET of an item, and
+// asks the backends for their inventories only for an item not listed there.
 func (j *Joined) CanActivate(ctx context.Context, image string) bool {
 	j.mu.Lock()
 	b, ok := j.owners[image]
@@ -102,25 +128,27 @@ func (j *Joined) CanActivate(ctx context.Context, image string) bool {
 	return ok && canActivate(ctx, act, image)
 }
 
-// owner returns the backend whose inventory holds all of uris.
+// owner returns the first backend whose inventory holds all of uris. A
+// backend that fails is passed over; its error is returned only when no
+// other backend holds uris, as it might have.
 func (j *Joined) owner(ctx context.Context, uris []string) (Backend, error) {
+	var firstErr error
 	for _, b := range j.backends {
 		inv, err := b.Inventory(ctx)
 		if err != nil {
-			return nil, err
+			firstErr = cmp.Or(firstErr, err)
+			continue
 		}
 		var own []string
 		if inv != nil {
-			for _, it := range inv.Firmware {
-				own = append(own, FirmwareInventoryURI+"/"+it.Id)
-			}
-			for _, it := range inv.Software {
-				own = append(own, SoftwareInventoryURI+"/"+it.Id)
-			}
+			own = itemURIs(inv)
 		}
 		if !slices.ContainsFunc(uris, func(u string) bool { return !slices.Contains(own, u) }) {
 			return b, nil
 		}
+	}
+	if firstErr != nil {
+		return nil, firstErr
 	}
 	return nil, &server.Error{
 		Status:    http.StatusBadRequest,

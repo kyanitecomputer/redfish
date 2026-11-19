@@ -57,6 +57,15 @@ func do(t *testing.T, method, url, body string) (int, map[string]any) {
 	return resp.StatusCode, m
 }
 
+// errMessage returns the message of a Redfish error response.
+func errMessage(m map[string]any) string {
+	e, _ := m["error"].(map[string]any)
+	msg, _ := e["message"].(string)
+	return msg
+}
+
+const unsupportedActivation = "The targets do not support activation."
+
 func TestUpdateService(t *testing.T) {
 	srv := newTestServer(t, newFake())
 	code, m := do(t, "GET", srv.URL+ServiceURI, "")
@@ -388,5 +397,28 @@ func TestResumeKeepsDisabled(t *testing.T) {
 	s.Resume()
 	if us, _ := s.GetUpdateService(ctx); *us.ServiceEnabled {
 		t.Error("ServiceEnabled after Resume of a disabled service")
+	}
+}
+
+func TestStopCounts(t *testing.T) {
+	s := New(newFakeInstaller(), task.New())
+	ctx := context.Background()
+	if !s.Stop() || !s.Stop() {
+		t.Fatal("Stop failed")
+	}
+	s.Resume()
+	if us, _ := s.GetUpdateService(ctx); *us.ServiceEnabled {
+		t.Error("ServiceEnabled after one Resume of two Stops")
+	}
+	s.Resume()
+	if us, _ := s.GetUpdateService(ctx); !*us.ServiceEnabled {
+		t.Error("not ServiceEnabled after both Resumes")
+	}
+	s.Resume()
+	if !s.Stop() {
+		t.Fatal("Stop failed")
+	}
+	if us, _ := s.GetUpdateService(ctx); *us.ServiceEnabled {
+		t.Error("an extra Resume kept a later Stop from stopping")
 	}
 }

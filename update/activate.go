@@ -14,8 +14,9 @@ import (
 const ActivateURI = ServiceURI + "/Actions/UpdateService.Activate"
 
 // Activator is implemented by backends that can activate staged images, for
-// example by switching the boot slot. The service only advertises the Activate
-// actions when its backend implements it.
+// example by switching the boot slot. The service only offers the Activate
+// actions when its backend implements it and, for an OptionalActivator,
+// Activates reports true.
 type Activator interface {
 	// Activate activates the staged images, given as @odata.id of inventory
 	// items, on devices, given as @odata.id of the devices; no devices means all
@@ -72,7 +73,10 @@ func (s *Service) ActivateUpdateService(ctx context.Context, params *gen.UpdateS
 		}
 	}
 	images := odata.Strings(params.Targets)
-	act, _ := activatorOf(s.backend)
+	act, ok := activatorOf(s.backend)
+	if !ok {
+		return nil, unsupported("activation")
+	}
 	for _, image := range images {
 		if !canActivate(ctx, act, image) {
 			return nil, unsupported("activation")
@@ -104,7 +108,10 @@ func (s *Service) ActivateSoftwareInventory(ctx context.Context, p server.Params
 }
 
 func (s *Service) activate(images, devices []string) (*server.ActionResult, error) {
-	act, _ := activatorOf(s.backend)
+	act, ok := activatorOf(s.backend)
+	if !ok {
+		return nil, unsupported("activation")
+	}
 	return s.start("Activate", func(ctx context.Context, progress func(int)) error {
 		return act.Activate(ctx, images, devices, progress)
 	})
