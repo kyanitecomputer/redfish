@@ -16,8 +16,9 @@ import (
 )
 
 // fakeRSU is an rsu_client stand-in: a shell script that logs its arguments
-// to calls, answers --count, --list and --log from the files count, list<n>
-// and log, and fails --enable and --request when the file fail exists.
+// to calls, answers --count, --list, --log and --check-running-factory from
+// the files count, list<n>, log and factory, and fails --enable and
+// --request when the file fail exists.
 // installer is an installer stand-in that replays install.out.
 type fakeRSU struct {
 	dir string
@@ -54,12 +55,14 @@ func newFakeRSU(t *testing.T) (*fakeRSU, *Backend) {
 			s.name, s.offset, s.priority))
 	}
 	f.write(t, "log", logP1)
+	f.write(t, "factory", "Running factory image: no\nOperation completed\n")
 	f.script(t, "rsu_client", `
 echo "$*" >> "$D/calls"
 case "$1" in
 --count) cat "$D/count" ;;
 --list) cat "$D/list$2" ;;
 --log) cat "$D/log" ;;
+--check-running-factory) cat "$D/factory" ;;
 --enable|--request|--request-factory)
 	if [ -f "$D/fail" ]; then
 		echo "ERROR: $(cat "$D/fail")"
@@ -121,7 +124,8 @@ func (f *fakeRSU) writes(t *testing.T) []string {
 	var w []string
 	for line := range strings.Lines(f.read(t, "calls")) {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "--count") && !strings.HasPrefix(line, "--list") && line != "--log" {
+		if !strings.HasPrefix(line, "--count") && !strings.HasPrefix(line, "--list") && line != "--log" &&
+			line != "--check-running-factory" {
 			w = append(w, line)
 		}
 	}
@@ -165,6 +169,7 @@ func TestInventory(t *testing.T) {
 func TestInventoryFactoryRunning(t *testing.T) {
 	f, b := newFakeRSU(t)
 	f.write(t, "log", strings.Replace(logP1, "CURRENT IMAGE: 0x0000000002000000", "CURRENT IMAGE: 0x0000000000210000", 1))
+	f.write(t, "factory", "Running factory image: yes\n")
 	f.write(t, "list1", "NAME: P2\nOFFSET: 0x0000000003000000\nPRIORITY: [disabled]\n")
 	inv, err := b.Inventory(context.Background())
 	if err != nil {
@@ -174,6 +179,65 @@ func TestInventoryFactoryRunning(t *testing.T) {
 	if !*p1.Active || !*p1.Updateable || *p2.Active || p2.Status.State != "Disabled" || !*factory.Active {
 		t.Errorf("p1 active=%v updateable=%v, p2 active=%v %s, factory active=%v",
 			*p1.Active, *p1.Updateable, *p2.Active, p2.Status.State, *factory.Active)
+	}
+}
+
+// TestInventoryUnknownImage runs an image that is neither a slot of the SPT
+// nor the factory image: nothing is reported as running.
+func TestInventoryUnknownImage(t *testing.T) {
+	f, b := newFakeRSU(t)
+	f.write(t, "log", strings.Replace(logP1, "CURRENT IMAGE: 0x0000000002000000", "CURRENT IMAGE: 0x0000000004000000", 1))
+	inv, err := b.Inventory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p1, p2, factory := inv.Firmware[0], inv.Firmware[1], inv.Firmware[2]
+	// P1 stays Active as the top of the CPB, and both slots are updateable.
+	if !*p1.Active || !*p1.Updateable || *p2.Active || !*p2.Updateable || *factory.Active {
+		t.Errorf("p1 active=%v updateable=%v, p2 active=%v updateable=%v, factory active=%v",
+			*p1.Active, *p1.Updateable, *p2.Active, *p2.Updateable, *factory.Active)
+	}
+}
+
+func TestInventoryBadOutput(t *testing.T) {
+	tests := []struct{ file, content, want string }{
+		{"count", "number of slots is invalid\n", "rsu_client --count: unexpected output"},
+		{"factory", "Running factory image: maybe\n", "rsu_client --check-running-factory: unexpected output"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			f, b := newFakeRSU(t)
+			f.write(t, tt.file, tt.content)
+			if _, err := b.Inventory(context.Background()); err == nil || !strings.HasPrefix(err.Error(), tt.want) {
+				t.Errorf("err = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+// TestInventoryCollidingNames leaves out slots whose Id is taken: one that
+// would be the factory image's, and one that differs from another only in
+// case.
+func TestInventoryCollidingNames(t *testing.T) {
+	f, b := newFakeRSU(t)
+	f.write(t, "list2", "NAME: Factory\nOFFSET: 0x0000000004000000\nPRIORITY: 3\n")
+	f.write(t, "list3", "NAME: p1\nOFFSET: 0x0000000005000000\nPRIORITY: 4\n")
+	inv, err := b.Inventory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, it := range inv.Firmware {
+		ids = append(ids, it.Id+" "+it.Name)
+	}
+	if got := strings.Join(ids, ", "); got != "p1 RSU slot P1, p2 RSU slot P2, factory RSU factory image" {
+		t.Errorf("inventory = %s", got)
+	}
+	if err := b.Activate(context.Background(), []string{fw + "factory"}, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if w := f.writes(t); !slices.Equal(w, []string{"--request-factory"}) {
+		t.Errorf("activating the factory image ran %q", w)
 	}
 }
 
@@ -258,6 +322,7 @@ func TestInstallTarget(t *testing.T) {
 	// From the factory image both slots are free; the target chooses one.
 	f, b := newFakeRSU(t)
 	f.write(t, "log", strings.Replace(logP1, "0x0000000002000000", "0x0000000000210000", 1))
+	f.write(t, "factory", "Running factory image: yes\n")
 	req := update.Request{Targets: []string{fw + "p1"}}
 	if err := b.Validate(context.Background(), update.Image{URI: "/data/rsu.raucb"}, req); err != nil {
 		t.Fatal(err)
