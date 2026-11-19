@@ -339,12 +339,18 @@ func (s *Service) GetSoftwareInventory(ctx context.Context, p server.Params) (*g
 		if it.Id == id {
 			c := *it
 			c.ODataID = base + "/" + id
-			if act, ok := activatorOf(s.backend); ok && canActivate(ctx, act, c.ODataID) {
-				actions := gen.SoftwareInventoryActions{}
-				if c.Actions != nil {
-					actions = *c.Actions
-				}
+			// The service sets Activate, also over one the backend
+			// supplies.
+			act, ok := activatorOf(s.backend)
+			actions := gen.SoftwareInventoryActions{}
+			if c.Actions != nil {
+				actions = *c.Actions
+			}
+			actions.Activate = nil
+			if ok && canActivate(ctx, act, c.ODataID) {
 				actions.Activate = &odata.ActionTarget{Target: c.ODataID + "/Actions/SoftwareInventory.Activate"}
+			}
+			if c.Actions != nil || actions.Activate != nil {
 				c.Actions = &actions
 			}
 			return &c, nil

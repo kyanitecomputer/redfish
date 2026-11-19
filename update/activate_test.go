@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"slices"
 	"testing"
+
+	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/odata"
 )
 
 type activateCall struct {
@@ -109,4 +112,44 @@ func TestActivateWhileInstalling(t *testing.T) {
 		t.Errorf("Activate during install: status %d, want 503", code)
 	}
 	b.release <- nil
+}
+
+// pickyActivator activates nothing, but its inventory items carry an
+// Activate action of their own.
+type pickyActivator struct{ *fakeActivator }
+
+func (p pickyActivator) Inventory(ctx context.Context) (*Inventory, error) {
+	inv, err := p.fakeActivator.Inventory(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c := *inv.Firmware[0]
+	c.Actions = &gen.SoftwareInventoryActions{
+		Activate: &odata.ActionTarget{Target: FirmwareInventoryURI + "/bmc/Actions/SoftwareInventory.Activate"},
+	}
+	return &Inventory{Firmware: []*gen.SoftwareInventory{&c}}, nil
+}
+
+func (pickyActivator) CanActivate(context.Context, string) bool { return false }
+
+// TestItemActivatorRefuses checks that an item that cannot be activated has
+// no Activate action, even one its backend supplies, and that neither action
+// activates it.
+func TestItemActivatorRefuses(t *testing.T) {
+	b := pickyActivator{newFakeActivator()}
+	srv := newTestServer(t, b)
+	_, m := do(t, "GET", srv.URL+FirmwareInventoryURI+"/bmc", "")
+	if actions, _ := m["Actions"].(map[string]any); actions["#SoftwareInventory.Activate"] != nil {
+		t.Errorf("Actions = %v, want no Activate", actions)
+	}
+	for _, uri := range []string{FirmwareInventoryURI + "/bmc/Actions/SoftwareInventory.Activate", ActivateURI} {
+		if code, _ := do(t, "POST", srv.URL+uri, `{"Targets":["`+FirmwareInventoryURI+`/bmc"]}`); code != http.StatusBadRequest {
+			t.Errorf("POST %s: status %d, want 400", uri, code)
+		}
+	}
+	select {
+	case c := <-b.activated:
+		t.Errorf("backend activated %v", c.images)
+	default:
+	}
 }
