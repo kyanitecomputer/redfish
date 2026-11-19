@@ -1,15 +1,21 @@
 package update
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	"src.kyanite.computer/redfish/server"
 	"src.kyanite.computer/redfish/task"
 )
 
@@ -124,5 +130,50 @@ func TestPushRejected(t *testing.T) {
 				t.Errorf("status %d, want %d", resp.StatusCode, tt.wantStatus)
 			}
 		})
+	}
+}
+
+// TestPushStalled stalls in the middle of the image behind
+// server.BodyIdleTimeout: the client gets 408.
+func TestPushStalled(t *testing.T) {
+	mux := http.NewServeMux()
+	New(newFakeInstaller(), task.New()).Register(mux)
+	srv := httptest.NewServer(server.BodyIdleTimeout(mux, 100*time.Millisecond))
+	t.Cleanup(srv.Close)
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	part := "--b\r\nContent-Disposition: form-data; name=\"UpdateFile\"; filename=\"i\"\r\n\r\npart of an image"
+	fmt.Fprintf(conn, "POST %s HTTP/1.1\r\nHost: x\r\nContent-Type: multipart/form-data; boundary=b\r\n"+
+		"Content-Length: 100000\r\n\r\n%s", MultipartPushURI, part)
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if !strings.HasPrefix(line, "HTTP/1.1 408") {
+		t.Errorf("response = %q, %v; want 408", line, err)
+	}
+}
+
+// fickleInstaller stops being able to install after the service registered
+// its routes.
+type fickleInstaller struct {
+	*fakeInstaller
+	installs atomic.Bool
+}
+
+func (f *fickleInstaller) Installs() bool { return f.installs.Load() }
+
+func TestInstallerGoneAfterRegister(t *testing.T) {
+	b := &fickleInstaller{fakeInstaller: newFakeInstaller()}
+	b.installs.Store(true)
+	srv := newTestServer(t, b)
+	b.installs.Store(false)
+	if code, _ := do(t, "POST", srv.URL+SimpleUpdateURI, `{"ImageURI":"http://x/i"}`); code != http.StatusBadRequest {
+		t.Errorf("SimpleUpdate: status %d, want 400", code)
+	}
+	ct, body := pushBody(t, [2]string{"UpdateFile", "image"})
+	if resp := push(t, srv.URL+MultipartPushURI, ct, body); resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("push: status %d, want 400", resp.StatusCode)
 	}
 }

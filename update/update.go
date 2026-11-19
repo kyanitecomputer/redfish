@@ -64,7 +64,8 @@ type Request struct {
 }
 
 // Installer is implemented by backends that can install update images. The
-// service only advertises the update actions when its backend implements it.
+// service only offers the update actions when its backend implements it and,
+// for an OptionalInstaller, Installs reports true.
 type Installer interface {
 	// Install installs img and reports its progress in percent. It runs in a
 	// task; returning a *server.Error chooses the error a client reads from the
@@ -111,7 +112,7 @@ type Service struct {
 
 	mu      sync.Mutex
 	enabled bool
-	stopped bool
+	stopped int // Stops not yet resumed
 	busy    bool
 }
 
@@ -139,7 +140,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 // GetUpdateService implements gen.UpdateServiceProvider.
 func (s *Service) GetUpdateService(_ context.Context) (*gen.UpdateService, error) {
 	s.mu.Lock()
-	enabled := s.enabled && !s.stopped
+	enabled := s.enabled && s.stopped == 0
 	s.mu.Unlock()
 	us := &gen.UpdateService{
 		Id:                "UpdateService",
@@ -198,7 +199,10 @@ func (s *Service) SimpleUpdateUpdateService(ctx context.Context, params *gen.Upd
 	if err := s.validate(ctx, img, req); err != nil {
 		return nil, err
 	}
-	inst, _ := installerOf(s.backend)
+	inst, ok := installerOf(s.backend)
+	if !ok {
+		return nil, unsupported("update")
+	}
 	return s.start("Simple Update", func(ctx context.Context, progress func(int)) error {
 		return inst.Install(ctx, img, req, progress)
 	})
@@ -233,23 +237,28 @@ func (s *Service) Busy() bool {
 // call it before a reset or reboot that would cut an update off, and refuse
 // the reset if it returns false. Starting an update checks the same state
 // under the same lock, so none can start between Stop and the reboot.
-// ServiceEnabled reads false until Resume, and a client cannot set it.
+// ServiceEnabled reads false until Resume, and a client cannot set it. Stops
+// count: the service stays stopped until each successful Stop is resumed, so
+// two resets that both stop it do not resume it for each other.
 func (s *Service) Stop() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.busy {
 		return false
 	}
-	s.stopped = true
+	s.stopped++
 	return true
 }
 
-// Resume undoes Stop, for example when the reboot failed. ServiceEnabled is
-// then what it was before Stop, or false if a client disabled the service
-// while it was stopped.
+// Resume undoes one successful Stop, for example when the reboot failed; call
+// it only after Stop returned true, once. Once all are undone,
+// ServiceEnabled is what it was before Stop, or false if a client disabled
+// the service while it was stopped.
 func (s *Service) Resume() {
 	s.mu.Lock()
-	s.stopped = false
+	if s.stopped > 0 {
+		s.stopped--
+	}
 	s.mu.Unlock()
 }
 
@@ -258,12 +267,12 @@ func (s *Service) Resume() {
 func (s *Service) start(name string, fn task.Func) (*server.ActionResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.enabled || s.stopped || s.busy {
+	if !s.enabled || s.stopped > 0 || s.busy {
 		reason := "The update service is disabled."
 		switch {
 		case s.busy:
 			reason = "Another update is in progress."
-		case s.stopped:
+		case s.stopped > 0:
 			reason = "The update service is stopped for a reset."
 		}
 		return nil, &server.Error{
@@ -298,7 +307,7 @@ func (s *Service) PatchUpdateService(ctx context.Context, patch *gen.UpdateServi
 	}
 	if patch.ServiceEnabled != nil {
 		s.mu.Lock()
-		refused := s.stopped && *patch.ServiceEnabled
+		refused := s.stopped > 0 && *patch.ServiceEnabled
 		if !refused {
 			s.enabled = *patch.ServiceEnabled
 		}

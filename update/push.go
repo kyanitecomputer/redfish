@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
@@ -27,6 +28,11 @@ var errInstallReturned = errors.New("update: install returned before reading the
 // by the UpdateFile part. The image is streamed to the backend's Install while
 // the request is read, and the response is 202 Accepted with the task monitor.
 func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Params) {
+	inst, ok := installerOf(s.backend)
+	if !ok {
+		server.WriteErr(w, unsupported("update"))
+		return
+	}
 	if s.MaxImageSizeBytes > 0 {
 		r.Body = http.MaxBytesReader(w, r.Body, s.MaxImageSizeBytes)
 	}
@@ -83,7 +89,6 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 	}
 
 	pr, pw := io.Pipe()
-	inst, _ := installerOf(s.backend)
 	res, err := s.start("Multipart Update", func(ctx context.Context, progress func(int)) error {
 		err := inst.Install(ctx, Image{Body: pr}, req, progress)
 		pr.CloseWithError(errInstallReturned)
@@ -103,11 +108,17 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 }
 
 // writeUploadErr reports a failure to read the upload: 413 when it exceeds
-// MaxImageSizeBytes, otherwise 400.
+// MaxImageSizeBytes, 408 when the client stopped sending (see
+// server.BodyIdleTimeout), otherwise 400.
 func writeUploadErr(w http.ResponseWriter, err error) {
 	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 		server.WriteError(w, http.StatusRequestEntityTooLarge, odata.MsgGeneralError,
 			"The update image exceeds the maximum size the service accepts.")
+		return
+	}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		server.WriteError(w, http.StatusRequestTimeout, odata.MsgGeneralError,
+			"The client stopped sending the update image before it was complete.")
 		return
 	}
 	server.BadRequest(w, odata.MsgUnrecognizedBody, "The multipart request body could not be read.")

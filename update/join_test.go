@@ -196,8 +196,9 @@ func TestJoinItemActivator(t *testing.T) {
 		t.Errorf("Activate of factory: err = %v, want 400", err)
 	}
 	srv := newTestServer(t, j)
-	if code, _ := do(t, "POST", srv.URL+ActivateURI, `{"Targets":["`+fw+`factory"]}`); code != http.StatusBadRequest {
-		t.Errorf("UpdateService.Activate of factory: status %d, want 400", code)
+	code, m := do(t, "POST", srv.URL+ActivateURI, `{"Targets":[{"@odata.id":"`+fw+`factory"}]}`)
+	if code != http.StatusBadRequest || errMessage(m) != unsupportedActivation {
+		t.Errorf("UpdateService.Activate of factory: status %d, message %q; want 400, %q", code, errMessage(m), unsupportedActivation)
 	}
 	if len(*calls) != 0 {
 		t.Errorf("calls = %v, want none", *calls)
@@ -238,5 +239,60 @@ func TestJoinOptionalInstaller(t *testing.T) {
 	_, m := do(t, "GET", srv.URL+ServiceURI, "")
 	if actions, _ := m["Actions"].(map[string]any); actions["#UpdateService.SimpleUpdate"] != nil || m["MultipartHttpPushUri"] != nil {
 		t.Errorf("UpdateService = %v, want no update actions", m)
+	}
+}
+
+// failing is a backend whose inventory fails.
+type failing struct{}
+
+func (failing) Inventory(context.Context) (*Inventory, error) {
+	return nil, errors.New("rsu_client missing")
+}
+
+// TestJoinFailingBackend checks that a failing backend does not keep the
+// others from being listed and updated.
+func TestJoinFailingBackend(t *testing.T) {
+	calls := &[]string{}
+	fw := FirmwareInventoryURI + "/"
+	j := Join(failing{}, &joinPart{name: "rauc", firmware: []string{"slot_a"}, calls: calls})
+	ctx := context.Background()
+	inv, err := j.Inventory(ctx)
+	if err != nil || len(inv.Firmware) != 1 || inv.Firmware[0].Id != "slot_a" {
+		t.Fatalf("inventory = %v, %v; want slot_a", inv, err)
+	}
+	if err := j.Install(ctx, Image{}, Request{Targets: []string{fw + "slot_a"}}, func(int) {}); err != nil {
+		t.Errorf("install into slot_a: %v", err)
+	}
+	if err := j.Activate(ctx, []string{fw + "slot_a"}, nil, func(int) {}); err != nil {
+		t.Errorf("activate slot_a: %v", err)
+	}
+	if !slices.Equal(*calls, []string{"rauc install", "rauc activate"}) {
+		t.Errorf("calls = %v", *calls)
+	}
+	// A target no working backend holds may be the failing one's.
+	if err := j.Install(ctx, Image{}, Request{Targets: []string{fw + "p1"}}, func(int) {}); err == nil || err.Error() != "rsu_client missing" {
+		t.Errorf("install into p1: err = %v, want the failing backend's error", err)
+	}
+	if _, err := Join(failing{}, failing{}).Inventory(ctx); err == nil {
+		t.Error("inventory of failing backends did not fail")
+	}
+}
+
+// TestJoinDuplicateIds checks that an Id two backends report belongs to the
+// first, for listing as for updates.
+func TestJoinDuplicateIds(t *testing.T) {
+	calls := &[]string{}
+	fw := FirmwareInventoryURI + "/"
+	j := Join(
+		&itemActivator{joinPart: joinPart{name: "first", firmware: []string{"x"}, calls: calls}},
+		&joinPart{name: "second", firmware: []string{"x"}, calls: calls},
+	)
+	ctx := context.Background()
+	if _, err := j.Inventory(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// The first backend refuses to activate x; the second would.
+	if j.CanActivate(ctx, fw+"x") {
+		t.Error("CanActivate follows the second backend")
 	}
 }
