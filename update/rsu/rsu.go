@@ -6,7 +6,8 @@
 //     the sub-partition table (SPT), from "rsu_client --list", and one for the
 //     factory image, which is write protected. Partitions named "SSBL.<slot>",
 //     which hold U-Boot for a slot, are not reported, nor is a slot whose
-//     lowercased name is the Id of the factory image or of another slot.
+//     lowercased name is the Id of the factory image or of another slot, or
+//     has characters other than letters, digits, '.', '_' and '-'.
 //     Whether the factory image runs comes from
 //     "rsu_client --check-running-factory".
 //   - Install runs the installer on a pushed image, spooled to a file first, or
@@ -30,6 +31,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -62,10 +64,13 @@ type Config struct {
 	// the slot named, or else into a slot of its choice, refuses the running
 	// slot, requests the slot for the next reconfiguration, and reports like
 	// "rauc install": "NN% message" progress lines and "LastError: message"
-	// on failure. Without it, updates fail with 501 Not Implemented.
+	// on failure. Without it, Installs reports false, so the update service
+	// offers no updates through the backend, and Install fails with 501 Not
+	// Implemented.
 	Installer string
 	// SpoolDir holds pushed images while they are installed; it is created if
-	// needed. os.TempDir() when empty.
+	// needed. os.TempDir() when empty, which is often a RAM file system: set
+	// it to a directory with room for the largest image.
 	SpoolDir string
 	// Version returns the version of the image in the slot named slot (for
 	// the factory image "FACTORY_IM"). Without it, or when it fails, the
@@ -106,6 +111,14 @@ type state struct {
 	factory       bool // the factory image runs
 }
 
+// validID reports whether id can be an inventory Id: a URI path segment of
+// lower case letters, digits, '.', '_' and '-'.
+func validID(id string) bool {
+	return id != "" && !strings.ContainsFunc(id, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-')
+	})
+}
+
 func (b *Backend) state(ctx context.Context) (*state, error) {
 	out, err := b.run(ctx, "--count")
 	if err != nil {
@@ -120,7 +133,7 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 		}
 	}
 	if count < 0 {
-		return nil, fmt.Errorf("rsu_client --count: unexpected output %q", strings.TrimSpace(string(out)))
+		return nil, fmt.Errorf("%s --count: unexpected output %q", b.name(), strings.TrimSpace(string(out)))
 	}
 	st := &state{}
 	ids := map[string]bool{FactoryID: true}
@@ -135,17 +148,18 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 		}
 		s := slot{index: i, name: f["NAME"]}
 		// An Id that is taken would make inventory items and their
-		// activation ambiguous.
-		if ids[s.id()] {
+		// activation ambiguous, and one that is not a URI segment could
+		// not be addressed.
+		if ids[s.id()] || !validID(s.id()) {
 			continue
 		}
 		ids[s.id()] = true
 		if s.offset, err = strconv.ParseUint(f["OFFSET"], 0, 64); err != nil {
-			return nil, fmt.Errorf("rsu_client --list %d: bad OFFSET %q", i, f["OFFSET"])
+			return nil, fmt.Errorf("%s --list %d: bad OFFSET %q", b.name(), i, f["OFFSET"])
 		}
 		if p := f["PRIORITY"]; p != "[disabled]" {
 			if s.priority, err = strconv.Atoi(p); err != nil {
-				return nil, fmt.Errorf("rsu_client --list %d: bad PRIORITY %q", i, p)
+				return nil, fmt.Errorf("%s --list %d: bad PRIORITY %q", b.name(), i, p)
 			}
 		}
 		st.slots = append(st.slots, s)
@@ -156,7 +170,7 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 	}
 	f := fields(out)
 	if st.current, err = strconv.ParseUint(f["CURRENT IMAGE"], 0, 64); err != nil {
-		return nil, fmt.Errorf("rsu_client --log: bad CURRENT IMAGE %q", f["CURRENT IMAGE"])
+		return nil, fmt.Errorf("%s --log: bad CURRENT IMAGE %q", b.name(), f["CURRENT IMAGE"])
 	}
 	st.fail, _ = strconv.ParseUint(f["FAIL IMAGE"], 0, 64)
 	out, err = b.run(ctx, "--check-running-factory")
@@ -167,7 +181,7 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 	case "yes", "no":
 		st.factory = f == "yes"
 	default:
-		return nil, fmt.Errorf("rsu_client --check-running-factory: unexpected output %q", strings.TrimSpace(string(out)))
+		return nil, fmt.Errorf("%s --check-running-factory: unexpected output %q", b.name(), strings.TrimSpace(string(out)))
 	}
 	return st, nil
 }
@@ -333,7 +347,9 @@ func (b *Backend) Install(ctx context.Context, img update.Image, req update.Requ
 }
 
 // Activate implements update.Activator: it makes the slot of one firmware
-// inventory item the one to load from the next reconfiguration on.
+// inventory item the one to load from the next reconfiguration on, with
+// "rsu_client --enable" and "--request". When --request fails, the slot
+// stays at the top of the CPB, so a power cycle loads it.
 func (b *Backend) Activate(ctx context.Context, images, devices []string, _ func(int)) error {
 	if len(devices) > 0 {
 		return notSupported("Targets")
@@ -361,6 +377,9 @@ func (b *Backend) Activate(ctx context.Context, images, devices []string, _ func
 	return badValue("The value " + images[0] + " for the parameter Targets is not an RSU image.")
 }
 
+// name is the name of the rsu_client executable, for errors.
+func (b *Backend) name() string { return filepath.Base(b.cfg.Command) }
+
 // run runs rsu_client with args and returns its output. rsu_client prints
 // its errors to standard output, so the error of a failed command carries
 // the last line of its output.
@@ -369,11 +388,11 @@ func (b *Backend) run(ctx context.Context, args ...string) ([]byte, error) {
 	if _, ok := errors.AsType[*exec.ExitError](err); ok {
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 		if msg := strings.TrimSpace(lines[len(lines)-1]); msg != "" {
-			return nil, fmt.Errorf("rsu_client %s: %s", args[0], msg)
+			return nil, fmt.Errorf("%s %s: %s", b.name(), args[0], msg)
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("rsu_client %s: %w", args[0], err)
+		return nil, fmt.Errorf("%s %s: %w", b.name(), args[0], err)
 	}
 	return out, nil
 }

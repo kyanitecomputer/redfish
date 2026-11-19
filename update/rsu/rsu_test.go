@@ -18,8 +18,8 @@ import (
 // fakeRSU is an rsu_client stand-in: a shell script that logs its arguments
 // to calls, answers --count, --list, --log and --check-running-factory from
 // the files count, list<n>, log and factory, and fails --enable and
-// --request when the file fail exists.
-// installer is an installer stand-in that replays install.out.
+// --request when the file fail exists. The script installer, an installer
+// stand-in, replays install.out and exits with install.rc.
 type fakeRSU struct {
 	dir string
 }
@@ -215,13 +215,14 @@ func TestInventoryBadOutput(t *testing.T) {
 	}
 }
 
-// TestInventoryCollidingNames leaves out slots whose Id is taken: one that
-// would be the factory image's, and one that differs from another only in
-// case.
+// TestInventoryCollidingNames leaves out slots whose Id is taken, one that
+// would be the factory image's and one that differs from another only in
+// case, and a slot whose name is no URI segment.
 func TestInventoryCollidingNames(t *testing.T) {
 	f, b := newFakeRSU(t)
 	f.write(t, "list2", "NAME: Factory\nOFFSET: 0x0000000004000000\nPRIORITY: 3\n")
 	f.write(t, "list3", "NAME: p1\nOFFSET: 0x0000000005000000\nPRIORITY: 4\n")
+	f.write(t, "list4", "NAME: P 3/x\nOFFSET: 0x0000000006000000\nPRIORITY: 5\n")
 	inv, err := b.Inventory(context.Background())
 	if err != nil {
 		t.Fatal(err)
