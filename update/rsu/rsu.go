@@ -5,7 +5,10 @@
 //   - Inventory reports one firmware inventory item per application slot of
 //     the sub-partition table (SPT), from "rsu_client --list", and one for the
 //     factory image, which is write protected. Partitions named "SSBL.<slot>",
-//     which hold U-Boot for a slot, are not reported.
+//     which hold U-Boot for a slot, are not reported, nor is a slot whose
+//     lowercased name is the Id of the factory image or of another slot.
+//     Whether the factory image runs comes from
+//     "rsu_client --check-running-factory".
 //   - Install runs the installer on a pushed image, spooled to a file first, or
 //     on the local path of a SimpleUpdate.
 //   - Activate puts a slot at the top of the configuration pointer block (CPB)
@@ -98,17 +101,7 @@ func (s slot) id() string { return strings.ToLower(s.name) }
 type state struct {
 	slots         []slot
 	current, fail uint64
-}
-
-// running returns the slot of the running image; false when the factory
-// image runs or the image is not in the SPT.
-func (st *state) running() (slot, bool) {
-	for _, s := range st.slots {
-		if s.offset == st.current {
-			return s, true
-		}
-	}
-	return slot{}, false
+	factory       bool // the factory image runs
 }
 
 func (b *Backend) state(ctx context.Context) (*state, error) {
@@ -119,13 +112,16 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 	count := -1
 	for line := range strings.Lines(string(out)) {
 		if n, ok := strings.CutPrefix(strings.TrimSpace(line), "number of slots is "); ok {
-			count, _ = strconv.Atoi(n)
+			if count, err = strconv.Atoi(n); err != nil {
+				count = -1
+			}
 		}
 	}
 	if count < 0 {
 		return nil, fmt.Errorf("rsu_client --count: unexpected output %q", strings.TrimSpace(string(out)))
 	}
 	st := &state{}
+	ids := map[string]bool{FactoryID: true}
 	for i := range count {
 		out, err := b.run(ctx, "--list", strconv.Itoa(i))
 		if err != nil {
@@ -136,6 +132,12 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 			continue
 		}
 		s := slot{index: i, name: f["NAME"]}
+		// An Id that is taken would make inventory items and their
+		// activation ambiguous.
+		if ids[s.id()] {
+			continue
+		}
+		ids[s.id()] = true
 		if s.offset, err = strconv.ParseUint(f["OFFSET"], 0, 64); err != nil {
 			return nil, fmt.Errorf("rsu_client --list %d: bad OFFSET %q", i, f["OFFSET"])
 		}
@@ -155,6 +157,16 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 		return nil, fmt.Errorf("rsu_client --log: bad CURRENT IMAGE %q", f["CURRENT IMAGE"])
 	}
 	st.fail, _ = strconv.ParseUint(f["FAIL IMAGE"], 0, 64)
+	out, err = b.run(ctx, "--check-running-factory")
+	if err != nil {
+		return nil, err
+	}
+	switch f := fields(out)["Running factory image"]; f {
+	case "yes", "no":
+		st.factory = f == "yes"
+	default:
+		return nil, fmt.Errorf("rsu_client --check-running-factory: unexpected output %q", strings.TrimSpace(string(out)))
+	}
 	return st, nil
 }
 
@@ -198,8 +210,7 @@ func (b *Backend) Inventory(ctx context.Context) (*update.Inventory, error) {
 		}
 		inv.Firmware = append(inv.Firmware, it)
 	}
-	_, inSlot := st.running()
-	factoryRunning, no, yes := !inSlot, false, true
+	factoryRunning, no, yes := st.factory, false, true
 	inv.Firmware = append(inv.Firmware, &gen.SoftwareInventory{
 		Id:             FactoryID,
 		Name:           "RSU factory image",
