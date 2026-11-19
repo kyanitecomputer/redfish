@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -24,7 +25,7 @@ func TestBodyIdleTimeout(t *testing.T) {
 		n, err := io.Copy(io.Discard, r.Body)
 		got <- result{int(n), err}
 		WriteError(w, http.StatusBadRequest, "Base.1.0.GeneralError", err.Error())
-	}), 100*time.Millisecond)
+	}), 300*time.Millisecond)
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 
@@ -36,7 +37,7 @@ func TestBodyIdleTimeout(t *testing.T) {
 	fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 100\r\n\r\n")
 	// Data that keeps coming, even over more than the limit in total, is fine.
 	for range 5 {
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		fmt.Fprint(conn, "0123456789")
 	}
 	select {
@@ -117,23 +118,61 @@ func TestBodyIdleTimeoutMultipartFiles(t *testing.T) {
 	}
 }
 
+// TestBodyIdleTimeoutComplete reads whole bodies over one kept-alive
+// connection, waiting longer than the limit between the requests.
 func TestBodyIdleTimeoutComplete(t *testing.T) {
+	const d = 100 * time.Millisecond
 	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("read body: %v", err)
 		}
 		_, _ = w.Write(b)
-	}), time.Second)
+	}), d)
+	srv := httptest.NewUnstartedServer(h)
+	var conns atomic.Int32
+	srv.Config.ConnState = func(_ net.Conn, st http.ConnState) {
+		if st == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.Start()
+	t.Cleanup(srv.Close)
+	for _, body := range []string{"first", "second"} {
+		resp, err := http.Post(srv.URL, "text/plain", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || string(got) != body || resp.Close {
+			t.Errorf("status %d, body %q, close %v; want 200, %q and a kept-alive connection",
+				resp.StatusCode, got, resp.Close, body)
+		}
+		time.Sleep(3 * d)
+	}
+	if n := conns.Load(); n != 1 {
+		t.Errorf("%d connections, want 1", n)
+	}
+}
+
+// TestBodyIdleTimeoutUnread answers a request without reading its body,
+// whose client sends nothing more after the headers: net/http's attempt to
+// read and discard the body before the response is limited as well.
+func TestBodyIdleTimeoutUnread(t *testing.T) {
+	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		WriteError(w, http.StatusBadRequest, "Base.1.0.UnrecognizedRequestBody", "not multipart")
+	}), 100*time.Millisecond)
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
-	resp, err := http.Post(srv.URL, "text/plain", nil)
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("status %d", resp.StatusCode)
+	defer conn.Close()
+	fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 1000\r\n\r\n")
+	if line := readStatus(t, conn); !strings.HasPrefix(line, "HTTP/1.1 400") {
+		t.Errorf("response = %q, want 400", line)
 	}
 }
 
@@ -158,10 +197,12 @@ func TestBodyIdleTimeoutExpectContinue(t *testing.T) {
 }
 
 // TestBodyIdleTimeoutHTTP2Pause pauses the handler between two reads of a
-// body for longer than the limit, over HTTP/2, while the client is sending.
+// body for longer than the limit, over HTTP/2, while the client is sending,
+// and before the first read as well.
 func TestBodyIdleTimeoutHTTP2Pause(t *testing.T) {
-	const d = 100 * time.Millisecond
+	const d = 300 * time.Millisecond
 	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(3 * d)
 		buf := make([]byte, 5)
 		if _, err := io.ReadFull(r.Body, buf); err != nil {
 			t.Errorf("first read: %v", err)
@@ -177,12 +218,12 @@ func TestBodyIdleTimeoutHTTP2Pause(t *testing.T) {
 	srv.EnableHTTP2 = true
 	srv.StartTLS()
 	t.Cleanup(srv.Close)
-	// The client keeps sending, a piece every d/2, while the handler pauses.
+	// The client keeps sending, a piece every d/3, while the handler pauses.
 	pr, pw := io.Pipe()
 	go func() {
-		for _, piece := range []string{"01234", "56", "78", "9"} {
+		for _, piece := range []string{"01234", "5", "6", "7", "8", "9"} {
 			_, _ = pw.Write([]byte(piece))
-			time.Sleep(d / 2)
+			time.Sleep(d / 3)
 		}
 		pw.Close()
 	}()
@@ -194,6 +235,36 @@ func TestBodyIdleTimeoutHTTP2Pause(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if resp.ProtoMajor != 2 || string(body) != "0123456789" {
 		t.Errorf("HTTP/%d response %q, want HTTP/2 and the whole body", resp.ProtoMajor, body)
+	}
+}
+
+// TestBodyIdleTimeoutHTTP2Stall stalls the client in the middle of a body
+// over HTTP/2.
+func TestBodyIdleTimeoutHTTP2Stall(t *testing.T) {
+	got := make(chan error, 1)
+	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.ReadAll(r.Body)
+		got <- err
+	}), 100*time.Millisecond)
+	srv := httptest.NewUnstartedServer(h)
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+	pr, pw := io.Pipe()
+	defer pw.Close()
+	go func() { _, _ = pw.Write([]byte("abc")) }()
+	go func() {
+		if resp, err := srv.Client().Post(srv.URL, "text/plain", pr); err == nil {
+			resp.Body.Close()
+		}
+	}()
+	select {
+	case err := <-got:
+		if !errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Errorf("err = %v, want a deadline error", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("reading a stalled HTTP/2 body did not time out")
 	}
 }
 
