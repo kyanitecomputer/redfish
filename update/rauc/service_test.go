@@ -88,7 +88,7 @@ func TestServicePush(t *testing.T) {
 	var item map[string]any
 	json.NewDecoder(resp.Body).Decode(&item)
 	resp.Body.Close()
-	if item["Version"] != "hps-v3-41-g8dcfb94" {
+	if item["Version"] != "v1.4.0" {
 		t.Errorf("slot_a = %v", item)
 	}
 }

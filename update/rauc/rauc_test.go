@@ -85,13 +85,13 @@ func TestInventory(t *testing.T) {
 		id, name, version, health string
 		active, updateable        bool
 	}{
-		{"slot_b", "Slot B", "hps-v3-40-g4bbbec4", "Critical", false, true},
-		{"slot_a", "Slot A", "hps-v3-41-g8dcfb94", "OK", true, false},
+		{"slot_b", "Slot B", "v1.3.0", "Critical", false, true},
+		{"slot_a", "Slot A", "v1.4.0", "OK", true, false},
 	}
 	for i, tt := range tests {
 		it := inv.Firmware[i]
 		if it.Id != tt.id || it.Name != tt.name || it.Version != tt.version || string(it.Status.Health) != tt.health ||
-			*it.Active != tt.active || *it.Updateable != tt.updateable || it.SoftwareId != "olix-agilex7-iwave-g43m" {
+			*it.Active != tt.active || *it.Updateable != tt.updateable || it.SoftwareId != "example-board" {
 			t.Errorf("item %d = {%s %q %s %s active=%v updateable=%v %s}, want %+v", i,
 				it.Id, it.Name, it.Version, it.Status.Health, *it.Active, *it.Updateable, it.SoftwareId, tt)
 		}
