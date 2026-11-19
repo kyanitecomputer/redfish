@@ -124,3 +124,68 @@ func TestJoinRoutes(t *testing.T) {
 		})
 	}
 }
+
+// TestJoinAdvertises checks that the service offers Activate only on items of
+// a backend that can activate them, and no update actions at all when no
+// backend supports them.
+func TestJoinAdvertises(t *testing.T) {
+	j, _ := newJoin()
+	srv := newTestServer(t, j)
+	for _, tt := range []struct {
+		uri      string
+		activate bool
+	}{
+		{FirmwareInventoryURI + "/slot_a", true},
+		{FirmwareInventoryURI + "/p2", true},
+		{SoftwareInventoryURI + "/os", false},
+	} {
+		_, m := do(t, "GET", srv.URL+tt.uri, "")
+		actions, _ := m["Actions"].(map[string]any)
+		if _, ok := actions["#SoftwareInventory.Activate"]; ok != tt.activate {
+			t.Errorf("%s: Activate advertised = %v, want %v", tt.uri, ok, tt.activate)
+		}
+	}
+	code, _ := do(t, "POST", srv.URL+SoftwareInventoryURI+"/os/Actions/SoftwareInventory.Activate", `{}`)
+	if code != http.StatusBadRequest {
+		t.Errorf("Activate of os: status %d, want 400", code)
+	}
+
+	srv = newTestServer(t, Join(inventoryOnly{"os"}, inventoryOnly{"bios"}))
+	_, m := do(t, "GET", srv.URL+ServiceURI, "")
+	if _, ok := m["Actions"]; ok || m["MultipartHttpPushUri"] != nil {
+		t.Errorf("UpdateService of inventory-only backends = %v, want no actions", m)
+	}
+	if code, _ := do(t, "POST", srv.URL+SimpleUpdateURI, `{"ImageURI":"http://x/i"}`); code == http.StatusAccepted {
+		t.Error("SimpleUpdate accepted without an installer")
+	}
+}
+
+// itemActivator activates only the items in can.
+type itemActivator struct {
+	joinPart
+	can []string
+}
+
+func (a *itemActivator) CanActivate(_ context.Context, image string) bool {
+	return slices.Contains(a.can, image)
+}
+
+func TestJoinItemActivator(t *testing.T) {
+	calls := &[]string{}
+	fw := FirmwareInventoryURI + "/"
+	j := Join(&itemActivator{
+		joinPart: joinPart{name: "rsu", firmware: []string{"p1", "factory"}, calls: calls},
+		can:      []string{fw + "p1"},
+	})
+	ctx := context.Background()
+	// Without an Inventory first, Joined asks the backends.
+	if !j.CanActivate(ctx, fw+"p1") || j.CanActivate(ctx, fw+"factory") || j.CanActivate(ctx, fw+"bios") {
+		t.Error("CanActivate does not follow the backend")
+	}
+	if _, err := j.Inventory(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !j.CanActivate(ctx, fw+"p1") || j.CanActivate(ctx, fw+"factory") {
+		t.Error("CanActivate after Inventory does not follow the backend")
+	}
+}

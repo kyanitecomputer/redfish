@@ -24,6 +24,34 @@ type Activator interface {
 	Activate(ctx context.Context, images, devices []string, progress func(percent int)) error
 }
 
+// ItemActivator is implemented by Activators that can activate only some of
+// their inventory items. The service advertises SoftwareInventory.Activate
+// only on the items for which CanActivate reports true.
+type ItemActivator interface {
+	Activator
+	// CanActivate reports whether the inventory item with the @odata.id
+	// image can be activated.
+	CanActivate(ctx context.Context, image string) bool
+}
+
+// activatorOf returns b as an Activator, unless it is none or one whose
+// activation is unsupported (see partial).
+func activatorOf(b Backend) (Activator, bool) {
+	act, ok := b.(Activator)
+	if p, isPartial := b.(partial); ok && isPartial && !p.activates() {
+		return nil, false
+	}
+	return act, ok
+}
+
+// canActivate reports whether act can activate the inventory item image.
+func canActivate(ctx context.Context, act Activator, image string) bool {
+	if ia, ok := act.(ItemActivator); ok {
+		return ia.CanActivate(ctx, image)
+	}
+	return true
+}
+
 // ActivateUpdateService implements gen.ActivateUpdateServiceProvider: it
 // activates the staged images listed in Targets.
 func (s *Service) ActivateUpdateService(_ context.Context, params *gen.UpdateServiceActivateParameters) (*server.ActionResult, error) {
@@ -53,11 +81,14 @@ func (s *Service) ActivateSoftwareInventory(ctx context.Context, p server.Params
 			Message:   "The resource at URI '" + image + "' was not found.",
 		}
 	}
+	if item.Actions == nil || item.Actions.Activate == nil {
+		return nil, unsupported("activation")
+	}
 	return s.activate([]string{image}, odata.Strings(params.Targets))
 }
 
 func (s *Service) activate(images, devices []string) (*server.ActionResult, error) {
-	act := s.backend.(Activator)
+	act, _ := activatorOf(s.backend)
 	return s.start("Activate", func(ctx context.Context, progress func(int)) error {
 		return act.Activate(ctx, images, devices, progress)
 	})

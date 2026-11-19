@@ -14,7 +14,7 @@ Implementation status of the Redfish service library. Status values: **done**, *
 | Sparse PATCH with `ETag`/`If-Match` | done | Scalar properties only |
 | Bound actions with scalar and array parameters | done | Complex parameters skipped |
 | Typed provider errors mapped to HTTP status and message | done | `server.Error` |
-| Inactivity limit for request bodies | done | `server.BodyIdleTimeout`; long uploads stay possible |
+| Inactivity limit for request bodies | done | `server.BodyIdleTimeout`; long uploads stay possible; over TLS counted per record |
 | Latest-version resolution of versioned complex property types | done | e.g. `Manager.Links.ActiveSoftwareImage` |
 | Correct `@odata.id` and route identity for multi-URI resources | done | `server.Params.URI` |
 | Action results: `200` body, `202 Accepted` with task monitor | done | `server.ActionResult` |
@@ -39,9 +39,9 @@ Implementation status of the Redfish service library. Status values: **done**, *
 | `UpdateService.Activate`, `SoftwareInventory.Activate` | done | Optional `update.Activator` |
 | Pluggable update backend interface | done | `update.Backend`, `Installer`, `Activator`; core is OS-independent |
 | RAUC backend | done | `update/rauc`, using the `rauc` CLI; tested on an Agilex 7 SoM |
-| Intel/Altera RSU backend | done | `update/rsu`, using `rsu_client` and an installer command; tested on an Agilex 7 SoM |
+| Intel/Altera RSU backend | done | `update/rsu`, using `rsu_client` (with `--check-running-factory`) and an installer command; tested on an Agilex 7 SoM |
 | Refusing resets while an update runs | done | `Service.Stop` disables updates atomically unless one runs; `Resume` |
-| Several backends behind one UpdateService | done | `update.Join`; updates and activations go to the backend owning their targets |
+| Several backends behind one UpdateService | done | `update.Join`; updates and activations go to the backend owning their targets; actions advertised only where supported (`update.ItemActivator`) |
 | In-service image download (HTTP/HTTPS client) | later | Backends fetch `ImageURI` themselves for now |
 | `SoftwareInventory.Cancel`, `UpdateService.StartUpdate` | later | |
 | Validation of update `Targets` against the inventory | done | Backends implement `update.Validator` |

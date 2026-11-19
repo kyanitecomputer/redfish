@@ -4,16 +4,18 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"sync"
 
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
 )
 
 var (
-	_ Backend   = (*Joined)(nil)
-	_ Installer = (*Joined)(nil)
-	_ Validator = (*Joined)(nil)
-	_ Activator = (*Joined)(nil)
+	_ Backend       = (*Joined)(nil)
+	_ Installer     = (*Joined)(nil)
+	_ Validator     = (*Joined)(nil)
+	_ ItemActivator = (*Joined)(nil)
+	_ partial       = (*Joined)(nil)
 )
 
 // Joined serves the inventory of several backends as one, for example the
@@ -22,10 +24,15 @@ var (
 //
 // An update or activation goes to the backend whose inventory holds all of its
 // targets; an update without targets goes to the first backend that is an
-// Installer. Joined always offers updates and activation; they fail with 400 when
-// the backend they go to does not support them.
+// Installer. The service offers updates and activation only when one of the
+// backends supports them, and SoftwareInventory.Activate only on the items of
+// a backend that can activate them; a request that goes to a backend that
+// does not support it fails with 400.
 type Joined struct {
 	backends []Backend
+
+	mu     sync.Mutex
+	owners map[string]Backend // by @odata.id, as of the last Inventory
 }
 
 // Join returns a Backend that joins backends.
@@ -36,6 +43,7 @@ func Join(backends ...Backend) *Joined {
 // Inventory implements Backend. It fails when one of the backends fails.
 func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 	all := &Inventory{}
+	owners := map[string]Backend{}
 	for _, b := range j.backends {
 		inv, err := b.Inventory(ctx)
 		if err != nil {
@@ -44,9 +52,49 @@ func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 		if inv != nil {
 			all.Firmware = append(all.Firmware, inv.Firmware...)
 			all.Software = append(all.Software, inv.Software...)
+			for _, it := range inv.Firmware {
+				owners[FirmwareInventoryURI+"/"+it.Id] = b
+			}
+			for _, it := range inv.Software {
+				owners[SoftwareInventoryURI+"/"+it.Id] = b
+			}
 		}
 	}
+	j.mu.Lock()
+	j.owners = owners
+	j.mu.Unlock()
 	return all, nil
+}
+
+func (j *Joined) installs() bool {
+	return slices.ContainsFunc(j.backends, func(b Backend) bool {
+		_, ok := installerOf(b)
+		return ok
+	})
+}
+
+func (j *Joined) activates() bool {
+	return slices.ContainsFunc(j.backends, func(b Backend) bool {
+		_, ok := activatorOf(b)
+		return ok
+	})
+}
+
+// CanActivate implements ItemActivator: it reports whether the backend of
+// image can activate it. The service calls it right after Inventory, whose
+// owners it uses rather than asking every backend for its inventory again.
+func (j *Joined) CanActivate(ctx context.Context, image string) bool {
+	j.mu.Lock()
+	b, ok := j.owners[image]
+	j.mu.Unlock()
+	if !ok {
+		var err error
+		if b, err = j.owner(ctx, []string{image}); err != nil {
+			return false
+		}
+	}
+	act, ok := activatorOf(b)
+	return ok && canActivate(ctx, act, image)
 }
 
 // owner returns the backend whose inventory holds all of uris.
@@ -80,7 +128,7 @@ func (j *Joined) owner(ctx context.Context, uris []string) (Backend, error) {
 func (j *Joined) installer(ctx context.Context, targets []string) (Installer, error) {
 	if len(targets) == 0 {
 		for _, b := range j.backends {
-			if inst, ok := b.(Installer); ok {
+			if inst, ok := installerOf(b); ok {
 				return inst, nil
 			}
 		}
@@ -90,7 +138,7 @@ func (j *Joined) installer(ctx context.Context, targets []string) (Installer, er
 	if err != nil {
 		return nil, err
 	}
-	inst, ok := b.(Installer)
+	inst, ok := installerOf(b)
 	if !ok {
 		return nil, unsupported("update")
 	}
@@ -124,7 +172,7 @@ func (j *Joined) Activate(ctx context.Context, images, devices []string, progres
 	if err != nil {
 		return err
 	}
-	act, ok := b.(Activator)
+	act, ok := activatorOf(b)
 	if !ok {
 		return unsupported("activation")
 	}

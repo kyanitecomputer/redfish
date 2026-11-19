@@ -83,7 +83,7 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 	}
 
 	pr, pw := io.Pipe()
-	inst := s.backend.(Installer)
+	inst, _ := installerOf(s.backend)
 	res, err := s.start("Multipart Update", func(ctx context.Context, progress func(int)) error {
 		err := inst.Install(ctx, Image{Body: pr}, req, progress)
 		pr.CloseWithError(errInstallReturned)
