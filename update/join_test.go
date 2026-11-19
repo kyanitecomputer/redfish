@@ -188,4 +188,55 @@ func TestJoinItemActivator(t *testing.T) {
 	if !j.CanActivate(ctx, fw+"p1") || j.CanActivate(ctx, fw+"factory") {
 		t.Error("CanActivate after Inventory does not follow the backend")
 	}
+
+	// Neither Joined nor the service's UpdateService.Activate activates an
+	// item that CanActivate refuses.
+	err := j.Activate(ctx, []string{fw + "factory"}, nil, func(int) {})
+	if se, ok := errors.AsType[*server.Error](err); !ok || se.Status != http.StatusBadRequest {
+		t.Errorf("Activate of factory: err = %v, want 400", err)
+	}
+	srv := newTestServer(t, j)
+	if code, _ := do(t, "POST", srv.URL+ActivateURI, `{"Targets":["`+fw+`factory"]}`); code != http.StatusBadRequest {
+		t.Errorf("UpdateService.Activate of factory: status %d, want 400", code)
+	}
+	if len(*calls) != 0 {
+		t.Errorf("calls = %v, want none", *calls)
+	}
+	if err := j.Activate(ctx, []string{fw + "p1"}, nil, func(int) {}); err != nil || !slices.Equal(*calls, []string{"rsu activate"}) {
+		t.Errorf("Activate of p1: err = %v, calls = %v", err, *calls)
+	}
+}
+
+// unconfigured is a backend that implements Installer but cannot install.
+type unconfigured struct{ joinPart }
+
+func (unconfigured) Installs() bool { return false }
+
+func TestJoinOptionalInstaller(t *testing.T) {
+	calls := &[]string{}
+	fw := FirmwareInventoryURI + "/"
+	j := Join(
+		&unconfigured{joinPart{name: "rsu", firmware: []string{"p1"}, calls: calls}},
+		&joinPart{name: "rauc", firmware: []string{"slot_a"}, calls: calls},
+	)
+	ctx := context.Background()
+	// An update without targets skips the backend that cannot install.
+	if err := j.Install(ctx, Image{}, Request{}, func(int) {}); err != nil || !slices.Equal(*calls, []string{"rauc install"}) {
+		t.Errorf("install without targets: err = %v, calls = %v", err, *calls)
+	}
+	err := j.Install(ctx, Image{}, Request{Targets: []string{fw + "p1"}}, func(int) {})
+	if se, ok := errors.AsType[*server.Error](err); !ok || se.Status != http.StatusBadRequest {
+		t.Errorf("install into p1: err = %v, want 400", err)
+	}
+
+	// Without a backend that can install, no update is offered.
+	j = Join(&unconfigured{joinPart{name: "rsu", firmware: []string{"p1"}, calls: calls}}, inventoryOnly{"os"})
+	if j.Installs() {
+		t.Error("Installs without a backend that can install")
+	}
+	srv := newTestServer(t, j)
+	_, m := do(t, "GET", srv.URL+ServiceURI, "")
+	if actions, _ := m["Actions"].(map[string]any); actions["#UpdateService.SimpleUpdate"] != nil || m["MultipartHttpPushUri"] != nil {
+		t.Errorf("UpdateService = %v, want no update actions", m)
+	}
 }
