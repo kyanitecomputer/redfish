@@ -97,7 +97,7 @@ func (s *Service) ActivateSoftwareInventory(ctx context.Context, p server.Params
 			Message:   "The resource at URI '" + image + "' was not found.",
 		}
 	}
-	if item.Actions == nil || item.Actions.Activate == nil {
+	if act, ok := activatorOf(s.backend); !ok || !canActivate(ctx, act, image) {
 		return nil, unsupported("activation")
 	}
 	return s.activate([]string{image}, odata.Strings(params.Targets))
