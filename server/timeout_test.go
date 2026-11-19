@@ -196,17 +196,20 @@ func TestBodyIdleTimeoutExpectContinue(t *testing.T) {
 	}
 }
 
-// TestBodyIdleTimeoutHTTP2Pause pauses the handler between two reads of a
-// body for longer than the limit, over HTTP/2, while the client is sending,
-// and before the first read as well.
+// TestBodyIdleTimeoutHTTP2Pause pauses the handler for longer than the limit
+// over HTTP/2, before its first read of the body and between two reads, while
+// the client is still sending: the body stays open past each pause, so a
+// deadline left armed would close it.
 func TestBodyIdleTimeoutHTTP2Pause(t *testing.T) {
 	const d = 300 * time.Millisecond
+	firstRead := make(chan struct{})
 	h := BodyIdleTimeout(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(3 * d)
 		buf := make([]byte, 5)
 		if _, err := io.ReadFull(r.Body, buf); err != nil {
 			t.Errorf("first read: %v", err)
 		}
+		close(firstRead)
 		time.Sleep(3 * d)
 		rest, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -218,13 +221,17 @@ func TestBodyIdleTimeoutHTTP2Pause(t *testing.T) {
 	srv.EnableHTTP2 = true
 	srv.StartTLS()
 	t.Cleanup(srv.Close)
-	// The client keeps sending, a piece every d/3, while the handler pauses.
+	// The client sends a piece every d/3 until the first read, and the rest
+	// 2d after it.
 	pr, pw := io.Pipe()
 	go func() {
-		for _, piece := range []string{"01234", "5", "6", "7", "8", "9"} {
+		for _, piece := range []string{"01234", "5", "6", "7", "8"} {
 			_, _ = pw.Write([]byte(piece))
 			time.Sleep(d / 3)
 		}
+		<-firstRead
+		time.Sleep(2 * d)
+		_, _ = pw.Write([]byte("9"))
 		pw.Close()
 	}()
 	resp, err := srv.Client().Post(srv.URL, "text/plain", pr)
