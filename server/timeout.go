@@ -16,8 +16,15 @@ import (
 // Time the handler spends between reads of the body does not count. Over TLS
 // a read completes with a whole TLS record of up to 16 KiB, so a link must
 // carry that much within d; with d of a minute that is about 270 bytes per
-// second. Set http.Server's ReadHeaderTimeout and IdleTimeout as well: this
-// handler only sees requests whose headers have arrived.
+// second. The limit replaces http.Server's ReadTimeout for the body. Set
+// ReadHeaderTimeout and IdleTimeout as well: this handler only sees requests
+// whose headers have arrived.
+//
+// On HTTP/1 the limit also covers the rest of a body the handler does not
+// read to its end, which net/http reads and discards before it responds.
+// When the client has not sent that rest within d of the handler's last read
+// (or of the start of the request), the response is sent and the connection
+// closed after it.
 //
 // The deadline is set through http.ResponseController, so middleware between
 // the server and this handler that wraps the ResponseWriter must implement
@@ -34,11 +41,16 @@ func BodyIdleTimeout(h http.Handler, d time.Duration) http.Handler {
 		// that the handler answers without reading the body. It also removes
 		// the files of a parsed multipart form only for its own request.
 		rc := r.WithContext(r.Context())
-		rc.Body = &idleBody{
+		body := &idleBody{
 			ReadCloser: r.Body,
 			rc:         http.NewResponseController(w),
 			d:          d,
 			http2:      r.ProtoMajor == 2,
+		}
+		rc.Body = body
+		if !body.http2 {
+			// For a handler that answers without reading the body.
+			_ = body.rc.SetReadDeadline(time.Now().Add(d))
 		}
 		defer func() {
 			if f := rc.MultipartForm; f != nil && f != r.MultipartForm {

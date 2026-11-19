@@ -44,7 +44,8 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - `internal/gen`: resource resolution, `$metadata` construction, and Go source rendering.
 - `cmd/redfishgen`: generator command.
 - `odata`: hand-written JSON builder and OData payload helpers used by generated code.
-- `server`: response, ETag, and error helpers used by generated handlers.
+- `server`: response, ETag, and error helpers used by generated handlers, and `BodyIdleTimeout`, an inactivity
+  limit for request bodies such as update uploads.
 - `gen`: generated models, marshalers, and `Register*` functions for the baseline BMC resource set.
 - `task`: runs long-running operations as Redfish tasks and serves the TaskService and task monitors.
 - `update`: serves the UpdateService and firmware/software inventory on top of an update backend, or of
