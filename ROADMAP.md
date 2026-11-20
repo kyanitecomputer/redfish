@@ -23,7 +23,9 @@ Implementation status of the Redfish service library. Status values: **done**, *
 | `Allow` response header | later | |
 | `$expand`, `$select`, other query parameters | later | |
 | DSP8011 message registries | partial | Base and TaskEvent message IDs only; registries not served |
-| Authentication and sessions | later | Required before exposing update endpoints |
+| Authentication and sessions | done | `auth`: sessions, HTTP Basic, TLS client certificates (Common Name = account); predefined roles and the registry's privileges |
+| Account management | done | Create, delete, role, enable, password (PATCH and `ChangePassword`), lockout; stored through `auth.Storage` |
+| Custom roles, OEM privileges, LDAP/OAuth | later | |
 | Generator unit tests | partial | |
 
 ## Firmware and software update

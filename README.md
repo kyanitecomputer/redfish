@@ -23,14 +23,19 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - Supports sparse `PATCH` on writable properties with `ETag`/`If-Match` checks, and bound actions such as
   `ComputerSystem.Reset` that complete synchronously or asynchronously as tasks.
 - Lets providers return a `server.Error` to choose the HTTP status and base message of an error response.
+- Authenticates requests with sessions (`X-Auth-Token`), HTTP Basic, or verified TLS client certificates, checks
+  the privileges of the Administrator, Operator and ReadOnly roles, and serves the `AccountService` with accounts
+  and roles and the `SessionService` with sessions. Passwords are stored as PBKDF2-HMAC-SHA256 hashes; failed logins
+  lock the user name for a while, and at most two passwords are hashed at a time. Changes sent by a browser from
+  another origin are refused.
 - Serves the `UpdateService` with firmware and software inventory, `SimpleUpdate`, multipart HTTP push updates,
   and `Activate` on top of a pluggable, OS-independent update backend.
-- Ships an in-memory example BMC that passes the DMTF Redfish Service Validator and the Interop Validator against the
-  OCP Baseline Hardware Management profile v1.1.1.
+- Ships an in-memory example BMC, which requires a login (admin/admin, over plain HTTP: for local use only), that passes the DMTF Redfish Service
+  Validator, with Basic and with session authentication, and the Interop Validator against the OCP Baseline Hardware
+  Management profile v1.1.1.
 
 ## Not yet complete
 
-- No authentication or session handling; `SessionService` is modelled but sessions are not enforced.
 - `$expand`, `$select`, and other query parameters are not implemented.
 - No `Allow` response header yet, so validators cannot test writable properties.
 - Only the resources listed in `gen/doc.go` are generated; other resources need to be added there and regenerated.
@@ -47,6 +52,8 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - `server`: response, ETag, and error helpers used by generated handlers, and `BodyIdleTimeout`, an inactivity
   limit for request bodies such as update uploads.
 - `gen`: generated models, marshalers, and `Register*` functions for the baseline BMC resource set.
+- `auth`: accounts, sessions, authentication and authorization middleware, and the account and session services.
+  TLS is left to the `http.Server`.
 - `task`: runs long-running operations as Redfish tasks and serves the TaskService and task monitors.
 - `update`: serves the UpdateService and firmware/software inventory on top of an update backend, or of
   several joined with `update.Join`.
