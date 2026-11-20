@@ -56,7 +56,7 @@ if ! "${PY}" "${SVC}" -r "${RHOST}" -u admin -p admin --authtype Basic \
 fi
 
 echo "== Redfish Interop Validator (OCP Baseline) =="
-if ! "${PY}" "${INTEROP}" -r "${RHOST}" -u admin -p admin --authtype Basic \
+if ! "${PY}" "${INTEROP}" -r "${RHOST}" -u admin -p admin --authtype Basic --forceauth \
 	--logdir logs --no_online_profiles "${PROFILE}"; then
 	echo "Interop Validator: FAILED"
 	status=1

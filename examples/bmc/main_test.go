@@ -13,11 +13,65 @@ import (
 	"time"
 )
 
+// newServer serves the example; requests without credentials log in as
+// admin with HTTP Basic.
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	srv := httptest.NewServer(newMux(newBackend()))
+	h, err := newHandler(newBackend())
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" && r.Header.Get("X-Auth-Token") == "" {
+			r.SetBasicAuth("admin", "admin")
+		}
+		h.ServeHTTP(w, r)
+	}))
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+func TestAuthentication(t *testing.T) {
+	h, err := newHandler(newBackend())
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	for path, want := range map[string]int{
+		"/redfish/v1/":            http.StatusOK,
+		"/redfish/v1/$metadata":   http.StatusOK,
+		"/redfish/v1/Chassis":     http.StatusUnauthorized,
+		"/redfish/v1/Systems/1":   http.StatusUnauthorized,
+		"/redfish/v1/TaskService": http.StatusUnauthorized,
+	} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Errorf("GET %s without credentials: status %d, want %d", path, resp.StatusCode, want)
+		}
+	}
+	// Log in and use the session.
+	resp, err := http.Post(srv.URL+"/redfish/v1/SessionService/Sessions", "application/json",
+		strings.NewReader(`{"UserName":"admin","Password":"admin"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	token := resp.Header.Get("X-Auth-Token")
+	if resp.StatusCode != http.StatusCreated || token == "" {
+		t.Fatalf("login: status %d", resp.StatusCode)
+	}
+	req, _ := http.NewRequest("GET", srv.URL+"/redfish/v1/Chassis", nil)
+	req.Header.Set("X-Auth-Token", token)
+	if resp, err := http.DefaultClient.Do(req); err != nil || resp.StatusCode != http.StatusOK {
+		t.Errorf("GET with the session: %v, %v", resp, err)
+	} else {
+		resp.Body.Close()
+	}
 }
 
 // getJSON fetches path and decodes the JSON body, asserting status 200 and the
