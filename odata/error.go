@@ -18,6 +18,15 @@ const (
 	MsgActionParameterValueFormat  = "Base.1.0.ActionParameterValueFormatError"
 	MsgServiceUnavailable          = "Base.1.0.ServiceTemporarilyUnavailable"
 	MsgUnrecognizedBody            = "Base.1.0.UnrecognizedRequestBody"
+
+	MsgNoValidSession           = "Base.1.0.NoValidSession"
+	MsgInsufficientPrivilege    = "Base.1.0.InsufficientPrivilege"
+	MsgCreateLimitReached       = "Base.1.0.CreateLimitReachedForResource"
+	MsgResourceAlreadyExists    = "Base.1.0.ResourceAlreadyExists"
+	MsgResourceCannotBeDeleted  = "Base.1.0.ResourceCannotBeDeleted"
+	MsgPropertyMissing          = "Base.1.0.PropertyMissing"
+	MsgPropertyValueFormatError = "Base.1.0.PropertyValueFormatError"
+	MsgPropertyValueNotInList   = "Base.1.0.PropertyValueNotInList"
 )
 
 // ExtendedInfo is one entry of the @Message.ExtendedInfo array.

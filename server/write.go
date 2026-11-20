@@ -63,6 +63,13 @@ func WriteXML(w http.ResponseWriter, body []byte) {
 	_, _ = w.Write(body)
 }
 
+// WriteCreated writes r as a 201 Created response for a resource a POST
+// created at location.
+func WriteCreated(w http.ResponseWriter, location string, r Resource) {
+	w.Header().Set("Location", location)
+	writeJSON(w, http.StatusCreated, r.Bytes())
+}
+
 // NoContent writes a 204 No Content response, the standard result of a Redfish
 // action that completes synchronously without a response body.
 func NoContent(w http.ResponseWriter) {
