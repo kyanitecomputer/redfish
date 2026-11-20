@@ -118,6 +118,11 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 	if patchable {
 		writePatchType(b, r, writable)
 	}
+	if !r.IsCollection && r.Creatable() {
+		doc := fmt.Sprintf("// %sCreate holds the properties of %s present in the body of a POST that\n// creates one: the writable ones and those required on create.", r.GoName, r.GoName)
+		writeSparseStruct(b, r.GoName+"Create", doc, r.CreateFields())
+		writeSparseParser(b, r.GoName+"Create", r.CreateFields())
+	}
 
 	// Provider interface. Resources with path parameters or several URIs receive
 	// a server.Params so the provider can tell which route was matched.
@@ -570,8 +575,13 @@ func writeStructFields(b *bytes.Buffer, fields []Field) {
 	}
 }
 
+// writeFieldEmits emits the marshaling of fields, leaving out write-only ones,
+// which a response never holds.
 func writeFieldEmits(b *bytes.Buffer, fields []Field) {
 	for _, f := range fields {
+		if f.WriteOnly {
+			continue
+		}
 		writeFieldEmit(b, f)
 	}
 }

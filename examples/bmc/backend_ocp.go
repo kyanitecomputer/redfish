@@ -67,46 +67,6 @@ func (b *backend) PatchManagerNetworkProtocol(ctx context.Context, p server.Para
 	return b.GetManagerNetworkProtocol(ctx, p)
 }
 
-// --- AccountService ---------------------------------------------------------
-
-func (b *backend) GetAccountService(_ context.Context, _ server.Params) (*gen.AccountService, error) {
-	enabled := true
-	return &gen.AccountService{
-		Id:             "AccountService",
-		Name:           "Account Service",
-		ServiceEnabled: &enabled,
-		Status:         &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
-		Accounts:       odata.Link("/redfish/v1/AccountService/Accounts"),
-	}, nil
-}
-
-func (b *backend) PatchAccountService(ctx context.Context, p server.Params, _ *gen.AccountServicePatch) (*gen.AccountService, error) {
-	return b.GetAccountService(ctx, p)
-}
-
-func (b *backend) ListManagerAccount(_ context.Context, _ server.Params) ([]string, error) {
-	return []string{"/redfish/v1/AccountService/Accounts/admin"}, nil
-}
-
-func (b *backend) GetManagerAccount(_ context.Context, p server.Params) (*gen.ManagerAccount, error) {
-	if p.Get("ManagerAccountId") != "admin" {
-		return nil, nil
-	}
-	enabled := true
-	return &gen.ManagerAccount{
-		Id:           "admin",
-		Name:         "Admin Account",
-		UserName:     "admin",
-		RoleId:       "Administrator",
-		Enabled:      &enabled,
-		AccountTypes: []string{"Redfish"},
-	}, nil
-}
-
-func (b *backend) PatchManagerAccount(ctx context.Context, p server.Params, _ *gen.ManagerAccountPatch) (*gen.ManagerAccount, error) {
-	return b.GetManagerAccount(ctx, p)
-}
-
 // --- Chassis subsystems, sub-collections, and metrics -----------------------
 
 func (b *backend) GetThermalSubsystem(_ context.Context, p server.Params) (*gen.ThermalSubsystem, error) {
