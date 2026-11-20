@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"src.kyanite.computer/redfish/auth"
 
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
@@ -72,42 +73,12 @@ func (b *backend) GetServiceRoot(_ context.Context) (*gen.ServiceRoot, error) {
 		Systems:        odata.Link("/redfish/v1/Systems"),
 		Chassis:        odata.Link("/redfish/v1/Chassis"),
 		Managers:       odata.Link("/redfish/v1/Managers"),
-		SessionService: odata.Link("/redfish/v1/SessionService"),
-		AccountService: odata.Link("/redfish/v1/AccountService"),
+		SessionService: odata.Link(auth.SessionServiceURI),
+		AccountService: odata.Link(auth.AccountServiceURI),
 		UpdateService:  odata.Link(update.ServiceURI),
 		Tasks:          odata.Link(task.ServiceURI),
-		Links:          gen.ServiceRootLinks{Sessions: odata.Link("/redfish/v1/SessionService/Sessions")},
+		Links:          gen.ServiceRootLinks{Sessions: odata.Link(auth.SessionsURI)},
 	}, nil
-}
-
-func (b *backend) GetSessionService(_ context.Context) (*gen.SessionService, error) {
-	enabled := true
-	timeout := int64(600)
-	return &gen.SessionService{
-		Id:             "SessionService",
-		Name:           "Session Service",
-		ServiceEnabled: &enabled,
-		SessionTimeout: &timeout,
-		Sessions:       odata.Link("/redfish/v1/SessionService/Sessions"),
-	}, nil
-}
-
-func (b *backend) ListSession(_ context.Context) ([]string, error) {
-	return []string{}, nil // no active sessions in this example
-}
-
-func (b *backend) PatchSessionService(ctx context.Context, patch *gen.SessionServicePatch) (*gen.SessionService, error) {
-	ss, err := b.GetSessionService(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if patch.ServiceEnabled != nil {
-		ss.ServiceEnabled = patch.ServiceEnabled
-	}
-	if patch.SessionTimeout != nil {
-		ss.SessionTimeout = patch.SessionTimeout
-	}
-	return ss, nil
 }
 
 func (b *backend) PatchChassis(_ context.Context, p server.Params, patch *gen.ChassisPatch) (*gen.Chassis, error) {
