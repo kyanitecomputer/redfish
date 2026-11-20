@@ -248,7 +248,10 @@ func (r *resolver) buildFields(props []csdl.Property, navs []csdl.NavigationProp
 	for _, p := range props {
 		anns := csdl.Annotations(p.Annotations)
 		f, ok := r.scalarField(p.Name, p.Type, p.IsNullable(), anns.Has("Redfish.Required"))
-		f.Writable = strings.HasSuffix(anns.EnumMember("OData.Permissions"), "ReadWrite")
+		perm := anns.EnumMember("OData.Permissions")
+		f.Writable = strings.HasSuffix(perm, "/ReadWrite") || strings.HasSuffix(perm, "/Write")
+		f.WriteOnly = strings.HasSuffix(perm, "/Write") || strings.HasSuffix(perm, "/None")
+		f.RequiredOnCreate = anns.Has("Redfish.RequiredOnCreate")
 		add(f, ok)
 	}
 	for _, n := range navs {

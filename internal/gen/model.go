@@ -26,7 +26,13 @@ type Field struct {
 	GoType   string // Go type as written in the struct definition
 	Kind     Kind
 	Required bool // Redfish.Required or a non-nullable key property
-	Writable bool // OData.Permissions grants ReadWrite (PATCH-able)
+	Writable bool // OData.Permissions grants ReadWrite or Write (PATCH-able)
+	// WriteOnly is OData.Permissions Write or None: the property is never
+	// in a response, such as a password.
+	WriteOnly bool
+	// RequiredOnCreate is Redfish.RequiredOnCreate: the property must be in
+	// the body of a POST that creates the resource.
+	RequiredOnCreate bool
 }
 
 // scalarKind reports whether the field is a scalar that the PATCH path supports.
@@ -73,6 +79,29 @@ func (r *Resource) WritableFields() []Field {
 		}
 	}
 	return out
+}
+
+// CreateFields returns the scalar fields a POST that creates the resource may
+// carry: the writable ones and those required on create.
+func (r *Resource) CreateFields() []Field {
+	var out []Field
+	for _, f := range r.Fields {
+		if (f.Writable || f.RequiredOnCreate) && f.scalarKind() {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// Creatable reports whether the resource has properties required on create,
+// so that a <R>Create type is generated for the bodies of creating POSTs.
+func (r *Resource) Creatable() bool {
+	for _, f := range r.Fields {
+		if f.RequiredOnCreate && f.scalarKind() {
+			return true
+		}
+	}
+	return false
 }
 
 // Complex is a generated nested struct type.

@@ -63,3 +63,49 @@ func TestActionArrayParams(t *testing.T) {
 		})
 	}
 }
+
+// TestWriteOnlyAndCreate checks that a write-only property such as
+// ManagerAccount.Password is writable, and which properties a creating POST
+// may carry.
+func TestWriteOnlyAndCreate(t *testing.T) {
+	m := buildModel(t, "ManagerAccount.ManagerAccount", "Session.Session", "ServiceRoot.ServiceRoot")
+	names := func(fields []Field) map[string]bool {
+		out := map[string]bool{}
+		for _, f := range fields {
+			out[f.JSONName] = true
+		}
+		return out
+	}
+	res := map[string]*Resource{}
+	for _, r := range m.Resources {
+		res[r.GoName] = r
+	}
+	account, session, root := res["ManagerAccount"], res["Session"], res["ServiceRoot"]
+	if account == nil || session == nil || root == nil {
+		t.Fatalf("resources = %v", res)
+	}
+	if w := names(account.WritableFields()); !w["Password"] || !w["UserName"] || w["Id"] {
+		t.Errorf("ManagerAccount writable = %v, want Password and UserName, not Id", w)
+	}
+	if c := names(account.CreateFields()); !account.Creatable() || !c["Password"] || !c["RoleId"] {
+		t.Errorf("ManagerAccount create = %v", c)
+	}
+	// Session.UserName and Password are read-only once created, but required
+	// on create.
+	if c := names(session.CreateFields()); !session.Creatable() || !c["UserName"] || !c["Password"] || c["Id"] {
+		t.Errorf("Session create = %v, want UserName and Password only", c)
+	}
+	for _, f := range account.Fields {
+		if (f.JSONName == "Password") != f.WriteOnly {
+			t.Errorf("ManagerAccount.%s WriteOnly = %v", f.JSONName, f.WriteOnly)
+		}
+	}
+	for _, f := range session.Fields {
+		if (f.JSONName == "Password" || f.JSONName == "Token") != f.WriteOnly {
+			t.Errorf("Session.%s WriteOnly = %v", f.JSONName, f.WriteOnly)
+		}
+	}
+	if root.Creatable() {
+		t.Error("ServiceRoot is creatable")
+	}
+}

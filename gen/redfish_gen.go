@@ -1315,6 +1315,21 @@ const (
 	ResourceStateDegraded           ResourceState = "Degraded"
 )
 
+// SessionSessionTypes is a Redfish string enumeration.
+type SessionSessionTypes string
+
+const (
+	SessionSessionTypesHostConsole        SessionSessionTypes = "HostConsole"
+	SessionSessionTypesManagerConsole     SessionSessionTypes = "ManagerConsole"
+	SessionSessionTypesIPMI               SessionSessionTypes = "IPMI"
+	SessionSessionTypesKVMIP              SessionSessionTypes = "KVMIP"
+	SessionSessionTypesOEM                SessionSessionTypes = "OEM"
+	SessionSessionTypesRedfish            SessionSessionTypes = "Redfish"
+	SessionSessionTypesVirtualMedia       SessionSessionTypes = "VirtualMedia"
+	SessionSessionTypesWebUI              SessionSessionTypes = "WebUI"
+	SessionSessionTypesOutboundConnection SessionSessionTypes = "OutboundConnection"
+)
+
 // SoftwareInventoryReleaseType is a Redfish string enumeration.
 type SoftwareInventoryReleaseType string
 
@@ -1431,13 +1446,9 @@ func (x *AccountServiceAuthentication) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptString("AuthenticationType", string(x.AuthenticationType))
 	b.OptString("Username", x.Username)
-	b.OptString("Password", x.Password)
-	b.OptString("Token", x.Token)
-	b.OptString("KerberosKeytab", x.KerberosKeytab)
 	if x.Oem != nil {
 		b.Raw("Oem", x.Oem.Bytes())
 	}
-	b.OptString("EncryptionKey", x.EncryptionKey)
 	b.OptBool("EncryptionKeySet", x.EncryptionKeySet)
 	return b.Bytes()
 }
@@ -2212,7 +2223,6 @@ func (x *ComputerSystemKMIPServer) Bytes() []byte {
 	b.OptString("Address", x.Address)
 	b.OptInt("Port", x.Port)
 	b.OptString("Username", x.Username)
-	b.OptString("Password", x.Password)
 	b.OptString("CachePolicy", string(x.CachePolicy))
 	b.OptString("CacheDuration", x.CacheDuration)
 	return b.Bytes()
@@ -2949,9 +2959,7 @@ type ManagerAccountSNMPUserInfo struct {
 // Bytes encodes ManagerAccountSNMPUserInfo as Redfish JSON.
 func (x *ManagerAccountSNMPUserInfo) Bytes() []byte {
 	b := odata.NewBuilder()
-	b.OptString("AuthenticationKey", x.AuthenticationKey)
 	b.OptString("AuthenticationProtocol", string(x.AuthenticationProtocol))
-	b.OptString("EncryptionKey", x.EncryptionKey)
 	b.OptString("EncryptionProtocol", string(x.EncryptionProtocol))
 	b.OptBool("AuthenticationKeySet", x.AuthenticationKeySet)
 	b.OptBool("EncryptionKeySet", x.EncryptionKeySet)
@@ -3229,7 +3237,6 @@ func (x *ManagerNetworkProtocolProxyConfiguration) Bytes() []byte {
 	b.OptBool("Enabled", x.Enabled)
 	b.OptString("ProxyServerURI", x.ProxyServerURI)
 	b.OptString("Username", x.Username)
-	b.OptString("Password", x.Password)
 	b.OptBool("PasswordSet", x.PasswordSet)
 	b.StrArray("ExcludeAddresses", x.ExcludeAddresses)
 	b.OptString("ProxyAutoConfigURI", x.ProxyAutoConfigURI)
@@ -3800,6 +3807,30 @@ func (x *ResourceStatus) Bytes() []byte {
 	return b.Bytes()
 }
 
+// RoleActions is a generated Redfish complex type.
+type RoleActions struct {
+	Oem *RoleOemActions
+}
+
+// Bytes encodes RoleActions as Redfish JSON.
+func (x *RoleActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	return b.Bytes()
+}
+
+// RoleOemActions is a generated Redfish complex type.
+type RoleOemActions struct {
+}
+
+// Bytes encodes RoleOemActions as Redfish JSON.
+func (x *RoleOemActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	return b.Bytes()
+}
+
 // ServiceRootDeepOperations is a generated Redfish complex type.
 type ServiceRootDeepOperations struct {
 	DeepPATCH *bool
@@ -3893,6 +3924,48 @@ func (x *ServiceRootProtocolFeaturesSupported) Bytes() []byte {
 	b.OptBool("FilterQueryCompoundOperations", x.FilterQueryCompoundOperations)
 	b.OptBool("IncludeOriginOfConditionQuery", x.IncludeOriginOfConditionQuery)
 	b.OptBool("ClientContextQuery", x.ClientContextQuery)
+	return b.Bytes()
+}
+
+// SessionActions is a generated Redfish complex type.
+type SessionActions struct {
+	Oem *SessionOemActions
+}
+
+// Bytes encodes SessionActions as Redfish JSON.
+func (x *SessionActions) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	return b.Bytes()
+}
+
+// SessionLinks is a generated Redfish complex type.
+type SessionLinks struct {
+	Oem                *ResourceOem
+	OutboundConnection odata.Link
+}
+
+// Bytes encodes SessionLinks as Redfish JSON.
+func (x *SessionLinks) Bytes() []byte {
+	b := odata.NewBuilder()
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	if x.OutboundConnection != "" {
+		b.Ref("OutboundConnection", string(x.OutboundConnection))
+	}
+	return b.Bytes()
+}
+
+// SessionOemActions is a generated Redfish complex type.
+type SessionOemActions struct {
+}
+
+// Bytes encodes SessionOemActions as Redfish JSON.
+func (x *SessionOemActions) Bytes() []byte {
+	b := odata.NewBuilder()
 	return b.Bytes()
 }
 
@@ -4616,6 +4689,136 @@ func RegisterSessionCollection(mux *http.ServeMux, p SessionCollectionProvider) 
 		server.WriteResource(w, c)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/SessionService/Sessions", h)
+}
+
+// Session: The `Session` resource describes a single connection (session) between a client and a Redfish service instance.
+type Session struct {
+	ODataID               string // @odata.id of this resource instance
+	Oem                   *ResourceOem
+	Id                    string
+	Description           string
+	Name                  string
+	UserName              string
+	Password              string
+	Actions               *SessionActions
+	SessionType           SessionSessionTypes
+	OemSessionType        string
+	ClientOriginIPAddress string
+	CreatedTime           string
+	Context               string
+	Token                 string
+	Roles                 []string
+	Links                 *SessionLinks
+	ExpirationTime        string
+}
+
+// Bytes encodes Session as a Redfish JSON resource.
+func (x *Session) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.String("@odata.type", "#Session.v1_8_0.Session")
+	b.String("@odata.id", x.ODataID)
+	b.String("@odata.context", odata.Context("Session.Session"))
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	b.String("Id", x.Id)
+	b.OptString("Description", x.Description)
+	b.String("Name", x.Name)
+	b.OptString("UserName", x.UserName)
+	if x.Actions != nil {
+		b.Raw("Actions", x.Actions.Bytes())
+	}
+	b.OptString("SessionType", string(x.SessionType))
+	b.OptString("OemSessionType", x.OemSessionType)
+	b.OptString("ClientOriginIPAddress", x.ClientOriginIPAddress)
+	b.OptString("CreatedTime", x.CreatedTime)
+	b.OptString("Context", x.Context)
+	b.StrArray("Roles", x.Roles)
+	if x.Links != nil {
+		b.Raw("Links", x.Links.Bytes())
+	}
+	b.OptString("ExpirationTime", x.ExpirationTime)
+	return b.Bytes()
+}
+
+// SessionCreate holds the properties of Session present in the body of a POST that
+// creates one: the writable ones and those required on create.
+type SessionCreate struct {
+	UserName *string
+	Password *string
+}
+
+// UnmarshalJSON parses the known properties of a SessionCreate body,
+// ignoring unknown and null-valued properties.
+func (p *SessionCreate) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "UserName":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.UserName = &v
+		case "Password":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.Password = &v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// SessionProvider supplies the Session resource.
+type SessionProvider interface {
+	GetSession(ctx context.Context, p server.Params) (*Session, error)
+}
+
+// RegisterSession wires the Session resource into mux. It links into a binary
+// only when referenced, so unused resources are removed by the linker.
+func RegisterSession(mux *http.ServeMux, p SessionProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		res, err := p.GetSession(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if res == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if res.ODataID == "" {
+			res.ODataID = prm.Path()
+		}
+		server.WriteResource(w, res)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/SessionService/Sessions/{SessionId}", h)
 }
 
 // ChassisCollectionProvider lists the members of the ChassisCollection collection by @odata.id.
@@ -7350,7 +7553,6 @@ func (x *ManagerAccount) Bytes() []byte {
 	b.String("Id", x.Id)
 	b.OptString("Description", x.Description)
 	b.String("Name", x.Name)
-	b.OptString("Password", x.Password)
 	b.OptString("UserName", x.UserName)
 	b.OptString("RoleId", x.RoleId)
 	b.OptBool("Locked", x.Locked)
@@ -7389,6 +7591,7 @@ func (x *ManagerAccount) Bytes() []byte {
 
 // ManagerAccountPatch holds the writable properties of ManagerAccount present in a PATCH body.
 type ManagerAccountPatch struct {
+	Password                       *string
 	UserName                       *string
 	RoleId                         *string
 	Locked                         *bool
@@ -7428,6 +7631,136 @@ func (p *ManagerAccountPatch) UnmarshalJSON(data []byte) error {
 			continue
 		}
 		switch name {
+		case "Password":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.Password = &v
+		case "UserName":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.UserName = &v
+		case "RoleId":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.RoleId = &v
+		case "Locked":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.Locked = &v
+		case "Enabled":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.Enabled = &v
+		case "PasswordChangeRequired":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.PasswordChangeRequired = &v
+		case "PasswordExpiration":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.PasswordExpiration = &v
+		case "StrictAccountTypes":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.StrictAccountTypes = &v
+		case "AccountExpiration":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.AccountExpiration = &v
+		case "EmailAddress":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.EmailAddress = &v
+		case "PhoneNumber":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.PhoneNumber = &v
+		case "OneTimePasscodeDeliveryAddress":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.OneTimePasscodeDeliveryAddress = &v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ManagerAccountCreate holds the properties of ManagerAccount present in the body of a POST that
+// creates one: the writable ones and those required on create.
+type ManagerAccountCreate struct {
+	Password                       *string
+	UserName                       *string
+	RoleId                         *string
+	Locked                         *bool
+	Enabled                        *bool
+	PasswordChangeRequired         *bool
+	PasswordExpiration             *string
+	StrictAccountTypes             *bool
+	AccountExpiration              *string
+	EmailAddress                   *string
+	PhoneNumber                    *string
+	OneTimePasscodeDeliveryAddress *string
+}
+
+// UnmarshalJSON parses the known properties of a ManagerAccountCreate body,
+// ignoring unknown and null-valued properties.
+func (p *ManagerAccountCreate) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "Password":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.Password = &v
 		case "UserName":
 			v, err := patchReadString(dec)
 			if err != nil {
@@ -7779,6 +8112,146 @@ func RegisterVerifyTimeBasedOneTimePasswordManagerAccount(mux *http.ServeMux, p 
 	}
 	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
 	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
+}
+
+// RoleCollectionProvider lists the members of the RoleCollection collection by @odata.id.
+type RoleCollectionProvider interface {
+	ListRole(ctx context.Context, p server.Params) ([]string, error)
+}
+
+// RegisterRoleCollection wires the RoleCollection collection into mux.
+func RegisterRoleCollection(mux *http.ServeMux, p RoleCollectionProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		ids, err := p.ListRole(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		c := odata.Collection{
+			ODataType:    "#RoleCollection.RoleCollection",
+			ODataID:      prm.Path(),
+			ODataContext: odata.Context("RoleCollection.RoleCollection"),
+			Name:         "Role Collection",
+			Members:      ids,
+		}
+		server.WriteResource(w, c)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/AccountService/Roles", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Roles", h)
+}
+
+// Role: The `Role` schema contains a Redfish role to use in conjunction with a manager account.
+type Role struct {
+	ODataID            string // @odata.id of this resource instance
+	Oem                *ResourceOem
+	Id                 string
+	Description        string
+	Name               string
+	IsPredefined       *bool
+	AssignedPrivileges []string
+	OemPrivileges      []string
+	Actions            *RoleActions
+	RoleId             string
+	Restricted         *bool
+	AlternateRoleId    string
+}
+
+// Bytes encodes Role as a Redfish JSON resource.
+func (x *Role) Bytes() []byte {
+	b := odata.NewBuilder()
+	b.String("@odata.type", "#Role.v1_3_3.Role")
+	b.String("@odata.id", x.ODataID)
+	b.String("@odata.context", odata.Context("Role.Role"))
+	if x.Oem != nil {
+		b.Raw("Oem", x.Oem.Bytes())
+	}
+	b.String("Id", x.Id)
+	b.OptString("Description", x.Description)
+	b.String("Name", x.Name)
+	b.OptBool("IsPredefined", x.IsPredefined)
+	b.StrArray("AssignedPrivileges", x.AssignedPrivileges)
+	b.StrArray("OemPrivileges", x.OemPrivileges)
+	if x.Actions != nil {
+		b.Raw("Actions", x.Actions.Bytes())
+	}
+	b.String("RoleId", x.RoleId)
+	b.OptBool("Restricted", x.Restricted)
+	b.OptString("AlternateRoleId", x.AlternateRoleId)
+	return b.Bytes()
+}
+
+// RoleCreate holds the properties of Role present in the body of a POST that
+// creates one: the writable ones and those required on create.
+type RoleCreate struct {
+	RoleId *string
+}
+
+// UnmarshalJSON parses the known properties of a RoleCreate body,
+// ignoring unknown and null-valued properties.
+func (p *RoleCreate) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "RoleId":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			p.RoleId = &v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// RoleProvider supplies the Role resource.
+type RoleProvider interface {
+	GetRole(ctx context.Context, p server.Params) (*Role, error)
+}
+
+// RegisterRole wires the Role resource into mux. It links into a binary
+// only when referenced, so unused resources are removed by the linker.
+func RegisterRole(mux *http.ServeMux, p RoleProvider) {
+	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		res, err := p.GetRole(r.Context(), prm)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		if res == nil {
+			server.NotFound(w, r)
+			return
+		}
+		if res.ODataID == "" {
+			res.ODataID = prm.Path()
+		}
+		server.WriteResource(w, res)
+	}
+	server.Handle(mux, "GET", "/redfish/v1/AccountService/Roles/{RoleId}", h)
+	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Roles/{RoleId}", h)
 }
 
 // ThermalSubsystem: The `ThermalSubsystem` schema contains the definition for the thermal subsystem of a chassis.
@@ -9667,6 +10140,61 @@ func (p *LogEntryPatch) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// LogEntryCreate holds the properties of LogEntry present in the body of a POST that
+// creates one: the writable ones and those required on create.
+type LogEntryCreate struct {
+	EntryType *LogEntryLogEntryType
+	Resolved  *bool
+}
+
+// UnmarshalJSON parses the known properties of a LogEntryCreate body,
+// ignoring unknown and null-valued properties.
+func (p *LogEntryCreate) UnmarshalJSON(data []byte) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
+		if err != nil {
+			return err
+		}
+		return errPatchType
+	}
+	for {
+		nameTok, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if nameTok.Kind() == '}' {
+			break
+		}
+		name := nameTok.String()
+		if dec.PeekKind() == 'n' {
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+			continue
+		}
+		switch name {
+		case "EntryType":
+			v, err := patchReadString(dec)
+			if err != nil {
+				return err
+			}
+			ev := LogEntryLogEntryType(v)
+			p.EntryType = &ev
+		case "Resolved":
+			v, err := patchReadBool(dec)
+			if err != nil {
+				return err
+			}
+			p.Resolved = &v
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // LogEntryProvider supplies the LogEntry resource.
 type LogEntryProvider interface {
 	GetLogEntry(ctx context.Context, p server.Params) (*LogEntry, error)
@@ -11102,12 +11630,23 @@ const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
     <edmx:Include Namespace="PowerSubsystem"/>
     <edmx:Include Namespace="PowerSubsystem.v1_1_4"/>
   </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Role_v1.xml">
+    <edmx:Include Namespace="Role"/>
+    <edmx:Include Namespace="Role.v1_3_3"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RoleCollection_v1.xml">
+    <edmx:Include Namespace="RoleCollection"/>
+  </edmx:Reference>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/SensorCollection_v1.xml">
     <edmx:Include Namespace="SensorCollection"/>
   </edmx:Reference>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ServiceRoot_v1.xml">
     <edmx:Include Namespace="ServiceRoot"/>
     <edmx:Include Namespace="ServiceRoot.v1_21_0"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Session_v1.xml">
+    <edmx:Include Namespace="Session"/>
+    <edmx:Include Namespace="Session.v1_8_0"/>
   </edmx:Reference>
   <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/SessionCollection_v1.xml">
     <edmx:Include Namespace="SessionCollection"/>
@@ -11151,7 +11690,7 @@ const metadataXML = `<?xml version="1.0" encoding="UTF-8"?>
 `
 
 // odataServiceDoc is the /redfish/v1/odata service document.
-const odataServiceDoc = `{"@odata.context":"/redfish/v1/$metadata","@odata.id":"/redfish/v1/odata","value":[{"name":"Service","kind":"Singleton","url":"/redfish/v1/"},{"name":"Sessions","kind":"Singleton","url":"/redfish/v1/SessionService/Sessions"},{"name":"Chassis","kind":"Singleton","url":"/redfish/v1/Chassis"},{"name":"Systems","kind":"Singleton","url":"/redfish/v1/Systems"},{"name":"Managers","kind":"Singleton","url":"/redfish/v1/Managers"},{"name":"Accounts","kind":"Singleton","url":"/redfish/v1/AccountService/Accounts"},{"name":"Sensors","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Sensors"},{"name":"Controls","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Controls"},{"name":"EthernetInterfaces","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/EthernetInterfaces"},{"name":"LogServices","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices"},{"name":"Entries","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries"},{"name":"SoftwareInventory","kind":"Singleton","url":"/redfish/v1/UpdateService/SoftwareInventory"},{"name":"Tasks","kind":"Singleton","url":"/redfish/v1/TaskService/Tasks"}]}`
+const odataServiceDoc = `{"@odata.context":"/redfish/v1/$metadata","@odata.id":"/redfish/v1/odata","value":[{"name":"Service","kind":"Singleton","url":"/redfish/v1/"},{"name":"Sessions","kind":"Singleton","url":"/redfish/v1/SessionService/Sessions"},{"name":"Chassis","kind":"Singleton","url":"/redfish/v1/Chassis"},{"name":"Systems","kind":"Singleton","url":"/redfish/v1/Systems"},{"name":"Managers","kind":"Singleton","url":"/redfish/v1/Managers"},{"name":"Accounts","kind":"Singleton","url":"/redfish/v1/AccountService/Accounts"},{"name":"Roles","kind":"Singleton","url":"/redfish/v1/AccountService/Roles"},{"name":"Sensors","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Sensors"},{"name":"Controls","kind":"Singleton","url":"/redfish/v1/Chassis/{ChassisId}/Controls"},{"name":"EthernetInterfaces","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/EthernetInterfaces"},{"name":"LogServices","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices"},{"name":"Entries","kind":"Singleton","url":"/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries"},{"name":"SoftwareInventory","kind":"Singleton","url":"/redfish/v1/UpdateService/SoftwareInventory"},{"name":"Tasks","kind":"Singleton","url":"/redfish/v1/TaskService/Tasks"}]}`
 
 // RegisterMetadata serves the service metadata document at /redfish/v1/$metadata.
 func RegisterMetadata(mux *http.ServeMux) {
