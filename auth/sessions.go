@@ -45,11 +45,21 @@ func newSessions() *sessions {
 
 // create opens a session of acc and returns it with its token, or false when
 // limit sessions are open. When acc has limit/4 sessions, its oldest one
-// ends.
-func (s *sessions) create(acc Account, origin string, now time.Time, timeout time.Duration, limit int) (session, string, bool) {
+// ends. When limit sessions are open, those that current reports as ended,
+// as their account changed, are dropped first; that may include the
+// session that is changing its own password right then. current is called
+// with s.mu held, so it must not use the sessions.
+func (s *sessions) create(acc Account, origin string, now time.Time, timeout time.Duration, limit int, current func(user string, gen uint64) bool) (session, string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.expire(now, timeout)
+	if len(s.byID) >= limit {
+		for id, sess := range s.byID {
+			if !current(sess.user, sess.gen) {
+				s.drop(id)
+			}
+		}
+	}
 	var own []*session
 	for _, sess := range s.byID {
 		if sess.user == acc.UserName {
@@ -127,13 +137,14 @@ func (s *sessions) list(now time.Time, timeout time.Duration) []session {
 	return out
 }
 
-// rebind moves the session with the id to the generation gen of its
-// account, for the session that gave its own account a new password.
-func (s *sessions) rebind(id string, gen uint64) {
+// rebind moves the session with the id from generation from of its account
+// to generation to, for the session that gave its own account a new
+// password.
+func (s *sessions) rebind(id string, from, to uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if sess := s.byID[id]; sess != nil {
-		sess.gen = gen
+	if sess := s.byID[id]; sess != nil && sess.gen == from {
+		sess.gen = to
 	}
 }
 

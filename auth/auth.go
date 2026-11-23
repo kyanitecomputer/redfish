@@ -11,11 +11,12 @@
 // role, as Service.Privilege decides.
 //
 // Logins with a password are limited: failed ones lock the user name for a
-// while, at most two passwords are hashed at a time, and a login that waits
-// too long for that gets 503. Sessions and client certificates need no
-// hashing. Requests that change something are refused when a browser sends
-// them from another origin (http.CrossOriginProtection), so that credentials
-// a browser keeps cannot be used by other sites.
+// while, at most two passwords, of logins or of password changes, are hashed
+// at a time, and a request that waits too long for that gets 503. Sessions
+// and client certificates need no hashing. Requests that change something
+// are refused when a browser sends them from another origin
+// (http.CrossOriginProtection), so that credentials a browser keeps cannot
+// be used by other sites.
 //
 // A client certificate is accepted only from the TLS configuration of the
 // http.Server: every CA in its ClientCAs may issue certificates for any
@@ -183,6 +184,13 @@ func (s *Service) authenticate(r *http.Request) (Principal, error) {
 		return Principal{Account: acc}, nil
 	}
 	return Principal{}, errLogin
+}
+
+// current reports whether a session of user with generation gen still
+// works: its account exists, is enabled and has that generation.
+func (s *Service) current(user string, gen uint64) bool {
+	acc, ok := s.accounts.Get(user)
+	return ok && acc.Enabled && acc.gen == gen
 }
 
 // loginFailed answers a request whose credentials failed: 503 for ErrBusy,

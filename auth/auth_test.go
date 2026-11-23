@@ -1,13 +1,18 @@
 package auth
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/server"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -556,16 +561,153 @@ func TestCrossOriginAllowed(t *testing.T) {
 func TestRebindAfterStaleRequest(t *testing.T) {
 	ts := newTestService(t)
 	token, id := ts.login("op", pw)
+	old, _ := ts.s.accounts.Get("op")
 	newPW := "a new long password"
-	acc, err := ts.s.accounts.change("op", nil, nil, &newPW)
+	prev, acc, err := ts.s.accounts.change("op", nil, nil, &newPW)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if w, _ := ts.do("GET", "/redfish/v1/Chassis", "token:"+token, ""); w.Code != http.StatusUnauthorized {
 		t.Errorf("before the rebind: status %d", w.Code)
 	}
-	ts.s.afterChange(acc, Principal{Account: acc, SessionID: id})
+	ts.s.keepOwnSession(prev, acc, Principal{Account: old, SessionID: id})
 	if w, _ := ts.do("GET", "/redfish/v1/Chassis", "token:"+token, ""); w.Code != http.StatusOK {
 		t.Errorf("after the rebind: status %d", w.Code)
+	}
+}
+
+// TestRevokedSessionStaysRevoked changes the password of an account while
+// one of its own requests, authenticated before, changes it again: the
+// session of that request is not kept.
+func TestRevokedSessionStaysRevoked(t *testing.T) {
+	ts := newTestService(t)
+	token, id := ts.login("op", pw)
+	authenticated, _ := ts.s.accounts.Get("op")
+	ts.s.accounts.SetPassword("op", "reset by an administrator") // revokes the session
+	newPW := "a new long password"
+	prev, acc, err := ts.s.accounts.change("op", nil, nil, &newPW)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts.s.keepOwnSession(prev, acc, Principal{Account: authenticated, SessionID: id})
+	if w, _ := ts.do("GET", "/redfish/v1/Chassis", "token:"+token, ""); w.Code != http.StatusUnauthorized {
+		t.Errorf("revoked session: status %d", w.Code)
+	}
+}
+
+// TestStaleSessionsFreeRoom fills the sessions, then ends one by changing the
+// password of its account: a new login gets its place.
+func TestStaleSessionsFreeRoom(t *testing.T) {
+	ts := newTestService(t)
+	ts.s.MaxSessions = 4 // one per account
+	ts.s.accounts.Create("u4", pw, ReadOnly)
+	ts.s.accounts.Create("u5", pw, ReadOnly)
+	for _, u := range []string{"admin", "op", "viewer", "u4"} {
+		ts.login(u, pw)
+	}
+	if w, _ := ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`); w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("fifth session: status %d, want 503", w.Code)
+	}
+	ts.s.accounts.SetPassword("viewer", "another long password")
+	ts.login("u5", pw)
+}
+
+// TestPolicyPatchesDoNotUndoEachOther patches the AccountService and the
+// SessionService at once: each saved policy has the latest SessionTimeout,
+// which only grows, and once set, the HTTPBasicAuth of the other PATCH.
+func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
+	ts := newTestService(t)
+	var mu sync.Mutex
+	var bad []string
+	lastTimeout, unadvertised := 0, false
+	ts.s.accounts.storage = savingFunc(func(data []byte) {
+		mu.Lock()
+		defer mu.Unlock()
+		var timeout int
+		var basic string
+		for _, line := range strings.Split(string(data), "\n") {
+			fmt.Sscanf(line, "policy SessionTimeout %d", &timeout)
+			fmt.Sscanf(line, "policy HTTPBasicAuth %s", &basic)
+		}
+		if timeout < lastTimeout || unadvertised && basic != "Unadvertised" {
+			bad = append(bad, fmt.Sprintf("timeout %d after %d, basic %s", timeout, lastTimeout, basic))
+		}
+		lastTimeout, unadvertised = timeout, unadvertised || basic == "Unadvertised"
+	})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for i := range 2000 {
+			ts.s.PatchSessionService(context.Background(), &gen.SessionServicePatch{SessionTimeout: ptr(int64(2000 + i))})
+		}
+	})
+	wg.Go(func() {
+		for i := range 2000 {
+			basic := gen.AccountServiceBasicAuthStateEnabled
+			if i == 1000 {
+				basic = gen.AccountServiceBasicAuthStateUnadvertised
+			} else if i > 1000 {
+				basic = ""
+			}
+			patch := &gen.AccountServicePatch{MinPasswordLength: ptr(int64(12))}
+			if basic != "" {
+				patch.HTTPBasicAuth = &basic
+			}
+			ts.s.PatchAccountService(context.Background(), server.Params{URI: AccountServiceURI}, patch)
+		}
+	})
+	wg.Wait()
+	if len(bad) > 0 {
+		t.Errorf("lost updates: %v", bad[:min(len(bad), 3)])
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+// savingFunc is a Storage that hands every saved database to a function.
+type savingFunc func([]byte)
+
+func (f savingFunc) Load() ([]byte, error)  { return nil, nil }
+func (f savingFunc) Save(data []byte) error { f(data); return nil }
+
+func TestBusyPasswordChange(t *testing.T) {
+	ts := newTestService(t)
+	token, _ := ts.login("op", pw)
+	defer func(d time.Duration) { verifyWait = d }(verifyWait)
+	verifyWait = 10 * time.Millisecond
+	release := fillSlots(ts.s.accounts)
+	defer release()
+	if w, _ := ts.do("PATCH", AccountsURI+"/op", "token:"+token, `{"Password":"a new long password"}`); w.Code != http.StatusServiceUnavailable {
+		t.Errorf("password change while busy: status %d, want 503", w.Code)
+	}
+}
+
+// TestPolicyPatchBounds refuses values whose conversion to a duration would
+// wrap around to an accepted one.
+func TestPolicyPatchBounds(t *testing.T) {
+	ts := newTestService(t)
+	big := int64(1)<<55 + 120 // * 1e9 wraps to exactly 120 s
+	for _, tt := range []struct{ uri, body string }{
+		{AccountServiceURI, fmt.Sprintf(`{"AccountLockoutDuration":%d}`, big)},
+		{SessionServiceURI, fmt.Sprintf(`{"SessionTimeout":%d}`, big)},
+	} {
+		if w, _ := ts.do("PATCH", tt.uri, "admin", tt.body); w.Code != http.StatusBadRequest {
+			t.Errorf("PATCH %s %s: status %d, want 400", tt.uri, tt.body, w.Code)
+		}
+	}
+}
+
+// TestBusyChangePasswordAction answers 503 to ManagerAccount.ChangePassword
+// while no slot is free to check the session's password.
+func TestBusyChangePasswordAction(t *testing.T) {
+	ts := newTestService(t)
+	token, _ := ts.login("op", pw)
+	defer func(d time.Duration) { verifyWait = d }(verifyWait)
+	verifyWait = 10 * time.Millisecond
+	release := fillSlots(ts.s.accounts)
+	defer release()
+	w, _ := ts.do("POST", AccountsURI+"/op/Actions/ManagerAccount.ChangePassword", "token:"+token,
+		`{"NewPassword":"a new long password","SessionAccountPassword":"not the right one"}`)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("ChangePassword while busy: status %d, want 503", w.Code)
 	}
 }

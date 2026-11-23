@@ -62,9 +62,11 @@ func (s *Service) PatchSessionService(ctx context.Context, patch *gen.SessionSer
 		return nil, server.NotWritable("AbsoluteSessionTimeoutEnabled")
 	}
 	if patch.SessionTimeout != nil {
-		p := s.accounts.Policy()
-		p.SessionTimeout = time.Duration(*patch.SessionTimeout) * time.Second
-		if err := s.accounts.SetPolicy(p); err != nil {
+		v := *patch.SessionTimeout
+		if v < 0 || v > maxSetting {
+			return nil, badProperty("SessionTimeout must be between 30 and 86400 seconds.")
+		}
+		if err := s.accounts.UpdatePolicy(func(p *Policy) { p.SessionTimeout = time.Duration(v) * time.Second }); err != nil {
 			return nil, err
 		}
 	}
@@ -133,7 +135,7 @@ func (s *Service) serveCreateSession(w http.ResponseWriter, r *http.Request, _ s
 		max = DefaultMaxSessions
 	}
 	origin, _, _ := net.SplitHostPort(r.RemoteAddr)
-	sess, token, ok := s.sessions.create(acc, origin, s.now(), s.accounts.Policy().SessionTimeout, max)
+	sess, token, ok := s.sessions.create(acc, origin, s.now(), s.accounts.Policy().SessionTimeout, max, s.current)
 	if !ok {
 		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgCreateLimitReached,
 			"The create operation failed because the resource has reached the limit of possible resources.")
@@ -205,7 +207,12 @@ func (s *Service) PatchAccountService(ctx context.Context, p server.Params, patc
 			return nil, server.NotWritable(f.name)
 		}
 	}
-	pol := s.accounts.Policy()
+	for _, v := range []*int64{patch.MinPasswordLength, patch.MaxPasswordLength, patch.AccountLockoutThreshold,
+		patch.AccountLockoutDuration, patch.AccountLockoutCounterResetAfter} {
+		if v != nil && (*v < 0 || *v > maxSetting) {
+			return nil, badProperty("The account service settings must be between 0 and 2^30.")
+		}
+	}
 	setInt := func(dst *int, v *int64) {
 		if v != nil {
 			*dst = int(*v)
@@ -216,15 +223,19 @@ func (s *Service) PatchAccountService(ctx context.Context, p server.Params, patc
 			*dst = time.Duration(*v) * time.Second
 		}
 	}
-	setInt(&pol.MinPasswordLength, patch.MinPasswordLength)
-	setInt(&pol.MaxPasswordLength, patch.MaxPasswordLength)
-	setInt(&pol.LockoutThreshold, patch.AccountLockoutThreshold)
-	setDuration(&pol.LockoutDuration, patch.AccountLockoutDuration)
-	setDuration(&pol.LockoutCounterResetAfter, patch.AccountLockoutCounterResetAfter)
-	if patch.HTTPBasicAuth != nil {
-		pol.BasicAuth = BasicAuth(*patch.HTTPBasicAuth)
-	}
-	if err := s.accounts.SetPolicy(pol); err != nil {
+	// Applied to the current policy in one step, so that a concurrent PATCH
+	// of the SessionService is not undone.
+	err := s.accounts.UpdatePolicy(func(pol *Policy) {
+		setInt(&pol.MinPasswordLength, patch.MinPasswordLength)
+		setInt(&pol.MaxPasswordLength, patch.MaxPasswordLength)
+		setInt(&pol.LockoutThreshold, patch.AccountLockoutThreshold)
+		setDuration(&pol.LockoutDuration, patch.AccountLockoutDuration)
+		setDuration(&pol.LockoutCounterResetAfter, patch.AccountLockoutCounterResetAfter)
+		if patch.HTTPBasicAuth != nil {
+			pol.BasicAuth = BasicAuth(*patch.HTTPBasicAuth)
+		}
+	})
+	if err != nil {
 		return nil, err
 	}
 	return s.GetAccountService(ctx, p)
@@ -309,11 +320,13 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 		return nil, errInsufficient
 	}
 	if patch.RoleId != nil || patch.Enabled != nil || patch.Password != nil {
-		acc, err := s.accounts.change(name, patch.RoleId, patch.Enabled, patch.Password)
+		prev, acc, err := s.accounts.change(name, patch.RoleId, patch.Enabled, patch.Password)
 		if err != nil {
 			return nil, err
 		}
-		s.afterChange(acc, pr)
+		if patch.Password != nil {
+			s.keepOwnSession(prev, acc, pr)
+		}
 	}
 	if patch.Locked != nil {
 		s.accounts.Unlock(name)
@@ -321,12 +334,15 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 	return s.GetManagerAccount(ctx, p)
 }
 
-// afterChange keeps the session of pr open when pr gave its own account acc,
-// as changed, a new password. The account's other sessions belong to its
-// previous generation and have ended, as all have when it was disabled.
-func (s *Service) afterChange(acc Account, pr Principal) {
-	if acc.Enabled && acc.UserName == pr.Account.UserName && pr.SessionID != "" {
-		s.sessions.rebind(pr.SessionID, acc.gen)
+// keepOwnSession keeps the session of pr open when pr gave its own account a
+// new password, turning it from generation prev into that of acc, the
+// account as changed. The account's other sessions belong to an earlier
+// generation and have ended. Nothing is kept when the account changed in
+// between, by another password or by being disabled: then the session that
+// authenticated pr has ended too.
+func (s *Service) keepOwnSession(prev uint64, acc Account, pr Principal) {
+	if acc.Enabled && acc.UserName == pr.Account.UserName && pr.SessionID != "" && prev == pr.Account.gen {
+		s.sessions.rebind(pr.SessionID, prev, acc.gen)
 	}
 }
 
@@ -347,11 +363,7 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 	}
 	pr, _ := PrincipalFrom(ctx)
 	if _, err := s.accounts.Authenticate(pr.Account.UserName, *params.SessionAccountPassword); errors.Is(err, ErrBusy) {
-		return nil, &server.Error{
-			Status:    http.StatusServiceUnavailable,
-			MessageID: odata.MsgServiceUnavailable,
-			Message:   "The service is temporarily unavailable. Too many logins arrived at once; retry later.",
-		}
+		return nil, err
 	} else if err != nil {
 		return nil, &server.Error{
 			Status:    http.StatusBadRequest,
@@ -359,11 +371,11 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 			Message:   "The value for the parameter SessionAccountPassword is not the password of the account of the session.",
 		}
 	}
-	acc, err := s.accounts.change(name, nil, nil, params.NewPassword)
+	prev, acc, err := s.accounts.change(name, nil, nil, params.NewPassword)
 	if err != nil {
 		return nil, err
 	}
-	s.afterChange(acc, pr)
+	s.keepOwnSession(prev, acc, pr)
 	return nil, nil
 }
 
