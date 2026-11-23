@@ -11,6 +11,11 @@ import (
 // file with mode 0600 in the same directory, syncs it, renames it over the
 // old one and syncs the directory, so that after a power loss the file holds
 // either the old or the new database.
+//
+// The sync of the directory is best effort: once the rename is done the new
+// database is in place and Save succeeds, as Accounts must then use it, even
+// if the directory cannot be synced. The rename may then not survive a power
+// loss that follows at once, leaving the old database.
 type File string
 
 // Load implements Storage.

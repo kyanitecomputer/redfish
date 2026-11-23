@@ -17,12 +17,24 @@ import (
 const pw = "correct horse battery"
 
 // clock is a settable time source.
-type clock struct{ t time.Time }
+type clock struct {
+	mu sync.Mutex
+	t  time.Time
+}
 
-func (c *clock) now() time.Time          { return c.t }
-func (c *clock) advance(d time.Duration) { c.t = c.t.Add(d) }
-func newClock() *clock                   { return &clock{t: time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)} }
-func status(err error) int               { e, _ := errors.AsType[*server.Error](err); return statusOf(e) }
+func (c *clock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.t
+}
+
+func (c *clock) advance(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.t = c.t.Add(d)
+}
+func newClock() *clock     { return &clock{t: time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)} }
+func status(err error) int { e, _ := errors.AsType[*server.Error](err); return statusOf(e) }
 func statusOf(e *server.Error) int {
 	if e == nil {
 		return 0
@@ -59,6 +71,9 @@ func TestAccountsAuthenticate(t *testing.T) {
 	}
 	// A remembered password is forgotten when it changes.
 	if err := a.Create("op", pw, Operator); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.Authenticate("admin", pw); err != nil {
 		t.Fatal(err)
 	}
 	if err := a.SetPassword("admin", "another long password"); err != nil {
@@ -487,5 +502,372 @@ func TestUnknownNameTiming(t *testing.T) {
 	known, unknown := time1("admin"), time1("nobody")
 	if unknown > 3*known || known > 3*unknown {
 		t.Errorf("unknown name %v, known %v", unknown, known)
+	}
+}
+
+// toggleStorage fails Save while fail is set.
+type toggleStorage struct {
+	Memory
+	fail bool
+}
+
+func (s *toggleStorage) Save(data []byte) error {
+	if s.fail {
+		return errors.New("disk full")
+	}
+	return s.Memory.Save(data)
+}
+
+// TestPolicyRoundTrip refuses policies that the database cannot store as
+// they are.
+func TestPolicyRoundTrip(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	for name, p := range map[string]Policy{
+		"negative ResetAfter without lockout": {LockoutThreshold: 0, LockoutCounterResetAfter: -time.Second},
+		"fractional duration":                 {LockoutDuration: 90*time.Second + time.Second/2},
+		"fractional SessionTimeout":           {SessionTimeout: 60*time.Second + 1},
+	} {
+		q := DefaultPolicy
+		if p.LockoutCounterResetAfter != 0 {
+			q.LockoutThreshold, q.LockoutCounterResetAfter = 0, p.LockoutCounterResetAfter
+		}
+		if p.LockoutDuration != 0 {
+			q.LockoutDuration = p.LockoutDuration
+		}
+		if p.SessionTimeout != 0 {
+			q.SessionTimeout = p.SessionTimeout
+		}
+		if err := a.SetPolicy(q); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	// What is accepted loads again.
+	m := &Memory{}
+	b, _ := newAccounts(t, m)
+	q := DefaultPolicy
+	q.LockoutThreshold, q.LockoutCounterResetAfter, q.LockoutDuration = 0, 0, 0
+	if err := b.SetPolicy(q); err != nil {
+		t.Fatal(err)
+	}
+	if c, err := NewAccounts(m); err != nil || c.Policy() != q {
+		t.Errorf("reloaded: %v, %+v", err, c.Policy())
+	}
+}
+
+func TestLockoutOffUnlocks(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	a.Create("admin", pw, Administrator)
+	for range DefaultPolicy.LockoutThreshold {
+		a.Authenticate("admin", "wrong password!")
+	}
+	if !a.Locked("admin") {
+		t.Fatal("not locked")
+	}
+	if err := a.UpdatePolicy(func(p *Policy) { p.LockoutThreshold = 0 }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.Authenticate("admin", pw); err != nil {
+		t.Errorf("still locked after turning lockout off: %v", err)
+	}
+}
+
+// waitFor waits until a.waiting reaches n.
+func waitFor(t *testing.T, a *Accounts, n int32) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); a.waiting.Load() != n; {
+		if time.Now().After(deadline) {
+			t.Fatalf("%d waiting, want %d", a.waiting.Load(), n)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// fillSlots takes every hashing slot and returns a function that gives them
+// back.
+func fillSlots(a *Accounts) func() {
+	for range verifySlots {
+		a.slots <- struct{}{}
+	}
+	return func() {
+		for range verifySlots {
+			<-a.slots
+		}
+	}
+}
+
+// TestPolicyCheckedAfterHashing raises the minimum password length while a
+// new password waits to be hashed: it is refused.
+func TestPolicyCheckedAfterHashing(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	a.Create("admin", pw, Administrator)
+	short := "fifteen chars!!"
+	for _, op := range []struct {
+		name string
+		fn   func() error
+	}{
+		{"Create", func() error { return a.Create("op", short, Operator) }},
+		{"SetPassword", func() error { return a.SetPassword("admin", short) }},
+	} {
+		a.SetPolicy(DefaultPolicy)
+		release := fillSlots(a)
+		errc := make(chan error)
+		go func() { errc <- op.fn() }()
+		waitFor(t, a, 1)
+		if err := a.UpdatePolicy(func(p *Policy) { p.MinPasswordLength = 20 }); err != nil {
+			t.Fatal(err)
+		}
+		release()
+		if err := <-errc; err == nil {
+			t.Errorf("%s: a password shorter than the new minimum was stored", op.name)
+		}
+	}
+	if _, err := a.Authenticate("admin", pw); err != nil {
+		t.Errorf("admin's password changed: %v", err)
+	}
+}
+
+func TestDeleteFailsKeepsLockout(t *testing.T) {
+	st := &toggleStorage{}
+	a, _ := newAccounts(t, st)
+	a.Create("admin", pw, Administrator)
+	a.Create("op", pw, Operator)
+	for range DefaultPolicy.LockoutThreshold {
+		a.Authenticate("op", "wrong password!")
+	}
+	st.fail = true
+	if err := a.Delete("op"); err == nil {
+		t.Fatal("Delete succeeded without saving")
+	}
+	if !a.Locked("op") {
+		t.Error("a failed Delete unlocked the account")
+	}
+}
+
+// TestRememberedPasswordKeepsFailures checks that a password matching a
+// remembered one does not reset the failures, so that a client polling with
+// HTTP Basic does not give others unlimited guesses.
+func TestRememberedPasswordKeepsFailures(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	a.Create("admin", pw, Administrator)
+	a.Authenticate("admin", pw)
+	for range DefaultPolicy.LockoutThreshold - 1 {
+		a.Authenticate("admin", "wrong password!")
+		if _, err := a.Authenticate("admin", pw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a.Authenticate("admin", "wrong password!")
+	if !a.Locked("admin") {
+		t.Error("remembered logins in between reset the failures")
+	}
+}
+
+// TestLockoutFromReservationTime locks a name with a login that waited for a
+// slot: the lockout lasts from when the login was counted.
+func TestLockoutFromReservationTime(t *testing.T) {
+	a, c := newAccounts(t, &Memory{})
+	a.SetPolicy(Policy{MinPasswordLength: 12, MaxPasswordLength: 128, LockoutThreshold: 1,
+		LockoutDuration: time.Minute, LockoutCounterResetAfter: time.Minute, BasicAuth: BasicEnabled, SessionTimeout: time.Hour})
+	a.Create("admin", pw, Administrator)
+	release := fillSlots(a)
+	done := make(chan struct{})
+	go func() { a.Authenticate("admin", "wrong password!"); close(done) }()
+	waitFor(t, a, 1)
+	c.advance(4 * time.Second)
+	release()
+	<-done
+	c.advance(58 * time.Second) // 62 s after the request, 58 s after it was counted
+	if !a.Locked("admin") {
+		t.Error("the lockout counted from the arrival of the request")
+	}
+}
+
+// TestReservations undoes and clears only the window a login was counted in.
+func TestReservations(t *testing.T) {
+	a, c := newAccounts(t, &Memory{})
+	a.SetPolicy(Policy{MinPasswordLength: 12, MaxPasswordLength: 128, LockoutThreshold: 2,
+		LockoutDuration: time.Minute, LockoutCounterResetAfter: time.Minute, BasicAuth: BasicEnabled, SessionTimeout: time.Hour})
+	now := c.now()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// A reservation that locked the name is undone completely.
+	a.countFailure("x", now)
+	res := a.countFailure("x", now)
+	if !res.locked || !a.locked("x", now) {
+		t.Fatal("second failure did not lock")
+	}
+	a.undo("x", res)
+	if a.locked("x", now) || a.failures["x"].count != 1 {
+		t.Errorf("after undo: locked %v, count %d, want unlocked, 1", a.locked("x", now), a.failures["x"].count)
+	}
+
+	// After Unlock and new failures, an old reservation touches nothing.
+	old := a.countFailure("y", now)
+	delete(a.failures, "y") // Unlock
+	a.countFailure("y", now)
+	a.countFailure("y", now)
+	a.undo("y", old)
+	a.clearWindow("y", old)
+	if !a.locked("y", now) {
+		t.Error("an old reservation undid or cleared a newer lockout")
+	}
+
+	// A later window of the same record is not cleared either.
+	old = a.countFailure("z", now)
+	a.countFailure("z", now) // locks: a new window
+	a.clearWindow("z", old)
+	if !a.locked("z", now) {
+		t.Error("a login counted before the lockout cleared it")
+	}
+}
+
+// TestMixedIterations loads accounts whose hashes have different iteration
+// counts: each gets one with the current count at its next login, so that
+// unknown names, checked with the current count, take as long.
+func TestMixedIterations(t *testing.T) {
+	h1, _ := hash(pw, 1000)
+	h2, _ := hash(pw, 2000)
+	m := &Memory{}
+	m.Save([]byte("account a1 Administrator enabled " + h1 + "\naccount a2 ReadOnly enabled " + h2 + "\n"))
+	a, _ := newAccounts(t, m)
+	a.Iterations = 3000
+	gen := a.list[0].gen
+	for _, name := range []string{"a1", "a2"} {
+		if _, err := a.Authenticate(name, pw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, acc := range a.list {
+		if n := hashIterations(acc.hash); n != 3000 {
+			t.Errorf("%s: %d iterations after login, want 3000", acc.UserName, n)
+		}
+	}
+	if a.list[0].gen != gen {
+		t.Error("the new hash ended the account's sessions")
+	}
+	a.mu.Lock()
+	if n := hashIterations(a.unknownHash()); n != 3000 {
+		t.Errorf("unknown names: %d iterations, want 3000", n)
+	}
+	a.mu.Unlock()
+	if _, err := a.Authenticate("a2", pw); err != nil {
+		t.Errorf("login with the new hash: %v", err)
+	}
+	if b, err := NewAccounts(m); err != nil || hashIterations(b.list[1].hash) != 3000 {
+		t.Errorf("new hash not stored: %v", err)
+	}
+}
+
+func TestIterationsBound(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	a.Iterations = maxIterations + 1
+	if err := a.Create("admin", pw, Administrator); err == nil {
+		t.Error("a hash that cannot be verified was stored")
+	}
+}
+
+func TestDatabaseErrors(t *testing.T) {
+	h, _ := hash(pw, 1000)
+	for _, data := range []string{
+		"account admin Administrator enabled x\n",
+		"account admin Administrator enabled $pbkdf2-sha256$1000$AAAA$AAAA\n",
+		"account admin Root enabled " + h + "\n",
+	} {
+		m := &Memory{}
+		m.Save([]byte(data))
+		_, err := NewAccounts(m)
+		if err == nil {
+			t.Errorf("accepted %q", data[:30])
+		} else if strings.Contains(err.Error(), "pbkdf2") || strings.Contains(err.Error(), h[20:]) {
+			t.Errorf("error shows the hash: %v", err)
+		}
+	}
+}
+
+// TestPasswordWritesUseSlots refuses a new password as busy while the
+// hashing slots are taken.
+func TestPasswordWritesUseSlots(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	a.Create("admin", pw, Administrator)
+	defer func(d time.Duration) { verifyWait = d }(verifyWait)
+	verifyWait = 10 * time.Millisecond
+	release := fillSlots(a)
+	defer release()
+	if err := a.SetPassword("admin", "another long password"); !errors.Is(err, ErrBusy) {
+		t.Errorf("SetPassword: %v, want ErrBusy", err)
+	}
+	if err := a.Create("op", pw, Operator); !errors.Is(err, ErrBusy) {
+		t.Errorf("Create: %v, want ErrBusy", err)
+	}
+}
+
+// TestConcurrentRehash logs in twice at once with the right password of an
+// account whose hash gets a higher iteration count: both succeed.
+func TestConcurrentRehash(t *testing.T) {
+	for range 10 {
+		h, _ := hash(pw, 20000)
+		m := &Memory{}
+		m.Save([]byte("account admin Administrator enabled " + h + "\n"))
+		a, _ := newAccounts(t, m)
+		a.Iterations = 30000
+		var wg sync.WaitGroup
+		for range 2 {
+			wg.Go(func() {
+				if _, err := a.Authenticate("admin", pw); err != nil {
+					t.Errorf("concurrent login: %v", err)
+				}
+			})
+		}
+		wg.Wait()
+	}
+}
+
+// TestNoDowngrade keeps a hash with more iterations than new ones get.
+func TestNoDowngrade(t *testing.T) {
+	h, _ := hash(pw, 5000)
+	m := &Memory{}
+	m.Save([]byte("account admin Administrator enabled " + h + "\n"))
+	a, _ := newAccounts(t, m)
+	if _, err := a.Authenticate("admin", pw); err != nil {
+		t.Fatal(err)
+	}
+	if n := hashIterations(a.list[0].hash); n != 5000 {
+		t.Errorf("%d iterations after login, want 5000", n)
+	}
+}
+
+// TestStaleWindowSameRecord checks that a reservation of an earlier window
+// of the same record neither undoes nor clears a later one.
+func TestStaleWindowSameRecord(t *testing.T) {
+	a, c := newAccounts(t, &Memory{})
+	a.SetPolicy(Policy{MinPasswordLength: 12, MaxPasswordLength: 128, LockoutThreshold: 3,
+		LockoutDuration: time.Minute, LockoutCounterResetAfter: 10 * time.Second, BasicAuth: BasicEnabled, SessionTimeout: time.Hour})
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	old := a.countFailure("x", c.now())
+	c.advance(11 * time.Second) // the count starts again: a new window, same record
+	a.countFailure("x", c.now())
+	a.countFailure("x", c.now())
+	a.undo("x", old)
+	if a.failures["x"].count != 2 {
+		t.Errorf("count %d after undoing an old window, want 2", a.failures["x"].count)
+	}
+	a.clearWindow("x", old)
+	if a.failures["x"] == nil {
+		t.Error("an old window's login cleared the new one")
+	}
+}
+
+// TestUncountedLoginKeepsLockout: a login that was not counted, as lockout
+// was off when it began, does not lift a lockout that began meanwhile.
+func TestUncountedLoginKeepsLockout(t *testing.T) {
+	a, c := newAccounts(t, &Memory{})
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.failures["x"] = &failures{lockedUntil: c.now().Add(time.Minute)}
+	a.clearWindow("x", reservation{})
+	if !a.locked("x", c.now()) {
+		t.Error("an uncounted login lifted a lockout")
 	}
 }

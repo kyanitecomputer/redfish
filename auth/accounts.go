@@ -121,14 +121,16 @@ var DefaultPolicy = Policy{
 // maxSetting bounds the durations of the policy, in seconds.
 const maxSetting = 1 << 30
 
-// check reports a policy that the account service cannot use.
+// check reports a policy that the account service cannot use, or cannot
+// store as it is: the durations are stored in whole seconds.
 func (p Policy) check() error {
+	seconds := func(d time.Duration) bool { return d >= 0 && d <= maxSetting*time.Second && d%time.Second == 0 }
 	switch {
 	case p.MinPasswordLength < 1 || p.MaxPasswordLength < p.MinPasswordLength || p.MaxPasswordLength > 1024:
 		return badProperty("The password lengths must satisfy 1 <= MinPasswordLength <= MaxPasswordLength <= 1024.")
 	case p.LockoutThreshold < 0 || p.LockoutThreshold > maxSetting ||
-		p.LockoutDuration < 0 || p.LockoutDuration > maxSetting*time.Second:
-		return badProperty("The account lockout settings must be between 0 and 2^30.")
+		!seconds(p.LockoutDuration) || !seconds(p.LockoutCounterResetAfter) || !seconds(p.SessionTimeout):
+		return badProperty("The account lockout settings must be between 0 and 2^30, and durations whole seconds.")
 	case p.LockoutThreshold > 0 && (p.LockoutCounterResetAfter < time.Second || p.LockoutCounterResetAfter > p.LockoutDuration):
 		return badProperty("AccountLockoutCounterResetAfter must be at least 1 and at most AccountLockoutDuration.")
 	case p.BasicAuth != BasicEnabled && p.BasicAuth != BasicUnadvertised && p.BasicAuth != BasicDisabled:
@@ -200,9 +202,14 @@ var verifyWait = 5 * time.Second
 // are counted; those of accounts are always counted.
 var maxFailures = 4096
 
-// ErrBusy is the error of a login that waited too long to have its password
-// checked, as too many logins arrived at once.
-var ErrBusy = errors.New("auth: too many logins at once")
+// ErrBusy is the error of a login, or a change of a password, that waited
+// too long for a slot to hash the password, as too many arrived at once. It
+// is a *server.Error with status 503.
+var ErrBusy error = &server.Error{
+	Status:    http.StatusServiceUnavailable,
+	MessageID: odata.MsgServiceUnavailable,
+	Message:   "The service is temporarily unavailable: too many logins or password changes at once. Retry later.",
+}
 
 // errLogin is the error of every failed login, whatever the reason, so that
 // it does not tell which user names exist.
@@ -225,8 +232,10 @@ type Accounts struct {
 	slots   chan struct{}
 	waiting atomic.Int32
 	hashed  atomic.Int64 // passwords hashed, for tests
-	active  atomic.Int32 // passwords being hashed
-	maxSeen atomic.Int32 // most passwords hashed at once, for tests
+	// rehashFailed is set when a new hash at login could not be saved.
+	rehashFailed atomic.Bool
+	active       atomic.Int32 // passwords being hashed
+	maxSeen      atomic.Int32 // most passwords hashed at once, for tests
 
 	mu       sync.Mutex
 	policy   Policy
@@ -234,7 +243,7 @@ type Accounts struct {
 	failures map[string]*failures
 	verified map[[32]byte]time.Time // remembered passwords, by cacheKey
 	key      [32]byte               // secret of cacheKey
-	dummy    string                 // the hash checked for unknown names while there are no accounts
+	dummy    string                 // the hash checked for unknown names
 }
 
 type account struct {
@@ -242,10 +251,25 @@ type account struct {
 	hash string
 }
 
+// failures are the failed logins with a user name in the current window,
+// which starts with the first failure and again when the count is reset or
+// the name is locked.
 type failures struct {
 	count       int
 	first       time.Time
 	lockedUntil time.Time
+	window      uint64 // counts the windows of the record
+}
+
+// reservation is a login counted as a failure before its password is
+// hashed, so that it can be undone without touching later windows.
+type reservation struct {
+	f      *failures // nil when the login was not counted
+	window uint64
+	locked bool // the login locked the name
+	// count and first of the window before the login locked it
+	count int
+	first time.Time
 }
 
 // NewAccounts returns the accounts stored in s, with DefaultPolicy when s holds
@@ -292,12 +316,29 @@ func (a *Accounts) Policy() Policy {
 
 // SetPolicy changes the policy of the account service.
 func (a *Accounts) SetPolicy(p Policy) error {
+	return a.UpdatePolicy(func(cur *Policy) { *cur = p })
+}
+
+// UpdatePolicy changes the policy of the account service with fn, which
+// gets the current policy, all in one step, so that concurrent changes of
+// different settings do not undo each other. fn runs with the Accounts
+// locked and must not call its methods. Turning lockout off unlocks every
+// user name.
+func (a *Accounts) UpdatePolicy(fn func(*Policy)) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	p := a.policy
+	fn(&p)
 	if err := p.check(); err != nil {
 		return err
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.commit(a.list, p)
+	if err := a.commit(a.list, p); err != nil {
+		return err
+	}
+	if p.LockoutThreshold == 0 {
+		clear(a.failures)
+	}
+	return nil
 }
 
 // List returns the accounts in the order they were created.
@@ -352,7 +393,7 @@ func (a *Accounts) create(name, password, role string, enabled bool) error {
 	if err := checkPassword(a.Policy(), password); err != nil {
 		return err
 	}
-	h, err := hash(password, a.iterations())
+	h, err := a.hashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -360,6 +401,10 @@ func (a *Accounts) create(name, password, role string, enabled bool) error {
 	defer a.mu.Unlock()
 	if a.find(name) != nil {
 		return errExists(name)
+	}
+	// The policy may have changed while the password was hashed.
+	if err := checkPassword(a.policy, password); err != nil {
+		return err
 	}
 	acc := &account{Account: Account{UserName: name, RoleId: role, Enabled: enabled, gen: newGen()}, hash: h}
 	return a.commit(append(slices.Clone(a.list), acc), a.policy)
@@ -378,33 +423,42 @@ func (a *Accounts) Update(name string, role *string, enabled *bool) error {
 
 // Change changes the role, the enabled state and the password of the account
 // named name, where they are not nil, all or none. The last enabled
-// Administrator stays one.
+// Administrator stays one. A new password is hashed in one of the slots that
+// logins use, so Change fails with ErrBusy when too many wait for one.
 func (a *Accounts) Change(name string, role *string, enabled *bool, password *string) error {
-	_, err := a.change(name, role, enabled, password)
+	_, _, err := a.change(name, role, enabled, password)
 	return err
 }
 
-// change is Change, returning the account as changed.
-func (a *Accounts) change(name string, role *string, enabled *bool, password *string) (Account, error) {
+// change is Change, returning the generation of the account before the
+// change and the account as changed.
+func (a *Accounts) change(name string, role *string, enabled *bool, password *string) (uint64, Account, error) {
 	if role != nil && RolePrivileges(*role) == nil {
-		return Account{}, badRole(*role)
+		return 0, Account{}, badRole(*role)
 	}
 	var h string
 	if password != nil {
 		if err := checkPassword(a.Policy(), *password); err != nil {
-			return Account{}, err
+			return 0, Account{}, err
 		}
 		var err error
-		if h, err = hash(*password, a.iterations()); err != nil {
-			return Account{}, err
+		if h, err = a.hashPassword(*password); err != nil {
+			return 0, Account{}, err
 		}
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	i := slices.IndexFunc(a.list, func(acc *account) bool { return acc.UserName == name })
 	if i < 0 {
-		return Account{}, errNoAccount(name)
+		return 0, Account{}, errNoAccount(name)
 	}
+	if password != nil {
+		// The policy may have changed while the password was hashed.
+		if err := checkPassword(a.policy, *password); err != nil {
+			return 0, Account{}, err
+		}
+	}
+	prev := a.list[i].gen
 	acc := *a.list[i]
 	if role != nil {
 		acc.RoleId = *role
@@ -421,16 +475,16 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 	list := slices.Clone(a.list)
 	list[i] = &acc
 	if adminCount(a.list) > 0 && adminCount(list) == 0 {
-		return Account{}, &server.Error{
+		return 0, Account{}, &server.Error{
 			Status:    http.StatusBadRequest,
 			MessageID: odata.MsgGeneralError,
 			Message:   "The last enabled Administrator account cannot be disabled or given another role.",
 		}
 	}
 	if err := a.commit(list, a.policy); err != nil {
-		return Account{}, err
+		return 0, Account{}, err
 	}
-	return acc.Account, nil
+	return prev, acc.Account, nil
 }
 
 // Delete removes the account named name, unless it is the last enabled
@@ -450,8 +504,11 @@ func (a *Accounts) Delete(name string) error {
 			Message:   "The last enabled Administrator account cannot be deleted.",
 		}
 	}
+	if err := a.commit(list, a.policy); err != nil {
+		return err
+	}
 	delete(a.failures, name)
-	return a.commit(list, a.policy)
+	return nil
 }
 
 func adminCount(list []*account) int {
@@ -494,19 +551,28 @@ func (a *Accounts) find(name string) *account {
 // LockoutThreshold, and a login refused as busy is not counted. While the
 // name is locked, attempts fail without being counted, so that the lockout
 // ends LockoutDuration after it began whatever is sent meanwhile.
+//
+// A password that matches a remembered one does not reset the count of
+// failures: otherwise a client that polls with HTTP Basic would let others
+// guess without limit. The count starts again LockoutCounterResetAfter after
+// the first failure, and after a login whose password had to be hashed.
+//
+// An unknown name is checked against a hash with the current iteration count,
+// as long to check as those of the accounts: an account whose hash has a
+// lower count gets a new one at its next successful login. Until then a
+// failed login with its name takes less time than one with an unknown name;
+// hashes with a higher count are kept, and take longer.
 func (a *Accounts) Authenticate(name, password string) (Account, error) {
-	now := a.now()
 	a.mu.Lock()
-	maxLen := a.policy.MaxPasswordLength
-	a.mu.Unlock()
+	now, maxLen := a.now(), a.policy.MaxPasswordLength
 	if utf8.RuneCountInString(password) > maxLen {
-		a.mu.Lock()
 		if !a.locked(name, now) {
 			a.countFailure(name, now)
 		}
 		a.mu.Unlock()
 		return Account{}, errLogin
 	}
+	a.mu.Unlock()
 	key := a.cacheKey(name, password)
 	a.mu.Lock()
 	if a.locked(name, now) {
@@ -524,11 +590,14 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 	}
 	defer a.release()
 	a.mu.Lock()
+	// The time of the reservation, not of the request, which may have
+	// waited for the slot.
+	now = a.now()
 	if a.locked(name, now) {
 		a.mu.Unlock()
 		return Account{}, errLogin
 	}
-	a.countFailure(name, now)
+	res := a.countFailure(name, now)
 	acc := a.find(name)
 	h := a.unknownHash()
 	if acc != nil {
@@ -537,6 +606,10 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 	a.mu.Unlock()
 
 	ok := a.check(h, password)
+	var rehash string
+	if ok && acc != nil && hashIterations(h) < a.iterations() && !a.rehashFailed.Load() {
+		rehash, _ = hash(password, a.iterations())
+	}
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -544,20 +617,46 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 	switch {
 	case acc == nil || !ok:
 		return Account{}, errLogin
-	case cur == nil || cur.hash != h:
-		// The account changed while the password was hashed: not a
-		// failure of the client.
-		a.refund(name)
+	case cur == nil || cur.gen != acc.gen:
+		// The account got another password, or was disabled or
+		// replaced, while the password was hashed: not a failure of
+		// the client. A new hash of the same password by a concurrent
+		// login keeps the generation.
+		a.undo(name, res)
 		return Account{}, errLogin
 	case !cur.Enabled:
 		return Account{}, errLogin
 	}
-	delete(a.failures, name)
+	a.clearWindow(name, res)
+	if rehash != "" && cur.hash == h {
+		// Same password, same generation: sessions stay. A database that
+		// cannot be saved is not tried again with every login.
+		i := slices.Index(a.list, cur)
+		up := *cur
+		up.hash = rehash
+		list := slices.Clone(a.list)
+		list[i] = &up
+		if a.commit(list, a.policy) == nil {
+			cur = &up
+		} else {
+			a.rehashFailed.Store(true)
+		}
+	}
 	if len(a.verified) >= maxVerified {
 		clear(a.verified)
 	}
 	a.verified[key] = now.Add(verifiedTTL)
 	return cur.Account, nil
+}
+
+// hashPassword returns the hash of a new password, made in one of the slots
+// of the logins.
+func (a *Accounts) hashPassword(password string) (string, error) {
+	if err := a.acquire(); err != nil {
+		return "", err
+	}
+	defer a.release()
+	return hash(password, a.iterations())
 }
 
 // acquire waits for a slot to hash a password, or fails with ErrBusy after
@@ -591,16 +690,20 @@ func (a *Accounts) check(h, password string) bool {
 }
 
 // unknownHash returns the hash to check the password of an unknown user name
-// against, one that takes as long as a real one: that of the first account,
-// or while there is none, one made for the purpose. a.mu must be held.
+// against: random, so that no password matches, with the current iteration
+// count, so that checking it takes as long as a real one. a.mu must be held.
 func (a *Accounts) unknownHash() string {
-	if len(a.list) > 0 {
-		return a.list[0].hash
-	}
-	if f := strings.Split(a.dummy, "$"); len(f) != 5 || f[2] != strconv.Itoa(a.iterations()) {
-		a.dummy, _ = hash(rand.Text(), a.iterations())
+	if iter := a.iterations(); hashIterations(a.dummy) != iter {
+		b64 := base64.RawStdEncoding
+		a.dummy = fmt.Sprintf("$pbkdf2-sha256$%d$%s$%s", iter, b64.EncodeToString(randomBytes(16)), b64.EncodeToString(randomBytes(sha256.Size)))
 	}
 	return a.dummy
+}
+
+func randomBytes(n int) []byte {
+	b := make([]byte, n)
+	rand.Read(b)
+	return b
 }
 
 // locked reports whether the user name is locked. a.mu must be held.
@@ -613,11 +716,11 @@ func (a *Accounts) locked(name string, now time.Time) bool {
 // that reaches the threshold. The names of accounts are always counted;
 // when maxFailures other names are counted, those that are not locked are
 // forgotten, and while that leaves no room, other names are not counted.
-// a.mu must be held.
-func (a *Accounts) countFailure(name string, now time.Time) {
+// It returns what it did, for undo and clearWindow. a.mu must be held.
+func (a *Accounts) countFailure(name string, now time.Time) reservation {
 	p := a.policy
 	if p.LockoutThreshold == 0 {
-		return
+		return reservation{}
 	}
 	f := a.failures[name]
 	if f == nil {
@@ -628,19 +731,25 @@ func (a *Accounts) countFailure(name string, now time.Time) {
 				}
 			}
 			if a.unknownFailures() >= maxFailures {
-				return
+				return reservation{}
 			}
 		}
 		f = &failures{first: now}
 		a.failures[name] = f
 	} else if !now.Before(f.first.Add(p.LockoutCounterResetAfter)) {
 		f.count, f.first = 0, now
+		f.window++
 	}
 	f.count++
+	res := reservation{f: f, window: f.window}
 	if f.count >= p.LockoutThreshold {
+		res.locked, res.count, res.first = true, f.count-1, f.first
 		f.lockedUntil = now.Add(p.LockoutDuration)
 		f.count, f.first = 0, now
+		f.window++
+		res.window = f.window
 	}
+	return res
 }
 
 // unknownFailures returns how many counted names have no account. a.mu must
@@ -655,11 +764,36 @@ func (a *Accounts) unknownFailures() int {
 	return n
 }
 
-// refund takes back a failure that countFailure counted for an attempt that
-// did not fail through the client. a.mu must be held.
-func (a *Accounts) refund(name string) {
-	if f := a.failures[name]; f != nil && f.count > 0 {
+// owns reports whether res is the reservation of the current window of the
+// user name. a.mu must be held.
+func (a *Accounts) owns(name string, res reservation) bool {
+	return res.f != nil && a.failures[name] == res.f && res.f.window == res.window
+}
+
+// undo takes back the reservation res of a login that did not fail through
+// the client, if its window is still the current one. a.mu must be held.
+func (a *Accounts) undo(name string, res reservation) {
+	if !a.owns(name, res) {
+		return
+	}
+	f := res.f
+	if res.locked {
+		f.lockedUntil, f.count, f.first = time.Time{}, res.count, res.first
+		f.window++
+		return
+	}
+	if f.count > 0 {
 		f.count--
+	}
+}
+
+// clearWindow forgets the failures of the user name after a login with the
+// right password, unless a later window, such as a lockout by later
+// failures, has replaced the one the login was counted in. a.mu must be
+// held.
+func (a *Accounts) clearWindow(name string, res reservation) {
+	if a.owns(name, res) {
+		delete(a.failures, name)
 	}
 }
 
@@ -680,10 +814,10 @@ func newGen() uint64 {
 
 // hash returns the PBKDF2 hash of password with a new salt.
 func hash(password string, iter int) (string, error) {
-	salt := make([]byte, 16)
-	if _, err := rand.Read(salt); err != nil {
-		return "", err
+	if iter < 1 || iter > maxIterations {
+		return "", fmt.Errorf("auth: %d PBKDF2 iterations, want 1 to %d", iter, maxIterations)
 	}
+	salt := randomBytes(16)
 	key, err := pbkdf2.Key(sha256.New, password, salt, iter, sha256.Size)
 	if err != nil {
 		return "", err
@@ -692,20 +826,37 @@ func hash(password string, iter int) (string, error) {
 	return fmt.Sprintf("$pbkdf2-sha256$%d$%s$%s", iter, b64.EncodeToString(salt), b64.EncodeToString(key)), nil
 }
 
-// verify reports whether password matches hash.
-func verify(hash, password string) bool {
-	f := strings.Split(hash, "$")
+// parseHash splits a stored hash, and reports whether it is one that verify
+// can check.
+func parseHash(h string) (iter int, salt, key []byte, ok bool) {
+	f := strings.Split(h, "$")
 	if len(f) != 5 || f[0] != "" || f[1] != "pbkdf2-sha256" {
-		return false
+		return 0, nil, nil, false
 	}
 	iter, err := strconv.Atoi(f[2])
 	if err != nil || iter < 1 || iter > maxIterations {
-		return false
+		return 0, nil, nil, false
 	}
 	b64 := base64.RawStdEncoding
 	salt, err1 := b64.DecodeString(f[3])
-	want, err2 := b64.DecodeString(f[4])
-	if err1 != nil || err2 != nil || len(want) < 16 || len(want) > 64 {
+	key, err2 := b64.DecodeString(f[4])
+	if err1 != nil || err2 != nil || len(salt) < 8 || len(salt) > 64 || len(key) < 16 || len(key) > 64 {
+		return 0, nil, nil, false
+	}
+	return iter, salt, key, true
+}
+
+// hashIterations returns the iteration count of a stored hash, 0 if it has
+// none.
+func hashIterations(h string) int {
+	iter, _, _, _ := parseHash(h)
+	return iter
+}
+
+// verify reports whether password matches hash.
+func verify(hash, password string) bool {
+	iter, salt, want, ok := parseHash(hash)
+	if !ok {
 		return false
 	}
 	got, err := pbkdf2.Key(sha256.New, password, salt, iter, len(want))
@@ -796,7 +947,8 @@ func parse(data []byte) ([]*account, Policy, error) {
 			continue
 		}
 		f := strings.Fields(line)
-		bad := fmt.Errorf("auth: account database line %d: %q", n, line)
+		// The line itself is left out of errors: it may hold a hash.
+		bad := func(what string) error { return fmt.Errorf("auth: account database line %d: %s", n, what) }
 		switch {
 		case f[0] == "policy" && len(f) == 3:
 			if f[1] == "HTTPBasicAuth" {
@@ -805,7 +957,7 @@ func parse(data []byte) ([]*account, Policy, error) {
 			}
 			v, err := strconv.Atoi(f[2])
 			if err != nil || v < 0 || v > maxSetting {
-				return nil, p, bad
+				return nil, p, bad("bad value of " + f[1])
 			}
 			switch f[1] {
 			case "MinPasswordLength":
@@ -821,17 +973,26 @@ func parse(data []byte) ([]*account, Policy, error) {
 			case "SessionTimeout":
 				p.SessionTimeout = time.Duration(v) * time.Second
 			default:
-				return nil, p, bad
+				return nil, p, bad("unknown setting")
 			}
 		case f[0] == "account" && len(f) == 5:
 			acc := &account{Account: Account{UserName: f[1], RoleId: f[2], Enabled: f[3] == "enabled", gen: newGen()}, hash: f[4]}
-			if checkName(acc.UserName) != nil || RolePrivileges(acc.RoleId) == nil ||
-				(f[3] != "enabled" && f[3] != "disabled") || slices.ContainsFunc(list, func(o *account) bool { return o.UserName == acc.UserName }) {
-				return nil, p, bad
+			_, _, _, hashOK := parseHash(acc.hash)
+			switch {
+			case checkName(acc.UserName) != nil:
+				return nil, p, bad("bad user name")
+			case RolePrivileges(acc.RoleId) == nil:
+				return nil, p, bad("unknown role")
+			case f[3] != "enabled" && f[3] != "disabled":
+				return nil, p, bad("bad state")
+			case !hashOK:
+				return nil, p, bad("bad password hash")
+			case slices.ContainsFunc(list, func(o *account) bool { return o.UserName == acc.UserName }):
+				return nil, p, bad("duplicate user name")
 			}
 			list = append(list, acc)
 		default:
-			return nil, p, bad
+			return nil, p, bad("unknown entry")
 		}
 	}
 	if err := sc.Err(); err != nil {

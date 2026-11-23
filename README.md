@@ -26,8 +26,8 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - Authenticates requests with sessions (`X-Auth-Token`), HTTP Basic, or verified TLS client certificates, checks
   the privileges of the Administrator, Operator and ReadOnly roles, and serves the `AccountService` with accounts
   and roles and the `SessionService` with sessions. Passwords are stored as PBKDF2-HMAC-SHA256 hashes; failed logins
-  lock the user name for a while, and at most two passwords are hashed at a time. Changes sent by a browser from
-  another origin are refused.
+  lock the user name for a while, and at most two passwords, for logins or password changes, are hashed at a time.
+  Changes sent by a browser from another origin are refused.
 - Serves the `UpdateService` with firmware and software inventory, `SimpleUpdate`, multipart HTTP push updates,
   and `Activate` on top of a pluggable, OS-independent update backend.
 - Ships an in-memory example BMC, which requires a login (admin/admin, over plain HTTP: for local use only), that passes the DMTF Redfish Service
