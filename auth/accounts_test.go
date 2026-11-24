@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"crypto/pbkdf2"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -965,8 +969,8 @@ func TestPolicyLengthAfterWait(t *testing.T) {
 	waitFor(t, a, 1)
 	a.UpdatePolicy(func(p *Policy) { p.MaxPasswordLength = 30 })
 	release()
-	if err := <-errc; err == nil {
-		t.Error("a login waiting for a slot passed with a password over the new maximum")
+	if err := <-errc; !errors.Is(err, errLogin) {
+		t.Errorf("a login waiting for a slot with a password over the new maximum: %v, want it refused", err)
 	}
 
 	a.UpdatePolicy(func(p *Policy) { p.MaxPasswordLength = 128 })
@@ -1014,6 +1018,76 @@ func TestRehashRetry(t *testing.T) {
 	}
 }
 
+// countingStorage is a Storage that fails every save, after calling during
+// if set, and counts the saves.
+type countingStorage struct {
+	Memory
+	saves  atomic.Int32
+	during func()
+}
+
+func (s *countingStorage) Save([]byte) error {
+	s.saves.Add(1)
+	if s.during != nil {
+		s.during()
+	}
+	return errors.New("disk full")
+}
+
+// TestRehashCooldownAfterSave: a login that hashed while another one's save
+// was failing does not save either, and the cooldown runs from the failed
+// save, not from the login.
+func TestRehashCooldownAfterSave(t *testing.T) {
+	h, _ := hash(pw, 1000)
+	st := &countingStorage{}
+	st.Memory.Save([]byte("account admin Administrator enabled " + h + "\naccount op Operator enabled " + h + "\n"))
+	a, c := newAccounts(t, st)
+	a.Iterations = 2000
+	// Both logins check, then hash anew (2 x 3000 iterations), before the
+	// first save fails.
+	start := a.work.Load()
+	st.during = func() {
+		st.during = nil
+		for deadline := time.Now().Add(5 * time.Second); a.work.Load()-start < 6000; time.Sleep(time.Millisecond) {
+			if time.Now().After(deadline) {
+				t.Error("the second login did not hash anew")
+				return
+			}
+		}
+	}
+	// Both logins hold a reservation before either goes on, so that the
+	// second is not stuck behind the first one's save.
+	var both sync.WaitGroup
+	both.Add(2)
+	a.beforeCheck = func() { both.Done(); both.Wait() }
+	var wg sync.WaitGroup
+	for _, name := range []string{"admin", "op"} {
+		wg.Go(func() {
+			if _, err := a.Authenticate(name, pw); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+	a.beforeCheck = nil
+	if n := st.saves.Load(); n != 1 {
+		t.Errorf("%d saves, want 1: the second login saved during the cooldown", n)
+	}
+
+	st.saves.Store(0)
+	a.rehashAfter.Store(0)
+	st.during = func() { c.advance(30 * time.Second) } // a slow save
+	clear(a.verified)
+	a.Authenticate("admin", pw)
+	st.during = nil
+	c.advance(rehashCooldown - 10*time.Second) // 5:20 after the login, 4:50 after the save
+	clear(a.verified)
+	a.Authenticate("op", pw)
+	if n := st.saves.Load(); n != 1 {
+		t.Errorf("%d saves, want 1: the cooldown began before the failed save", n)
+	}
+}
+
 // TestFailedLoginWork: a failed login with an account whose hash has a lower
 // iteration count does as many iterations as one with an unknown name.
 func TestFailedLoginWork(t *testing.T) {
@@ -1029,6 +1103,42 @@ func TestFailedLoginWork(t *testing.T) {
 	}
 	if known, unknown := work("admin"), work("nobody"); known != unknown || unknown != 3000 {
 		t.Errorf("iterations: account %d, unknown name %d, want 3000 both", known, unknown)
+	}
+
+	// A 64-byte key takes two blocks: 1000 iterations are 2000, padded to
+	// 3000; 2000 iterations are 4000, which is not shortened. So does a
+	// 48-byte one.
+	for _, tt := range []struct{ iter, size, want int }{{1000, 64, 3000}, {2000, 64, 4000}, {2000, 48, 4000}} {
+		salt := randomBytes(16)
+		key, _ := pbkdf2.Key(sha256.New, pw, salt, tt.iter, tt.size)
+		b64 := base64.RawStdEncoding
+		long := fmt.Sprintf("$pbkdf2-sha256$%d$%s$%s", tt.iter, b64.EncodeToString(salt), b64.EncodeToString(key))
+		if !verify(long, pw) {
+			t.Fatalf("%d-byte hash does not verify", tt.size)
+		}
+		a.mu.Lock()
+		a.list[0].hash = long
+		a.mu.Unlock()
+		if n := work("admin"); n != int64(tt.want) {
+			t.Errorf("%d-byte key with %d iterations: %d iterations of work, want %d", tt.size, tt.iter, n, tt.want)
+		}
+	}
+}
+
+// TestIterationsTooHigh: with Iterations above the most a stored hash may
+// have, logins fail without hashing or padding.
+func TestIterationsTooHigh(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	a.Create("admin", pw, Administrator)
+	a.Iterations = maxIterations + 1
+	for _, name := range []string{"admin", "nobody"} {
+		before := a.work.Load()
+		if _, err := a.Authenticate(name, "wrong password!"); err == nil {
+			t.Errorf("%s: login passed", name)
+		}
+		if n := a.work.Load() - before; n != 0 {
+			t.Errorf("%s: %d iterations hashed", name, n)
+		}
 	}
 }
 
@@ -1091,5 +1201,26 @@ func TestNoRehashOfDisabledAccount(t *testing.T) {
 	}
 	if w := a.work.Load() - before; w != 1000 {
 		t.Errorf("%d iterations, want 1000", w)
+	}
+}
+
+// TestChangeByDemotedAccount: an administrator demoted after its request was
+// authenticated cannot change another account with it.
+func TestChangeByDemotedAccount(t *testing.T) {
+	a, _ := newAccounts(t, &Memory{})
+	a.Create("admin", pw, Administrator)
+	a.Create("admin2", pw, Administrator)
+	a.Create("op", pw, Operator)
+	by, _ := a.Get("admin")
+	op := Operator
+	if err := a.Update("admin", &op, nil); err != nil {
+		t.Fatal(err)
+	}
+	enabled := false
+	if _, _, err := a.change("op", nil, &enabled, nil, &by); err != errSuperseded {
+		t.Errorf("change by a demoted administrator: %v, want errSuperseded", err)
+	}
+	if acc, _ := a.Get("op"); !acc.Enabled {
+		t.Error("op was disabled")
 	}
 }
