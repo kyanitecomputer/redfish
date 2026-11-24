@@ -320,6 +320,9 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 		return nil, errInsufficient
 	}
 	if patch.RoleId != nil || patch.Enabled != nil || patch.Password != nil {
+		if patch.Password != nil {
+			defer s.holdOwnSession(name, pr)()
+		}
 		prev, acc, err := s.accounts.change(name, patch.RoleId, patch.Enabled, patch.Password)
 		if err != nil {
 			return nil, err
@@ -341,9 +344,23 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 // between, by another password or by being disabled: then the session that
 // authenticated pr has ended too.
 func (s *Service) keepOwnSession(prev uint64, acc Account, pr Principal) {
+	if s.beforeRebind != nil {
+		s.beforeRebind()
+	}
 	if acc.Enabled && acc.UserName == pr.Account.UserName && pr.SessionID != "" && prev == pr.Account.gen {
 		s.sessions.rebind(pr.SessionID, prev, acc.gen)
 	}
+}
+
+// holdOwnSession keeps the session of pr from being dropped as ended while pr
+// changes the password of the account named name, if that is its own,
+// until the returned function is called: from the change until
+// keepOwnSession, the session has the account's old generation.
+func (s *Service) holdOwnSession(name string, pr Principal) func() {
+	if pr.SessionID == "" || name != pr.Account.UserName {
+		return func() {}
+	}
+	return s.sessions.hold(pr.SessionID)
 }
 
 // ChangePasswordManagerAccount implements
@@ -371,6 +388,7 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 			Message:   "The value for the parameter SessionAccountPassword is not the password of the account of the session.",
 		}
 	}
+	defer s.holdOwnSession(name, pr)()
 	prev, acc, err := s.accounts.change(name, nil, nil, params.NewPassword)
 	if err != nil {
 		return nil, err

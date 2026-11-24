@@ -126,7 +126,7 @@ const maxSetting = 1 << 30
 func (p Policy) check() error {
 	seconds := func(d time.Duration) bool { return d >= 0 && d <= maxSetting*time.Second && d%time.Second == 0 }
 	switch {
-	case p.MinPasswordLength < 1 || p.MaxPasswordLength < p.MinPasswordLength || p.MaxPasswordLength > 1024:
+	case p.MinPasswordLength < 1 || p.MaxPasswordLength < p.MinPasswordLength || p.MaxPasswordLength > maxPasswordLength:
 		return badProperty("The password lengths must satisfy 1 <= MinPasswordLength <= MaxPasswordLength <= 1024.")
 	case p.LockoutThreshold < 0 || p.LockoutThreshold > maxSetting ||
 		!seconds(p.LockoutDuration) || !seconds(p.LockoutCounterResetAfter) || !seconds(p.SessionTimeout):
@@ -175,6 +175,8 @@ const (
 	// DefaultIterations is the PBKDF2-HMAC-SHA256 iteration count of new
 	// password hashes, as OWASP recommends.
 	DefaultIterations = 600000
+	// maxPasswordLength bounds MaxPasswordLength.
+	maxPasswordLength = 1024
 	// maxIterations bounds the iteration count of a stored hash, so that a
 	// tampered database cannot stall logins.
 	maxIterations = 10000000
@@ -184,6 +186,9 @@ const (
 	verifiedTTL = 5 * time.Minute
 	// maxVerified bounds the remembered passwords.
 	maxVerified = 1024
+	// rehashCooldown is how long logins do not save a new hash after
+	// saving one failed.
+	rehashCooldown = 5 * time.Minute
 
 	// verifySlots is how many passwords are hashed at a time, so that an
 	// attacker who sends logins cannot take more CPU than that, and
@@ -232,10 +237,15 @@ type Accounts struct {
 	slots   chan struct{}
 	waiting atomic.Int32
 	hashed  atomic.Int64 // passwords hashed, for tests
-	// rehashFailed is set when a new hash at login could not be saved.
-	rehashFailed atomic.Bool
-	active       atomic.Int32 // passwords being hashed
-	maxSeen      atomic.Int32 // most passwords hashed at once, for tests
+	work    atomic.Int64 // PBKDF2 iterations of logins, new hashes included, for tests
+	// rehashAfter is when a new hash at login may be saved again after
+	// saving one failed, in Unix nanoseconds.
+	rehashAfter atomic.Int64
+	active      atomic.Int32 // passwords being hashed
+	maxSeen     atomic.Int32 // most passwords hashed at once, for tests
+	// beforeCheck, if set, is called by a login that holds a slot and has
+	// chosen the hash to check, for tests.
+	beforeCheck func()
 
 	mu       sync.Mutex
 	policy   Policy
@@ -251,25 +261,29 @@ type account struct {
 	hash string
 }
 
-// failures are the failed logins with a user name in the current window,
-// which starts with the first failure and again when the count is reset or
-// the name is locked.
+// failures is the record of the failed logins with a user name.
 type failures struct {
-	count       int
-	first       time.Time
+	win         *window // the current window
 	lockedUntil time.Time
-	window      uint64 // counts the windows of the record
+}
+
+// window counts failed logins from first on. A window starts with the first
+// failure, again when the count is reset, and when the name is locked. When
+// failures that do not count are taken back so that the window before a lock
+// no longer reaches the threshold, the lock is lifted and that window is the
+// current one again; the window the lock began is dropped, which only
+// happens while nothing is counted in it.
+type window struct {
+	count  int
+	first  time.Time
+	before *window // for a window begun by a lock, the window that reached the threshold
 }
 
 // reservation is a login counted as a failure before its password is
-// hashed, so that it can be undone without touching later windows.
+// hashed, so that it can be taken back.
 type reservation struct {
-	f      *failures // nil when the login was not counted
-	window uint64
-	locked bool // the login locked the name
-	// count and first of the window before the login locked it
-	count int
-	first time.Time
+	f *failures // nil when the login was not counted
+	w *window   // the window it was counted in
 }
 
 // NewAccounts returns the accounts stored in s, with DefaultPolicy when s holds
@@ -552,29 +566,37 @@ func (a *Accounts) find(name string) *account {
 // name is locked, attempts fail without being counted, so that the lockout
 // ends LockoutDuration after it began whatever is sent meanwhile.
 //
-// A password that matches a remembered one does not reset the count of
-// failures: otherwise a client that polls with HTTP Basic would let others
-// guess without limit. The count starts again LockoutCounterResetAfter after
-// the first failure, and after a login whose password had to be hashed.
+// A login with the right password takes its failure back and, if the window
+// it was counted in is still the current one, forgets the failures of the
+// name. A lock that the login's own failure helped reach is lifted, as only
+// the others count. A password that matches a remembered one does not reset
+// the count of failures: otherwise a client that polls with HTTP Basic would
+// let others guess without limit. The count also starts again
+// LockoutCounterResetAfter after the first failure.
 //
-// An unknown name is checked against a hash with the current iteration count,
-// as long to check as those of the accounts: an account whose hash has a
-// lower count gets a new one at its next successful login. Until then a
-// failed login with its name takes less time than one with an unknown name;
-// hashes with a higher count are kept, and take longer.
+// An unknown name is checked against a hash with the current iteration count.
+// A failed login with an account whose hash has a lower count does the
+// missing iterations too, so both take as long; the account gets a new hash
+// at its next successful login. Hashes with a higher count, left from a
+// service that used more, are kept: failed logins with those names take
+// longer than with unknown names, which tells that the names exist.
 func (a *Accounts) Authenticate(name, password string) (Account, error) {
+	// A password longer than any policy allows is not even hashed for the
+	// cache key.
+	n := utf8.RuneCountInString(password)
+	var key [32]byte
+	if n <= maxPasswordLength {
+		key = a.cacheKey(name, password)
+	}
 	a.mu.Lock()
-	now, maxLen := a.now(), a.policy.MaxPasswordLength
-	if utf8.RuneCountInString(password) > maxLen {
+	now := a.now()
+	if n > a.policy.MaxPasswordLength {
 		if !a.locked(name, now) {
 			a.countFailure(name, now)
 		}
 		a.mu.Unlock()
 		return Account{}, errLogin
 	}
-	a.mu.Unlock()
-	key := a.cacheKey(name, password)
-	a.mu.Lock()
 	if a.locked(name, now) {
 		a.mu.Unlock()
 		return Account{}, errLogin
@@ -605,17 +627,25 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 	}
 	a.mu.Unlock()
 
+	if a.beforeCheck != nil {
+		a.beforeCheck()
+	}
 	ok := a.check(h, password)
+	iter, cost := hashIterations(h), a.iterations()
 	var rehash string
-	if ok && acc != nil && hashIterations(h) < a.iterations() && !a.rehashFailed.Load() {
-		rehash, _ = hash(password, a.iterations())
+	switch {
+	case ok && acc != nil && acc.Enabled && iter < cost && now.UnixNano() >= a.rehashAfter.Load():
+		a.work.Add(int64(cost))
+		rehash, _ = hash(password, cost)
+	case !ok && iter < cost:
+		a.pad(cost - iter)
 	}
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	cur := a.find(name)
 	switch {
-	case acc == nil || !ok:
+	case acc == nil || !ok || n > a.policy.MaxPasswordLength:
 		return Account{}, errLogin
 	case cur == nil || cur.gen != acc.gen:
 		// The account got another password, or was disabled or
@@ -630,7 +660,8 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 	a.clearWindow(name, res)
 	if rehash != "" && cur.hash == h {
 		// Same password, same generation: sessions stay. A database that
-		// cannot be saved is not tried again with every login.
+		// cannot be saved is tried again only after rehashCooldown, not
+		// with every login.
 		i := slices.Index(a.list, cur)
 		up := *cur
 		up.hash = rehash
@@ -639,7 +670,7 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 		if a.commit(list, a.policy) == nil {
 			cur = &up
 		} else {
-			a.rehashFailed.Store(true)
+			a.rehashAfter.Store(now.Add(rehashCooldown).UnixNano())
 		}
 	}
 	if len(a.verified) >= maxVerified {
@@ -682,12 +713,21 @@ func (a *Accounts) release() { <-a.slots }
 // check reports whether password matches h; the caller holds a slot.
 func (a *Accounts) check(h, password string) bool {
 	a.hashed.Add(1)
+	a.work.Add(int64(hashIterations(h)))
 	n := a.active.Add(1)
 	defer a.active.Add(-1)
 	for m := a.maxSeen.Load(); n > m && !a.maxSeen.CompareAndSwap(m, n); m = a.maxSeen.Load() {
 	}
 	return verify(h, password)
 }
+
+// pad does iter PBKDF2 iterations for nothing; the caller holds a slot.
+func (a *Accounts) pad(iter int) {
+	a.work.Add(int64(iter))
+	_, _ = pbkdf2.Key(sha256.New, "", padSalt[:], iter, sha256.Size)
+}
+
+var padSalt [16]byte
 
 // unknownHash returns the hash to check the password of an unknown user name
 // against: random, so that no password matches, with the current iteration
@@ -734,22 +774,20 @@ func (a *Accounts) countFailure(name string, now time.Time) reservation {
 				return reservation{}
 			}
 		}
-		f = &failures{first: now}
+		f = &failures{win: &window{first: now}}
 		a.failures[name] = f
-	} else if !now.Before(f.first.Add(p.LockoutCounterResetAfter)) {
-		f.count, f.first = 0, now
-		f.window++
+	} else if !now.Before(f.win.first.Add(p.LockoutCounterResetAfter)) {
+		f.win = &window{first: now}
 	}
-	f.count++
-	res := reservation{f: f, window: f.window}
-	if f.count >= p.LockoutThreshold {
-		res.locked, res.count, res.first = true, f.count-1, f.first
+	w := f.win
+	w.count++
+	// A lock window with failures in it is no longer lifted by undo.
+	w.before = nil
+	if w.count >= p.LockoutThreshold {
 		f.lockedUntil = now.Add(p.LockoutDuration)
-		f.count, f.first = 0, now
-		f.window++
-		res.window = f.window
+		f.win = &window{first: now, before: w}
 	}
-	return res
+	return reservation{f: f, w: w}
 }
 
 // unknownFailures returns how many counted names have no account. a.mu must
@@ -764,35 +802,33 @@ func (a *Accounts) unknownFailures() int {
 	return n
 }
 
-// owns reports whether res is the reservation of the current window of the
-// user name. a.mu must be held.
-func (a *Accounts) owns(name string, res reservation) bool {
-	return res.f != nil && a.failures[name] == res.f && res.f.window == res.window
-}
-
-// undo takes back the reservation res of a login that did not fail through
-// the client, if its window is still the current one. a.mu must be held.
+// undo takes back the failure that res counted, for a login that did not
+// fail through the client, in the window it was counted in, even if that is
+// no longer the current one. When that leaves the window before the current
+// lock below the threshold, and nothing was counted since the lock, the
+// lock is lifted and that window is the current one again. A record that
+// replaced the one res was counted in, after Unlock or Delete, is not
+// touched. a.mu must be held.
 func (a *Accounts) undo(name string, res reservation) {
-	if !a.owns(name, res) {
+	f, w := res.f, res.w
+	if f == nil || a.failures[name] != f {
 		return
 	}
-	f := res.f
-	if res.locked {
-		f.lockedUntil, f.count, f.first = time.Time{}, res.count, res.first
-		f.window++
-		return
+	if w.count > 0 {
+		w.count--
 	}
-	if f.count > 0 {
-		f.count--
+	if l := f.win; l.before == w && l.count == 0 && w.count < a.policy.LockoutThreshold {
+		f.win, f.lockedUntil = w, time.Time{}
 	}
 }
 
-// clearWindow forgets the failures of the user name after a login with the
-// right password, unless a later window, such as a lockout by later
-// failures, has replaced the one the login was counted in. a.mu must be
-// held.
+// clearWindow is called after a login with the right password: it takes the
+// login's failure back, and forgets the failures of the user name if the
+// window the login was counted in is still the current one, not replaced by
+// a reset or a lock that stands. a.mu must be held.
 func (a *Accounts) clearWindow(name string, res reservation) {
-	if a.owns(name, res) {
+	a.undo(name, res)
+	if f := res.f; f != nil && a.failures[name] == f && res.w == f.win {
 		delete(a.failures, name)
 	}
 }
