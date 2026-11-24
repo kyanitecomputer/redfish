@@ -24,6 +24,7 @@ type session struct {
 	origin   string
 	created  time.Time
 	lastUsed time.Time
+	holds    int // requests changing the password of the session's own account
 }
 
 // sessions holds the open sessions. A session ends when it has not been used
@@ -46,16 +47,16 @@ func newSessions() *sessions {
 // create opens a session of acc and returns it with its token, or false when
 // limit sessions are open. When acc has limit/4 sessions, its oldest one
 // ends. When limit sessions are open, those that current reports as ended,
-// as their account changed, are dropped first; that may include the
-// session that is changing its own password right then. current is called
-// with s.mu held, so it must not use the sessions.
+// as their account changed, are dropped first, except those held by a
+// change of their own password (hold). current is called with s.mu held, so
+// it must not use the sessions.
 func (s *sessions) create(acc Account, origin string, now time.Time, timeout time.Duration, limit int, current func(user string, gen uint64) bool) (session, string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.expire(now, timeout)
 	if len(s.byID) >= limit {
 		for id, sess := range s.byID {
-			if !current(sess.user, sess.gen) {
+			if sess.holds == 0 && !current(sess.user, sess.gen) {
 				s.drop(id)
 			}
 		}
@@ -135,6 +136,24 @@ func (s *sessions) list(now time.Time, timeout time.Duration) []session {
 		return strings.Compare(a.id, b.id)
 	})
 	return out
+}
+
+// hold keeps the session with the id from being dropped as ended while it
+// changes the password of its own account, until the returned function is
+// called: between the change and rebind, its generation is an old one.
+func (s *sessions) hold(id string) func() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess := s.byID[id]
+	if sess == nil {
+		return func() {}
+	}
+	sess.holds++
+	return func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		sess.holds--
+	}
 }
 
 // rebind moves the session with the id from generation from of its account

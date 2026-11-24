@@ -68,6 +68,8 @@ type Service struct {
 	accounts *Accounts
 	sessions *sessions
 	now      func() time.Time
+	// beforeRebind, if set, is called by keepOwnSession first, for tests.
+	beforeRebind func()
 }
 
 // New returns a Service for the accounts a.

@@ -711,3 +711,36 @@ func TestBusyChangePasswordAction(t *testing.T) {
 		t.Errorf("ChangePassword while busy: status %d, want 503", w.Code)
 	}
 }
+
+// TestOwnPasswordChangeKeepsSession logs in to a full session store while a
+// session changes its own password, between the change and the rebind: the
+// session is not dropped as ended.
+func TestOwnPasswordChangeKeepsSession(t *testing.T) {
+	ts := newTestService(t)
+	ts.s.MaxSessions = 4
+	ts.s.accounts.Create("u4", pw, ReadOnly)
+	ts.s.accounts.Create("u5", pw, ReadOnly)
+	token, _ := ts.login("op", pw)
+	for _, u := range []string{"admin", "viewer", "u4"} {
+		ts.login(u, pw)
+	}
+	ts.s.beforeRebind = func() {
+		ts.s.beforeRebind = nil
+		ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`)
+	}
+	for _, req := range []struct{ method, uri, body string }{
+		{"PATCH", AccountsURI + "/op", `{"Password":"a new long password"}`},
+		{"POST", AccountsURI + "/op/Actions/ManagerAccount.ChangePassword", `{"NewPassword":"another long password","SessionAccountPassword":"a new long password"}`},
+	} {
+		if w, _ := ts.do(req.method, req.uri, "token:"+token, req.body); w.Code/100 != 2 {
+			t.Fatalf("%s %s: status %d", req.method, req.uri, w.Code)
+		}
+		if w, _ := ts.do("GET", "/redfish/v1/Chassis", "token:"+token, ""); w.Code != http.StatusOK {
+			t.Errorf("after %s %s: the session ended, status %d", req.method, req.uri, w.Code)
+		}
+		ts.s.beforeRebind = func() {
+			ts.s.beforeRebind = nil
+			ts.do("POST", SessionsURI, "", `{"UserName":"u4","Password":"`+pw+`"}`)
+		}
+	}
+}
