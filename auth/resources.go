@@ -288,7 +288,9 @@ func (s *Service) accountResource(acc Account) *gen.ManagerAccount {
 // PatchManagerAccount implements gen.ManagerAccountProvider. Password,
 // RoleId and Enabled are writable, and Locked can be set to false. A
 // principal that changes its own account without ConfigureUsers may only
-// change its password.
+// change its password. A change is refused with 409 when the principal's own
+// account got another password or role, or was disabled or deleted, after
+// the request was authenticated.
 func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patch *gen.ManagerAccountPatch) (*gen.ManagerAccount, error) {
 	if !strings.HasPrefix(p.URI, AccountsURI+"/") {
 		return nil, nil
@@ -323,7 +325,7 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 		if patch.Password != nil {
 			defer s.holdOwnSession(name, pr)()
 		}
-		prev, acc, err := s.accounts.change(name, patch.RoleId, patch.Enabled, patch.Password)
+		prev, acc, err := s.accounts.change(name, patch.RoleId, patch.Enabled, patch.Password, pr.by())
 		if err != nil {
 			return nil, err
 		}
@@ -342,7 +344,8 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 // account as changed. The account's other sessions belong to an earlier
 // generation and have ended. Nothing is kept when the account changed in
 // between, by another password or by being disabled: then the session that
-// authenticated pr has ended too.
+// authenticated pr has ended too. (change refuses such a change when given
+// the principal, so this only guards callers that do not give it.)
 func (s *Service) keepOwnSession(prev uint64, acc Account, pr Principal) {
 	if s.beforeRebind != nil {
 		s.beforeRebind()
@@ -350,6 +353,15 @@ func (s *Service) keepOwnSession(prev uint64, acc Account, pr Principal) {
 	if acc.Enabled && acc.UserName == pr.Account.UserName && pr.SessionID != "" && prev == pr.Account.gen {
 		s.sessions.rebind(pr.SessionID, prev, acc.gen)
 	}
+}
+
+// by returns the account that p was authenticated as, for change to check
+// that it still holds, or nil for no principal.
+func (p Principal) by() *Account {
+	if p.Account.UserName == "" {
+		return nil
+	}
+	return &p.Account
 }
 
 // holdOwnSession keeps the session of pr from being dropped as ended while pr
@@ -365,7 +377,8 @@ func (s *Service) holdOwnSession(name string, pr Principal) func() {
 
 // ChangePasswordManagerAccount implements
 // gen.ChangePasswordManagerAccountProvider: SessionAccountPassword must be the
-// password of the principal's own account.
+// password of the principal's own account, as it was when the request was
+// authenticated; 409 if the account changed since.
 func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Params, params *gen.ManagerAccountChangePasswordParameters) (*server.ActionResult, error) {
 	name := p.Get("ManagerAccountId")
 	if _, ok := s.accounts.Get(name); !ok || !strings.HasPrefix(p.URI, AccountsURI+"/") {
@@ -379,7 +392,9 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 		}
 	}
 	pr, _ := PrincipalFrom(ctx)
-	if _, err := s.accounts.Authenticate(pr.Account.UserName, *params.SessionAccountPassword); errors.Is(err, ErrBusy) {
+	// The password must be that of the account as the request was
+	// authenticated, not one set since.
+	if acc, err := s.accounts.Authenticate(pr.Account.UserName, *params.SessionAccountPassword); errors.Is(err, ErrBusy) {
 		return nil, err
 	} else if err != nil {
 		return nil, &server.Error{
@@ -387,9 +402,11 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 			MessageID: odata.MsgActionParameterValueFormat,
 			Message:   "The value for the parameter SessionAccountPassword is not the password of the account of the session.",
 		}
+	} else if acc.gen != pr.Account.gen {
+		return nil, errSuperseded
 	}
 	defer s.holdOwnSession(name, pr)()
-	prev, acc, err := s.accounts.change(name, nil, nil, params.NewPassword)
+	prev, acc, err := s.accounts.change(name, nil, nil, params.NewPassword, pr.by())
 	if err != nil {
 		return nil, err
 	}

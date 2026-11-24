@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
 	"strings"
 	"sync"
@@ -563,7 +564,7 @@ func TestRebindAfterStaleRequest(t *testing.T) {
 	token, id := ts.login("op", pw)
 	old, _ := ts.s.accounts.Get("op")
 	newPW := "a new long password"
-	prev, acc, err := ts.s.accounts.change("op", nil, nil, &newPW)
+	prev, acc, err := ts.s.accounts.change("op", nil, nil, &newPW, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -585,7 +586,7 @@ func TestRevokedSessionStaysRevoked(t *testing.T) {
 	authenticated, _ := ts.s.accounts.Get("op")
 	ts.s.accounts.SetPassword("op", "reset by an administrator") // revokes the session
 	newPW := "a new long password"
-	prev, acc, err := ts.s.accounts.change("op", nil, nil, &newPW)
+	prev, acc, err := ts.s.accounts.change("op", nil, nil, &newPW, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -724,23 +725,104 @@ func TestOwnPasswordChangeKeepsSession(t *testing.T) {
 	for _, u := range []string{"admin", "viewer", "u4"} {
 		ts.login(u, pw)
 	}
-	ts.s.beforeRebind = func() {
-		ts.s.beforeRebind = nil
-		ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`)
+	// During the first change the store is full: u5 cannot log in, and
+	// op's session is not dropped. During the second, u4 replaces its own
+	// session.
+	logins := []func(){
+		func() {
+			if w, m := ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`); w.Code != http.StatusServiceUnavailable || messageID(m) != odata.MsgCreateLimitReached {
+				t.Errorf("login u5 with a full store: status %d, message %q", w.Code, messageID(m))
+			}
+		},
+		func() {
+			if w, _ := ts.do("POST", SessionsURI, "", `{"UserName":"u4","Password":"`+pw+`"}`); w.Code != http.StatusCreated {
+				t.Errorf("login u4 with a full store: status %d, want 201", w.Code)
+			}
+		},
 	}
-	for _, req := range []struct{ method, uri, body string }{
+	for i, req := range []struct{ method, uri, body string }{
 		{"PATCH", AccountsURI + "/op", `{"Password":"a new long password"}`},
 		{"POST", AccountsURI + "/op/Actions/ManagerAccount.ChangePassword", `{"NewPassword":"another long password","SessionAccountPassword":"a new long password"}`},
 	} {
+		ran := false
+		ts.s.beforeRebind = func() {
+			ts.s.beforeRebind = nil
+			ran = true
+			logins[i]()
+		}
 		if w, _ := ts.do(req.method, req.uri, "token:"+token, req.body); w.Code/100 != 2 {
 			t.Fatalf("%s %s: status %d", req.method, req.uri, w.Code)
+		}
+		if !ran {
+			t.Errorf("%s %s did not reach the rebind", req.method, req.uri)
 		}
 		if w, _ := ts.do("GET", "/redfish/v1/Chassis", "token:"+token, ""); w.Code != http.StatusOK {
 			t.Errorf("after %s %s: the session ended, status %d", req.method, req.uri, w.Code)
 		}
-		ts.s.beforeRebind = func() {
-			ts.s.beforeRebind = nil
-			ts.do("POST", SessionsURI, "", `{"UserName":"u4","Password":"`+pw+`"}`)
+	}
+}
+
+// messageID returns the MessageId of an error response.
+func messageID(m map[string]any) string {
+	e, _ := m["error"].(map[string]any)
+	info, _ := e["@Message.ExtendedInfo"].([]any)
+	if len(info) == 0 {
+		return ""
+	}
+	first, _ := info[0].(map[string]any)
+	id, _ := first["MessageId"].(string)
+	return id
+}
+
+// TestOwnPasswordChangeAfterReset: an administrator sets op's password
+// while op's own change of it is being hashed. op's change is refused, the
+// administrator's password stays, and op's session has ended. The same for
+// the ChangePassword action, and for its password proof made after the
+// reset with the new password, which is refused before the new password is
+// hashed.
+func TestOwnPasswordChangeAfterReset(t *testing.T) {
+	ts := newTestService(t)
+	reset := "set by the administrator"
+	for _, req := range []struct{ method, uri, body string }{
+		{"PATCH", AccountsURI + "/op", `{"Password":"a new long password"}`},
+		{"POST", AccountsURI + "/op/Actions/ManagerAccount.ChangePassword", `{"NewPassword":"a new long password","SessionAccountPassword":"` + pw + `"}`},
+	} {
+		ts.s.accounts.SetPassword("op", pw)
+		token, _ := ts.login("op", pw)
+		ts.s.accounts.beforeChange = func() {
+			ts.s.accounts.beforeChange = nil
+			if w, _ := ts.do("PATCH", AccountsURI+"/op", "admin", `{"Password":"`+reset+`"}`); w.Code != http.StatusOK {
+				t.Fatalf("reset: status %d", w.Code)
+			}
 		}
+		if w, _ := ts.do(req.method, req.uri, "token:"+token, req.body); w.Code != http.StatusConflict {
+			t.Errorf("%s %s after a reset: status %d, want 409", req.method, req.uri, w.Code)
+		}
+		if _, err := ts.s.accounts.Authenticate("op", reset); err != nil {
+			t.Errorf("%s %s: the reset password was replaced", req.method, req.uri)
+		}
+		if w, _ := ts.do("GET", "/redfish/v1/Chassis", "token:"+token, ""); w.Code != http.StatusUnauthorized {
+			t.Errorf("%s %s: the session survived the reset, status %d", req.method, req.uri, w.Code)
+		}
+	}
+
+	// A session authenticated before the reset proves the new password.
+	ts.s.accounts.SetPassword("op", pw)
+	acc, _ := ts.s.accounts.Get("op")
+	ts.s.accounts.SetPassword("op", reset)
+	mux := http.NewServeMux()
+	ts.s.Register(mux)
+	r := httptest.NewRequest("POST", AccountsURI+"/op/Actions/ManagerAccount.ChangePassword",
+		strings.NewReader(`{"NewPassword":"a new long password","SessionAccountPassword":"`+reset+`"}`))
+	r = r.WithContext(context.WithValue(r.Context(), principalKey{}, Principal{Account: acc}))
+	w := httptest.NewRecorder()
+	ts.s.accounts.beforeChange = func() { t.Error("the new password was hashed after a superseded proof") }
+	mux.ServeHTTP(w, r)
+	ts.s.accounts.beforeChange = nil
+	if w.Code != http.StatusConflict {
+		t.Errorf("proof with a password set after the request was authenticated: status %d, want 409", w.Code)
+	}
+	if _, err := ts.s.accounts.Authenticate("op", reset); err != nil {
+		t.Error("the reset password was replaced")
 	}
 }

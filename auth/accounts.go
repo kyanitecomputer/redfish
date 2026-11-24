@@ -220,6 +220,15 @@ var ErrBusy error = &server.Error{
 // it does not tell which user names exist.
 var errLogin = errors.New("auth: invalid user name or password")
 
+// errSuperseded is the error of a change requested with credentials that no
+// longer hold: the account of the request got another password, or was
+// disabled or deleted, after the request was authenticated.
+var errSuperseded error = &server.Error{
+	Status:    http.StatusConflict,
+	MessageID: odata.MsgGeneralError,
+	Message:   "The account of the request changed while the request was processed; nothing was changed. Log in again.",
+}
+
 // Accounts holds the local accounts and the policy of the account service.
 // Passwords are kept as salted PBKDF2-HMAC-SHA256 hashes. Every change is
 // saved to the Storage before it takes effect.
@@ -246,6 +255,9 @@ type Accounts struct {
 	// beforeCheck, if set, is called by a login that holds a slot and has
 	// chosen the hash to check, for tests.
 	beforeCheck func()
+	// beforeChange, if set, is called by change after hashing a new
+	// password, if any, before it takes the lock, for tests.
+	beforeChange func()
 
 	mu       sync.Mutex
 	policy   Policy
@@ -440,13 +452,17 @@ func (a *Accounts) Update(name string, role *string, enabled *bool) error {
 // Administrator stays one. A new password is hashed in one of the slots that
 // logins use, so Change fails with ErrBusy when too many wait for one.
 func (a *Accounts) Change(name string, role *string, enabled *bool, password *string) error {
-	_, _, err := a.change(name, role, enabled, password)
+	_, _, err := a.change(name, role, enabled, password, nil)
 	return err
 }
 
 // change is Change, returning the generation of the account before the
-// change and the account as changed.
-func (a *Accounts) change(name string, role *string, enabled *bool, password *string) (uint64, Account, error) {
+// change and the account as changed. If by is not nil, it is the account
+// the change was authorized with, as it was then: the change fails with
+// errSuperseded, changing nothing, unless that account still exists with
+// the same generation and role when the change is saved (disabling an
+// account gives it a new generation).
+func (a *Accounts) change(name string, role *string, enabled *bool, password *string, by *Account) (uint64, Account, error) {
 	if role != nil && RolePrivileges(*role) == nil {
 		return 0, Account{}, badRole(*role)
 	}
@@ -460,8 +476,16 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 			return 0, Account{}, err
 		}
 	}
+	if a.beforeChange != nil {
+		a.beforeChange()
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if by != nil {
+		if cur := a.find(by.UserName); cur == nil || cur.gen != by.gen || cur.RoleId != by.RoleId {
+			return 0, Account{}, errSuperseded
+		}
+	}
 	i := slices.IndexFunc(a.list, func(acc *account) bool { return acc.UserName == name })
 	if i < 0 {
 		return 0, Account{}, errNoAccount(name)
@@ -574,13 +598,20 @@ func (a *Accounts) find(name string) *account {
 // let others guess without limit. The count also starts again
 // LockoutCounterResetAfter after the first failure.
 //
-// An unknown name is checked against a hash with the current iteration count.
-// A failed login with an account whose hash has a lower count does the
-// missing iterations too, so both take as long; the account gets a new hash
-// at its next successful login. Hashes with a higher count, left from a
-// service that used more, are kept: failed logins with those names take
-// longer than with unknown names, which tells that the names exist.
+// An unknown name is checked against a hash with the current iteration count
+// and one PBKDF2 block. A failed login with an account whose hash takes less
+// work, iterations times blocks, does the missing iterations too, so both
+// take as long; the account gets a new hash at its next successful login if
+// its count is lower. Hashes that take more work, left from a service that
+// used a higher count or a longer key, are kept: failed logins with those
+// names take longer than with unknown names, which tells that the names
+// exist. Logins fail without hashing while Iterations is above the most a
+// stored hash may have, even with a remembered password.
 func (a *Accounts) Authenticate(name, password string) (Account, error) {
+	cost := a.iterations()
+	if cost > maxIterations {
+		return Account{}, fmt.Errorf("auth: %d PBKDF2 iterations, want 1 to %d", cost, maxIterations)
+	}
 	// A password longer than any policy allows is not even hashed for the
 	// cache key.
 	n := utf8.RuneCountInString(password)
@@ -631,14 +662,15 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 		a.beforeCheck()
 	}
 	ok := a.check(h, password)
-	iter, cost := hashIterations(h), a.iterations()
+	// The cooldown is checked here to save hashing, and again before the
+	// save, which decides.
 	var rehash string
 	switch {
-	case ok && acc != nil && acc.Enabled && iter < cost && now.UnixNano() >= a.rehashAfter.Load():
+	case ok && acc != nil && acc.Enabled && hashIterations(h) < cost && now.UnixNano() >= a.rehashAfter.Load():
 		a.work.Add(int64(cost))
 		rehash, _ = hash(password, cost)
-	case !ok && iter < cost:
-		a.pad(cost - iter)
+	case !ok && hashWork(h) < cost:
+		a.pad(cost - hashWork(h))
 	}
 
 	a.mu.Lock()
@@ -658,10 +690,11 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 		return Account{}, errLogin
 	}
 	a.clearWindow(name, res)
-	if rehash != "" && cur.hash == h {
-		// Same password, same generation: sessions stay. A database that
-		// cannot be saved is tried again only after rehashCooldown, not
-		// with every login.
+	// Same password, same generation: sessions stay. A database that
+	// cannot be saved is tried again only rehashCooldown after the failed
+	// save, not with every login: a login that hashed before the failure
+	// does not save either.
+	if rehash != "" && cur.hash == h && a.now().UnixNano() >= a.rehashAfter.Load() {
 		i := slices.Index(a.list, cur)
 		up := *cur
 		up.hash = rehash
@@ -670,7 +703,7 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 		if a.commit(list, a.policy) == nil {
 			cur = &up
 		} else {
-			a.rehashAfter.Store(now.Add(rehashCooldown).UnixNano())
+			a.rehashAfter.Store(a.now().Add(rehashCooldown).UnixNano())
 		}
 	}
 	if len(a.verified) >= maxVerified {
@@ -713,7 +746,7 @@ func (a *Accounts) release() { <-a.slots }
 // check reports whether password matches h; the caller holds a slot.
 func (a *Accounts) check(h, password string) bool {
 	a.hashed.Add(1)
-	a.work.Add(int64(hashIterations(h)))
+	a.work.Add(int64(hashWork(h)))
 	n := a.active.Add(1)
 	defer a.active.Add(-1)
 	for m := a.maxSeen.Load(); n > m && !a.maxSeen.CompareAndSwap(m, n); m = a.maxSeen.Load() {
@@ -887,6 +920,13 @@ func parseHash(h string) (iter int, salt, key []byte, ok bool) {
 func hashIterations(h string) int {
 	iter, _, _, _ := parseHash(h)
 	return iter
+}
+
+// hashWork returns the PBKDF2 iterations that checking a stored hash takes:
+// its count for each SHA-256 block of its key, 0 if it cannot be checked.
+func hashWork(h string) int {
+	iter, _, key, _ := parseHash(h)
+	return iter * ((len(key) + sha256.Size - 1) / sha256.Size)
 }
 
 // verify reports whether password matches hash.
