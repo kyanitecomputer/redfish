@@ -242,6 +242,41 @@ func TestInventoryCollidingNames(t *testing.T) {
 	}
 }
 
+// TestSlots: a partition reserved for other data is listed by rsu_client
+// like a slot; with Config.Slots it is neither reported nor activated.
+func TestSlots(t *testing.T) {
+	f, b := newFakeRSU(t)
+	f.write(t, "count", fmt.Sprintf("number of slots is %d\nOperation completed\n", len(spt)+1))
+	f.write(t, "list5", "NAME: RECOVERY\nOFFSET: 0x0000000004000000\nPRIORITY: [disabled]\n")
+	ids := func(b *Backend) string {
+		inv, err := b.Inventory(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		var ids []string
+		for _, it := range inv.Firmware {
+			ids = append(ids, it.Id)
+		}
+		return strings.Join(ids, " ")
+	}
+	if got := ids(b); got != "p1 p2 recovery factory" {
+		t.Errorf("inventory without Slots = %s", got)
+	}
+	b.cfg.Slots = []string{"P1", "P2"}
+	if got := ids(b); got != "p1 p2 factory" {
+		t.Errorf("inventory with Slots = %s", got)
+	}
+	if err := b.Activate(context.Background(), []string{fw + "recovery"}, nil, nil); err == nil {
+		t.Error("activated a partition that is not a slot")
+	}
+	if err := b.Activate(context.Background(), []string{fw + "p2"}, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if w := f.writes(t); !slices.Equal(w, []string{"--enable 1", "--request 1"}) {
+		t.Errorf("writes = %q", w)
+	}
+}
+
 func TestInventoryRSUClientFails(t *testing.T) {
 	f, b := newFakeRSU(t)
 	f.script(t, "rsu_client", "echo 'ERROR: librsu_init: Failed to initialize'\nexit 1\n")

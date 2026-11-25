@@ -5,9 +5,10 @@
 //   - Inventory reports one firmware inventory item per application slot of
 //     the sub-partition table (SPT), from "rsu_client --list", and one for the
 //     factory image, which is write protected. Partitions named "SSBL.<slot>",
-//     which hold U-Boot for a slot, are not reported, nor is a slot whose
-//     lowercased name is the Id of the factory image or of another slot, or
-//     has characters other than letters, digits, '.', '_' and '-'.
+//     which hold U-Boot for a slot, are not reported, nor are partitions that
+//     Config.Slots does not name, nor is a slot whose lowercased name is the
+//     Id of the factory image or of another slot, or has characters other
+//     than letters, digits, '.', '_' and '-'.
 //     Whether the factory image runs comes from
 //     "rsu_client --check-running-factory".
 //   - Install runs the installer on a pushed image, spooled to a file first, or
@@ -32,6 +33,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -72,6 +74,12 @@ type Config struct {
 	// needed. os.TempDir() when empty, which is often a RAM file system: set
 	// it to a directory with room for the largest image.
 	SpoolDir string
+	// Slots names the SPT partitions that are application slots, such as
+	// "P1" and "P2". LIBRSU lists every SPT partition as a slot, also ones
+	// reserved for other data; set Slots to keep those out of the inventory
+	// and Activate. When empty, every partition except "SSBL.<slot>" is a
+	// slot.
+	Slots []string
 	// Version returns the version of the image in the slot named slot (for
 	// the factory image "FACTORY_IM"). Without it, or when it fails, the
 	// version is left empty.
@@ -143,7 +151,7 @@ func (b *Backend) state(ctx context.Context) (*state, error) {
 			return nil, err
 		}
 		f := fields(out)
-		if strings.HasPrefix(f["NAME"], "SSBL.") {
+		if strings.HasPrefix(f["NAME"], "SSBL.") || len(b.cfg.Slots) > 0 && !slices.Contains(b.cfg.Slots, f["NAME"]) {
 			continue
 		}
 		s := slot{index: i, name: f["NAME"]}
