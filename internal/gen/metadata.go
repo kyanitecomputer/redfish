@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"src.kyanite.computer/redfish/internal/csdl"
+	"src.kyanite.computer/redfish/odata"
 )
 
 const dmtfSchemaBase = "http://redfish.dmtf.org/schemas/v1/"
@@ -75,11 +76,7 @@ func buildEDMX(b *csdl.Bundle, m *Model) string {
 }
 
 func buildODataDoc(m *Model) string {
-	b := newJSONDoc()
-	b.field("@odata.context", "/redfish/v1/$metadata")
-	b.field("@odata.id", "/redfish/v1/odata")
-	var entries []string
-	entries = append(entries, odataEntry("Service", "/redfish/v1/"))
+	entries := [][]byte{odataEntry("Service", "/redfish/v1/")}
 	for _, res := range m.Resources {
 		if !res.IsCollection || len(res.URIs) == 0 {
 			continue
@@ -87,16 +84,19 @@ func buildODataDoc(m *Model) string {
 		url := canonicalURI(res.URIs)
 		entries = append(entries, odataEntry(lastSegment(url), url))
 	}
-	b.rawField("value", "["+strings.Join(entries, ",")+"]")
-	return b.done()
+	b := odata.NewBuilder()
+	b.String("@odata.context", "/redfish/v1/$metadata")
+	b.String("@odata.id", "/redfish/v1/odata")
+	b.RawArray("value", entries)
+	return string(b.Bytes())
 }
 
-func odataEntry(name, url string) string {
-	d := newJSONDoc()
-	d.field("name", name)
-	d.field("kind", "Singleton")
-	d.field("url", url)
-	return d.done()
+func odataEntry(name, url string) []byte {
+	b := odata.NewBuilder()
+	b.String("name", name)
+	b.String("kind", "Singleton")
+	b.String("url", url)
+	return b.Bytes()
 }
 
 // namespaceOfODataType extracts the namespace from an @odata.type value:
@@ -113,40 +113,4 @@ func lastSegment(uri string) string {
 		return uri[i+1:]
 	}
 	return uri
-}
-
-// jsonDoc is a tiny ordered JSON object writer used only for the static
-// metadata documents emitted at generation time.
-type jsonDoc struct {
-	b     strings.Builder
-	dirty bool
-}
-
-func newJSONDoc() *jsonDoc {
-	d := &jsonDoc{}
-	d.b.WriteByte('{')
-	return d
-}
-
-func (d *jsonDoc) key(name string) {
-	if d.dirty {
-		d.b.WriteByte(',')
-	}
-	d.dirty = true
-	fmt.Fprintf(&d.b, "%q:", name)
-}
-
-func (d *jsonDoc) field(name, value string) {
-	d.key(name)
-	fmt.Fprintf(&d.b, "%q", value)
-}
-
-func (d *jsonDoc) rawField(name, raw string) {
-	d.key(name)
-	d.b.WriteString(raw)
-}
-
-func (d *jsonDoc) done() string {
-	d.b.WriteByte('}')
-	return d.b.String()
 }
