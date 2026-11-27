@@ -39,7 +39,7 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 
 - `$expand`, `$select`, and other query parameters are not implemented.
 - No `Allow` response header yet, so validators cannot test writable properties.
-- Only the resources listed in `gen/doc.go` are generated; other resources need to be added there and regenerated.
+- Only the resources listed in `gen/targets.txt` are generated; other resources need to be added there and regenerated.
 - Only a subset of the DSP8011 base messages is used, and message registries are not served.
 - The example uses static fixtures. The RAUC and Intel RSU update backends drive the `rauc` and `rsu_client`
   command line tools and have been tested on one board only (an Agilex 7 SoM).
@@ -74,7 +74,7 @@ go build ./...
 go test ./...
 ```
 
-Regenerate the resource package after changing the target list in `gen/doc.go`:
+Regenerate the resource package after changing the target list in `gen/targets.txt`:
 
 ```sh
 go generate ./gen

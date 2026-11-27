@@ -1,0 +1,35 @@
+# Resources generated into package gen, one CSDL type reference per line.
+# Run `go generate ./gen` after changing the list.
+ServiceRoot.ServiceRoot
+SessionService.SessionService
+SessionCollection.SessionCollection
+Session.Session
+ChassisCollection.ChassisCollection
+Chassis.Chassis
+ComputerSystemCollection.ComputerSystemCollection
+ComputerSystem.ComputerSystem
+ManagerCollection.ManagerCollection
+Manager.Manager
+ManagerNetworkProtocol.ManagerNetworkProtocol
+AccountService.AccountService
+ManagerAccountCollection.ManagerAccountCollection
+ManagerAccount.ManagerAccount
+RoleCollection.RoleCollection
+Role.Role
+ThermalSubsystem.ThermalSubsystem
+PowerSubsystem.PowerSubsystem
+SensorCollection.SensorCollection
+ControlCollection.ControlCollection
+EnvironmentMetrics.EnvironmentMetrics
+EthernetInterfaceCollection.EthernetInterfaceCollection
+EthernetInterface.EthernetInterface
+LogServiceCollection.LogServiceCollection
+LogService.LogService
+LogEntryCollection.LogEntryCollection
+LogEntry.LogEntry
+UpdateService.UpdateService
+SoftwareInventoryCollection.SoftwareInventoryCollection
+SoftwareInventory.SoftwareInventory
+TaskService.TaskService
+TaskCollection.TaskCollection
+Task.Task
