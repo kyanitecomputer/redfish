@@ -9,7 +9,10 @@
 // values).
 package odata
 
-import "strconv"
+import (
+	"math"
+	"strconv"
+)
 
 const hexDigits = "0123456789abcdef"
 
@@ -88,9 +91,14 @@ func (b *Builder) OptInt(name string, v *int64) {
 	}
 }
 
-// Float writes a floating-point member as a JSON number.
+// Float writes a floating-point member as a JSON number, or as null for NaN
+// and the infinities, which JSON cannot represent.
 func (b *Builder) Float(name string, v float64) {
 	b.key(name)
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		b.buf = append(b.buf, "null"...)
+		return
+	}
 	b.buf = strconv.AppendFloat(b.buf, v, 'g', -1, 64)
 }
 
