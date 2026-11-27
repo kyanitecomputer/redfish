@@ -2,21 +2,33 @@ package csdl
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 )
 
 // Bundle is a parsed, indexed collection of CSDL documents. Schemas are indexed
-// by their full namespace (versioned and unversioned alike).
+// by their full namespace (versioned and unversioned alike), and by their
+// unversioned base namespace.
 type Bundle struct {
-	docs    []*Edmx
 	schemas map[string]*Schema
+	byBase  map[string][]versioned
+}
+
+// versioned is a schema of a base namespace: one of its versions, or the
+// unversioned namespace itself.
+type versioned struct {
+	ns     string
+	v      version
+	hasVer bool // ns has a vX_Y_Z suffix
+	s      *Schema
+}
+
+func newBundle() *Bundle {
+	return &Bundle{schemas: map[string]*Schema{}, byBase: map[string][]versioned{}}
 }
 
 // LoadDir parses every *.xml file in dir into a Bundle.
@@ -25,7 +37,7 @@ func LoadDir(dir string) (*Bundle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("csdl: read schema dir: %w", err)
 	}
-	b := &Bundle{schemas: make(map[string]*Schema)}
+	b := newBundle()
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".xml") {
 			continue
@@ -41,37 +53,19 @@ func LoadDir(dir string) (*Bundle, error) {
 	return b, nil
 }
 
-// LoadFS parses every *.xml file in fsys into a Bundle.
-func LoadFS(fsys fs.FS) (*Bundle, error) {
-	b := &Bundle{schemas: make(map[string]*Schema)}
-	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".xml") {
-			return nil
-		}
-		data, err := fs.ReadFile(fsys, path)
-		if err != nil {
-			return fmt.Errorf("csdl: read %s: %w", path, err)
-		}
-		return b.add(data, path)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
 func (b *Bundle) add(data []byte, name string) error {
 	doc, err := Parse(data)
 	if err != nil {
 		return fmt.Errorf("csdl: parse %s: %w", name, err)
 	}
-	b.docs = append(b.docs, doc)
 	for i := range doc.DataServices.Schemas {
 		s := &doc.DataServices.Schemas[i]
+		if _, dup := b.schemas[s.Namespace]; dup {
+			return fmt.Errorf("csdl: %s defines namespace %s again", name, s.Namespace)
+		}
 		b.schemas[s.Namespace] = s
+		base, v, ok := splitVersion(s.Namespace)
+		b.byBase[base] = append(b.byBase[base], versioned{ns: s.Namespace, v: v, hasVer: ok, s: s})
 	}
 	return nil
 }
@@ -81,8 +75,6 @@ func (b *Bundle) Schema(namespace string) (*Schema, bool) {
 	s, ok := b.schemas[namespace]
 	return s, ok
 }
-
-var versionRE = regexp.MustCompile(`^(.+)\.v(\d+)_(\d+)_(\d+)$`)
 
 // version represents a parsed vMAJOR_MINOR_ERRATA namespace suffix.
 type version struct{ major, minor, errata int }
@@ -102,67 +94,59 @@ func (v version) less(o version) bool {
 // example base "ServiceRoot" -> "ServiceRoot.v1_21_0"). It reports false when
 // no versioned namespace exists for the base.
 func (b *Bundle) LatestNamespace(base string) (string, bool) {
-	var (
-		bestNS string
-		best   version
-		found  bool
-	)
-	for ns := range b.schemas {
-		m := versionRE.FindStringSubmatch(ns)
-		if m == nil || m[1] != base {
-			continue
-		}
-		v := version{atoi(m[2]), atoi(m[3]), atoi(m[4])}
-		if !found || best.less(v) {
-			best, bestNS, found = v, ns, true
+	best, ok := b.latest(base, func(*Schema) bool { return true })
+	return best.ns, ok
+}
+
+// latest returns the highest version of base whose schema has, by has, the
+// definition looked for.
+func (b *Bundle) latest(base string, has func(*Schema) bool) (versioned, bool) {
+	var best versioned
+	found := false
+	for _, vs := range b.byBase[base] {
+		if vs.hasVer && has(vs.s) && (!found || best.v.less(vs.v)) {
+			best, found = vs, true
 		}
 	}
-	return bestNS, found
+	return best, found
 }
 
 // LatestContainer returns the highest-versioned namespace under base that
 // declares an EntityContainer with the given name, for example
 // LatestContainer("ServiceRoot", "ServiceContainer").
 func (b *Bundle) LatestContainer(base, container string) (string, bool) {
-	var (
-		bestNS string
-		best   version
-		found  bool
-	)
-	for ns, s := range b.schemas {
-		m := versionRE.FindStringSubmatch(ns)
-		if m == nil || m[1] != base {
-			continue
-		}
-		for i := range s.Containers {
-			if s.Containers[i].Name != container {
-				continue
-			}
-			v := version{atoi(m[2]), atoi(m[3]), atoi(m[4])}
-			if !found || best.less(v) {
-				best, bestNS, found = v, ns, true
-			}
-		}
-	}
-	return bestNS, found
+	best, ok := b.latest(base, func(s *Schema) bool {
+		return slices.ContainsFunc(s.Containers, func(c EntityContainer) bool { return c.Name == container })
+	})
+	return best.ns, ok
 }
 
-// baseOf returns the unversioned base of a namespace: "ComputerSystem.v1_0_0"
-// -> "ComputerSystem". An already-unversioned namespace is returned unchanged.
-func baseOf(ns string) string {
-	if m := versionRE.FindStringSubmatch(ns); m != nil {
-		return m[1]
+var versionRE = regexp.MustCompile(`^(.+)\.v(\d+)_(\d+)_(\d+)$`)
+
+// splitVersion splits a namespace into its unversioned base and its version:
+// "ComputerSystem.v1_0_0" -> ("ComputerSystem", 1.0.0, true). An unversioned
+// namespace is its own base.
+func splitVersion(ns string) (base string, v version, ok bool) {
+	m := versionRE.FindStringSubmatch(ns)
+	if m == nil {
+		return ns, version{}, false
 	}
-	return ns
+	return m[1], version{atoi(m[2]), atoi(m[3]), atoi(m[4])}, true
+}
+
+// BaseNamespace returns the unversioned base of a namespace:
+// "ComputerSystem.v1_0_0" -> "ComputerSystem". An unversioned namespace is
+// returned unchanged.
+func BaseNamespace(ns string) string {
+	base, _, _ := splitVersion(ns)
+	return base
 }
 
 // Defines reports whether the unversioned namespace base, or one of its
 // versions, defines an entity, complex, enum or type definition named name.
 func (b *Bundle) Defines(base, name string) bool {
-	for ns, s := range b.schemas {
-		if baseOf(ns) != base {
-			continue
-		}
+	for _, vs := range b.byBase[base] {
+		s := vs.s
 		if slices.ContainsFunc(s.EntityTypes, func(t EntityType) bool { return t.Name == name }) ||
 			slices.ContainsFunc(s.ComplexTypes, func(t ComplexType) bool { return t.Name == name }) ||
 			slices.ContainsFunc(s.EnumTypes, func(t EnumType) bool { return t.Name == name }) ||
@@ -185,24 +169,17 @@ func (b *Bundle) BoundActions(base string) []Action {
 		ver version
 	}
 	best := map[string]found{}
-	for ns, s := range b.schemas {
-		if baseOf(ns) != base {
-			continue
-		}
-		var v version
-		if m := versionRE.FindStringSubmatch(ns); m != nil {
-			v = version{atoi(m[2]), atoi(m[3]), atoi(m[4])}
-		}
-		for _, a := range s.Actions {
+	for _, vs := range b.byBase[base] {
+		for _, a := range vs.s.Actions {
 			if !a.IsBound || len(a.Parameters) == 0 {
 				continue
 			}
 			bindNS, bindName := SplitQualified(stripColl(a.Parameters[0].Type))
-			if bindName != "Actions" || baseOf(bindNS) != base {
+			if bindName != "Actions" || BaseNamespace(bindNS) != base {
 				continue
 			}
-			if cur, ok := best[a.Name]; !ok || cur.ver.less(v) {
-				best[a.Name] = found{act: a, ver: v}
+			if cur, ok := best[a.Name]; !ok || cur.ver.less(vs.v) {
+				best[a.Name] = found{act: a, ver: vs.v}
 			}
 		}
 	}
@@ -210,7 +187,7 @@ func (b *Bundle) BoundActions(base string) []Action {
 	for _, f := range best {
 		out = append(out, f.act)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	slices.SortFunc(out, func(a, b Action) int { return strings.Compare(a.Name, b.Name) })
 	return out
 }
 
@@ -241,7 +218,10 @@ func SplitQualified(qualified string) (namespace, name string) {
 }
 
 // isVersioned reports whether a namespace already carries a vX_Y_Z suffix.
-func isVersioned(ns string) bool { return versionRE.MatchString(ns) }
+func isVersioned(ns string) bool {
+	_, _, ok := splitVersion(ns)
+	return ok
+}
 
 // candidateNamespaces returns the namespaces to search for an exact reference:
 // the namespace as written first, then its latest version as a fallback for
@@ -307,32 +287,12 @@ func (b *Bundle) LatestEntity(typeRef string) (namespace string, et *EntityType,
 func (b *Bundle) LatestComplex(typeRef string) (namespace string, ct *ComplexType, ok bool) {
 	inner, _ := StripCollection(typeRef)
 	nsRef, name := SplitQualified(inner)
-	if m := versionRE.FindStringSubmatch(nsRef); m != nil {
-		nsRef = m[1]
-	}
-	var (
-		bestNS string
-		best   version
-		found  bool
-	)
-	for ns, s := range b.schemas {
-		m := versionRE.FindStringSubmatch(ns)
-		if m == nil || m[1] != nsRef {
-			continue
-		}
-		for i := range s.ComplexTypes {
-			if s.ComplexTypes[i].Name != name {
-				continue
-			}
-			v := version{atoi(m[2]), atoi(m[3]), atoi(m[4])}
-			if !found || best.less(v) {
-				best, bestNS, found = v, ns, true
-			}
-		}
-	}
-	if found {
-		ct, _ := b.complexIn(bestNS, name)
-		return bestNS, ct, true
+	best, ok := b.latest(BaseNamespace(nsRef), func(s *Schema) bool {
+		return slices.ContainsFunc(s.ComplexTypes, func(c ComplexType) bool { return c.Name == name })
+	})
+	if ok {
+		ct, _ := b.complexIn(best.ns, name)
+		return best.ns, ct, true
 	}
 	return b.ResolveComplex(typeRef)
 }

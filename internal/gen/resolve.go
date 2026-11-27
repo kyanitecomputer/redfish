@@ -2,9 +2,7 @@ package gen
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"src.kyanite.computer/redfish/internal/csdl"
@@ -29,12 +27,8 @@ func Build(b *csdl.Bundle, pkg string, targets []string) (*Model, error) {
 			return nil, fmt.Errorf("gen: target %s: %w", t, r.err)
 		}
 	}
-	sort.Slice(r.model.Complexes, func(i, j int) bool {
-		return r.model.Complexes[i].GoName < r.model.Complexes[j].GoName
-	})
-	sort.Slice(r.model.Enums, func(i, j int) bool {
-		return r.model.Enums[i].GoName < r.model.Enums[j].GoName
-	})
+	slices.SortFunc(r.model.Complexes, func(a, b *Complex) int { return strings.Compare(a.GoName, b.GoName) })
+	slices.SortFunc(r.model.Enums, func(a, b *Enum) int { return strings.Compare(a.GoName, b.GoName) })
 	r.model.MetadataXML, r.model.ODataDoc = buildMetadata(b, r.model)
 	return r.model, nil
 }
@@ -57,10 +51,8 @@ func (r *resolver) claim(gn, qualified string) {
 	r.names[gn] = qualified
 }
 
-var versionSuffix = regexp.MustCompile(`\.v\d+_\d+_\d+$`)
-
 // baseNamespace strips a versioned suffix: "ServiceRoot.v1_21_0" -> "ServiceRoot".
-func baseNamespace(ns string) string { return versionSuffix.ReplaceAllString(ns, "") }
+func baseNamespace(ns string) string { return csdl.BaseNamespace(ns) }
 
 // goName builds an exported Go identifier for a nested type from its base
 // namespace and local name: ("ServiceRoot", "Links") -> "ServiceRootLinks".
