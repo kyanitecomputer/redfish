@@ -774,8 +774,8 @@ func messageID(m map[string]any) string {
 	return id
 }
 
-// TestOwnPasswordChangeAfterReset: an administrator sets op's password
-// while op's own change of it is being hashed. op's change is refused, the
+// TestOwnPasswordChangeAfterReset: op's password is reset while op's own
+// change of it is being hashed. op's change is refused, the
 // administrator's password stays, and op's session has ended. The same for
 // the ChangePassword action, and for its password proof made after the
 // reset with the new password, which is refused before the new password is
@@ -789,10 +789,12 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 	} {
 		ts.s.accounts.SetPassword("op", pw)
 		token, _ := ts.login("op", pw)
+		// Not a PATCH of the account: PATCHes of accounts run one at a
+		// time.
 		ts.s.accounts.beforeChange = func() {
 			ts.s.accounts.beforeChange = nil
-			if w, _ := ts.do("PATCH", AccountsURI+"/op", "admin", `{"Password":"`+reset+`"}`); w.Code != http.StatusOK {
-				t.Fatalf("reset: status %d", w.Code)
+			if err := ts.s.accounts.SetPassword("op", reset); err != nil {
+				t.Fatalf("reset: %v", err)
 			}
 		}
 		if w, _ := ts.do(req.method, req.uri, "token:"+token, req.body); w.Code != http.StatusConflict {

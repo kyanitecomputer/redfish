@@ -70,6 +70,12 @@ type Action struct {
 	Params      []Field // parseable (scalar/enum) input parameters
 }
 
+// HasPatch reports whether the resource is served with PATCH: it is
+// updatable and has writable properties that PATCH supports.
+func (r *Resource) HasPatch() bool {
+	return !r.IsCollection && r.Patchable && len(r.WritableFields()) > 0
+}
+
 // WritableFields returns the patch-supported writable scalar fields.
 func (r *Resource) WritableFields() []Field {
 	var out []Field

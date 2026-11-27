@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"slices"
 	"strings"
 )
 
@@ -27,7 +28,11 @@ func Render(m *Model) ([]byte, error) {
 	if needsJSON {
 		fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n\t%q\n", "bytes", "encoding/json/jsontext", "io", "strconv")
 	}
-	fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n\t%q\n)\n\n", "context", "net/http", odataPkg, serverPkg)
+	fmt.Fprintf(&b, "\t%q\n\t%q\n", "context", "net/http")
+	if slices.ContainsFunc(m.Resources, (*Resource).HasPatch) {
+		fmt.Fprintf(&b, "\t%q\n", "sync")
+	}
+	fmt.Fprintf(&b, "\t%q\n\t%q\n)\n\n", odataPkg, serverPkg)
 
 	if needsJSON {
 		writePatchHelpers(&b)
@@ -112,11 +117,10 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "\treturn b.Bytes()\n}\n\n")
 
 	hasParams := needsParams(r.URIs)
-	writable := r.WritableFields()
-	patchable := r.Patchable && len(writable) > 0
+	patchable := r.HasPatch()
 
 	if patchable {
-		writePatchType(b, r, writable)
+		writePatchType(b, r, r.WritableFields())
 	}
 	if !r.IsCollection && r.Creatable() {
 		doc := fmt.Sprintf("// %sCreate holds the properties of %s present in the body of a POST that\n// creates one: the writable ones and those required on create.", r.GoName, r.GoName)
@@ -137,6 +141,12 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 
 	fmt.Fprintf(b, "// Register%s wires the %s resource into mux. It links into a binary\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "// only when referenced, so unused resources are removed by the linker.\n")
+	if patchable {
+		fmt.Fprintf(b, "//\n// PATCH requests registered here run one at a time: the If-Match\n")
+		fmt.Fprintf(b, "// precondition is checked against Get%s and still holds\n", r.GoName)
+		fmt.Fprintf(b, "// when Patch%s runs. Changes the provider makes by other\n", r.GoName)
+		fmt.Fprintf(b, "// paths are not serialized with them.\n")
+	}
 	writeURIsDoc(b, r.GoName, r.URIs)
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider%s) {\n", r.GoName, r.GoName, registerArgs(r.URIs))
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
@@ -304,19 +314,23 @@ func writePatchCase(b *bytes.Buffer, f Field) {
 }
 
 // writePatchHandler emits the PATCH handler inside a Register function. It
-// performs If-Match concurrency control, parses the sparse patch, delegates to
-// the provider, and writes the updated resource.
+// parses the sparse patch, then, holding mu, checks If-Match against the
+// current resource, delegates to the provider, and writes the updated
+// resource: PATCHes of the resource are serialized, so the precondition
+// holds until the change is made.
 func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
+	fmt.Fprintf(b, "\tvar mu sync.Mutex\n")
 	fmt.Fprintf(b, "\tph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
+	fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tvar patch %sPatch\n", r.GoName)
+	fmt.Fprintf(b, "\t\tif err := patch.UnmarshalJSON(body); err != nil {\n")
+	fmt.Fprintf(b, "\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tmu.Lock()\n\t\tdefer mu.Unlock()\n")
 	fmt.Fprintf(b, "\t\tcur, err := p.Get%s(r.Context()%s)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif cur == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif cur.ODataID == \"\" {\n\t\t\tcur.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif !server.CheckIfMatch(r, cur.Bytes()) {\n\t\t\tserver.PreconditionFailed(w)\n\t\t\treturn\n\t\t}\n")
-	fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
-	fmt.Fprintf(b, "\t\tvar patch %sPatch\n", r.GoName)
-	fmt.Fprintf(b, "\t\tif err := patch.UnmarshalJSON(body); err != nil {\n")
-	fmt.Fprintf(b, "\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tupdated, err := p.Patch%s(r.Context()%s, &patch)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif updated == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
@@ -405,7 +419,7 @@ func modelNeedsJSON(m *Model) bool {
 		if r.IsCollection {
 			continue
 		}
-		if r.Patchable && len(r.WritableFields()) > 0 || r.Creatable() {
+		if r.HasPatch() || r.Creatable() {
 			return true
 		}
 		for _, a := range r.Actions {

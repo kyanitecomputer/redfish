@@ -14,6 +14,7 @@ import (
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
 	"strconv"
+	"sync"
 )
 
 // errPatchType is returned when a PATCH value has an unexpected JSON type.
@@ -4624,6 +4625,11 @@ type SessionServiceProvider interface {
 
 // RegisterSessionService wires the SessionService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetSessionService and still holds
+// when PatchSessionService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetSessionService(r.Context())
@@ -4641,7 +4647,20 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/SessionService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch SessionServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetSessionService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -4656,16 +4675,6 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch SessionServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchSessionService(r.Context(), &patch)
@@ -5191,6 +5200,11 @@ type ChassisProvider interface {
 
 // RegisterChassis wires the Chassis resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetChassis and still holds
+// when PatchChassis runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetChassis(r.Context(), prm)
@@ -5208,7 +5222,20 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch ChassisPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetChassis(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -5223,16 +5250,6 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ChassisPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchChassis(r.Context(), prm, &patch)
@@ -5703,6 +5720,11 @@ type ComputerSystemProvider interface {
 
 // RegisterComputerSystem wires the ComputerSystem resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetComputerSystem and still holds
+// when PatchComputerSystem runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetComputerSystem(r.Context(), prm)
@@ -5722,7 +5744,20 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch ComputerSystemPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetComputerSystem(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -5737,16 +5772,6 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ComputerSystemPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchComputerSystem(r.Context(), prm, &patch)
@@ -6562,6 +6587,11 @@ type ManagerProvider interface {
 
 // RegisterManager wires the Manager resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetManager and still holds
+// when PatchManager runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManager(r.Context(), prm)
@@ -6579,7 +6609,20 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch ManagerPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetManager(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -6594,16 +6637,6 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ManagerPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchManager(r.Context(), prm, &patch)
@@ -7144,6 +7177,11 @@ type ManagerNetworkProtocolProvider interface {
 
 // RegisterManagerNetworkProtocol wires the ManagerNetworkProtocol resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetManagerNetworkProtocol and still holds
+// when PatchManagerNetworkProtocol runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocolProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManagerNetworkProtocol(r.Context(), prm)
@@ -7161,7 +7199,20 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch ManagerNetworkProtocolPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetManagerNetworkProtocol(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -7176,16 +7227,6 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ManagerNetworkProtocolPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchManagerNetworkProtocol(r.Context(), prm, &patch)
@@ -7456,6 +7497,11 @@ type AccountServiceProvider interface {
 
 // RegisterAccountService wires the AccountService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetAccountService and still holds
+// when PatchAccountService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetAccountService(r.Context(), prm)
@@ -7474,7 +7520,20 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 	}
 	server.Handle(mux, "GET", "/redfish/v1/AccountService", h)
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch AccountServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetAccountService(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -7489,16 +7548,6 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch AccountServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchAccountService(r.Context(), prm, &patch)
@@ -7881,6 +7930,11 @@ type ManagerAccountProvider interface {
 
 // RegisterManagerAccount wires the ManagerAccount resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetManagerAccount and still holds
+// when PatchManagerAccount runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManagerAccount(r.Context(), prm)
@@ -7899,7 +7953,20 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 	}
 	server.Handle(mux, "GET", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch ManagerAccountPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetManagerAccount(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -7914,16 +7981,6 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ManagerAccountPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchManagerAccount(r.Context(), prm, &patch)
@@ -8427,6 +8484,11 @@ type ThermalSubsystemProvider interface {
 
 // RegisterThermalSubsystem wires the ThermalSubsystem resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetThermalSubsystem and still holds
+// when PatchThermalSubsystem runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetThermalSubsystem(r.Context(), prm)
@@ -8444,7 +8506,20 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch ThermalSubsystemPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetThermalSubsystem(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -8459,16 +8534,6 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ThermalSubsystemPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchThermalSubsystem(r.Context(), prm, &patch)
@@ -9281,6 +9346,11 @@ type EthernetInterfaceProvider interface {
 
 // RegisterEthernetInterface wires the EthernetInterface resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetEthernetInterface and still holds
+// when PatchEthernetInterface runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetEthernetInterface(r.Context(), prm)
@@ -9307,7 +9377,20 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch EthernetInterfacePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetEthernetInterface(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -9322,16 +9405,6 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch EthernetInterfacePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchEthernetInterface(r.Context(), prm, &patch)
@@ -9549,6 +9622,11 @@ type LogServiceProvider interface {
 
 // RegisterLogService wires the LogService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetLogService and still holds
+// when PatchLogService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetLogService(r.Context(), prm)
@@ -9574,7 +9652,20 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService", h)
 	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", h)
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch LogServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetLogService(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -9589,16 +9680,6 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch LogServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchLogService(r.Context(), prm, &patch)
@@ -10251,6 +10332,11 @@ type LogEntryProvider interface {
 
 // RegisterLogEntry wires the LogEntry resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetLogEntry and still holds
+// when PatchLogEntry runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetLogEntry(r.Context(), prm)
@@ -10276,7 +10362,20 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch LogEntryPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetLogEntry(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -10291,16 +10390,6 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch LogEntryPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchLogEntry(r.Context(), prm, &patch)
@@ -10503,6 +10592,11 @@ type UpdateServiceProvider interface {
 
 // RegisterUpdateService wires the UpdateService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetUpdateService and still holds
+// when PatchUpdateService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetUpdateService(r.Context())
@@ -10520,7 +10614,20 @@ func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch UpdateServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetUpdateService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -10535,16 +10642,6 @@ func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch UpdateServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchUpdateService(r.Context(), &patch)
@@ -11074,6 +11171,11 @@ type SoftwareInventoryProvider interface {
 
 // RegisterSoftwareInventory wires the SoftwareInventory resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetSoftwareInventory and still holds
+// when PatchSoftwareInventory runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetSoftwareInventory(r.Context(), prm)
@@ -11093,7 +11195,20 @@ func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) 
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch SoftwareInventoryPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetSoftwareInventory(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -11108,16 +11223,6 @@ func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) 
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch SoftwareInventoryPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchSoftwareInventory(r.Context(), prm, &patch)
@@ -11414,6 +11519,11 @@ type TaskServiceProvider interface {
 
 // RegisterTaskService wires the TaskService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetTaskService and still holds
+// when PatchTaskService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetTaskService(r.Context())
@@ -11431,7 +11541,20 @@ func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/TaskService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.Internal(w)
+			return
+		}
+		var patch TaskServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetTaskService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -11446,16 +11569,6 @@ func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch TaskServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchTaskService(r.Context(), &patch)
