@@ -395,24 +395,18 @@ func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "}\n\n")
 }
 
-func modelHasPatch(m *Model) bool {
+// modelNeedsJSON reports whether the model emits any jsontext-based body parser,
+// which requires the bytes, encoding/json/jsontext, and strconv imports plus the
+// shared scalar readers: for a PATCH, a creating POST, or an action with
+// parameters.
+func modelNeedsJSON(m *Model) bool {
 	for _, r := range m.Resources {
-		if !r.IsCollection && r.Patchable && len(r.WritableFields()) > 0 {
+		if r.IsCollection {
+			continue
+		}
+		if r.Patchable && len(r.WritableFields()) > 0 || r.Creatable() {
 			return true
 		}
-	}
-	return false
-}
-
-// modelNeedsJSON reports whether the model emits any jsontext-based body parser,
-// which requires the bytes, encoding/json/jsontext, and strconv imports plus the shared
-// scalar readers. True when a resource is PATCH-able or any action takes
-// scalar parameters.
-func modelNeedsJSON(m *Model) bool {
-	if modelHasPatch(m) {
-		return true
-	}
-	for _, r := range m.Resources {
 		for _, a := range r.Actions {
 			if len(a.Params) > 0 {
 				return true
