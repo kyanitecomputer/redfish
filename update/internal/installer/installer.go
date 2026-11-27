@@ -4,6 +4,7 @@ package installer
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -41,7 +42,7 @@ func Spool(dir, pattern string, r io.Reader) (path string, err error) {
 
 // Run runs command with args, reporting the percentages of its progress
 // lines. On failure the error starts with the command's name and its first
-// argument and carries its LastError, or else its last line of output.
+// argument, if any, and carries its LastError, or else its last line of output.
 func Run(ctx context.Context, command string, args []string, progress func(int)) error {
 	cmd := exec.CommandContext(ctx, command, args...)
 	r, w := io.Pipe()
@@ -74,14 +75,11 @@ func Run(ctx context.Context, command string, args []string, progress func(int))
 	if err == nil {
 		return nil
 	}
-	msg := lastErr
-	if msg == "" {
-		msg = lastLine
+	name := filepath.Base(command)
+	if len(args) > 0 {
+		name += " " + args[0]
 	}
-	if msg == "" {
-		msg = err.Error()
-	}
-	return errors.New(filepath.Base(command) + " " + args[0] + ": " + msg)
+	return errors.New(name + ": " + cmp.Or(lastErr, lastLine, err.Error()))
 }
 
 // parseProgress parses a progress line such as "65% Copying image to rootfs".
