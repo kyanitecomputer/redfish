@@ -332,8 +332,12 @@ func TestJoinDuplicateIds(t *testing.T) {
 		&joinPart{name: "second", firmware: []string{"x"}, calls: calls},
 	)
 	ctx := context.Background()
-	if _, err := j.Inventory(ctx); err != nil {
+	inv, err := j.Inventory(ctx)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if len(inv.Firmware) != 1 {
+		t.Errorf("joined inventory has %d items, want x once", len(inv.Firmware))
 	}
 	// The first backend refuses to activate x; the second would.
 	if j.CanActivate(ctx, fw+"x") {

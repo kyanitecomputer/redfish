@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 
+	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
 )
@@ -44,7 +45,8 @@ func Join(backends ...Backend) *Joined {
 	return &Joined{backends: backends}
 }
 
-// Inventory implements Backend. A backend that fails leaves its items out,
+// Inventory implements Backend. An item whose Id an earlier backend reported
+// in the same list is left out. A backend that fails leaves its items out,
 // so that the others can still be listed and updated; Inventory fails only
 // when every backend fails.
 func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
@@ -61,13 +63,23 @@ func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 		if inv == nil {
 			continue
 		}
-		all.Firmware = append(all.Firmware, inv.Firmware...)
-		all.Software = append(all.Software, inv.Software...)
+		all.Firmware = appendNew(all.Firmware, inv.Firmware)
+		all.Software = appendNew(all.Software, inv.Software)
 	}
 	if failed > 0 && failed == len(j.backends) {
 		return nil, firstErr
 	}
 	return all, nil
+}
+
+// appendNew appends the items whose Id is not in list yet.
+func appendNew(list, items []*gen.SoftwareInventory) []*gen.SoftwareInventory {
+	for _, it := range items {
+		if !slices.ContainsFunc(list, func(o *gen.SoftwareInventory) bool { return o.Id == it.Id }) {
+			list = append(list, it)
+		}
+	}
+	return list
 }
 
 // itemURIs returns the @odata.id of the items of inv.
