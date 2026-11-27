@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"src.kyanite.computer/redfish/auth"
+	"net/http"
+	"sync"
 
+	"src.kyanite.computer/redfish/auth"
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
@@ -13,7 +15,10 @@ import (
 
 // backend is an in-memory implementation of the generated provider interfaces.
 // A real BMC would read these values from hardware (PMBus, I2C, GPIO, flash).
+// Requests run concurrently: mu guards the chassis and systems, and Get
+// returns copies, as the generated handlers may set their ODataID.
 type backend struct {
+	mu      sync.Mutex
 	chassis map[string]*gen.Chassis
 	systems map[string]*gen.ComputerSystem
 }
@@ -82,6 +87,8 @@ func (b *backend) GetServiceRoot(_ context.Context) (*gen.ServiceRoot, error) {
 }
 
 func (b *backend) PatchChassis(_ context.Context, p server.Params, patch *gen.ChassisPatch) (*gen.Chassis, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	c := b.chassis[p.Get("ChassisId")]
 	if c == nil {
 		return nil, nil
@@ -95,10 +102,12 @@ func (b *backend) PatchChassis(_ context.Context, p server.Params, patch *gen.Ch
 	if patch.LocationIndicatorActive != nil {
 		c.LocationIndicatorActive = patch.LocationIndicatorActive
 	}
-	return c, nil
+	return new(*c), nil
 }
 
 func (b *backend) PatchComputerSystem(_ context.Context, p server.Params, patch *gen.ComputerSystemPatch) (*gen.ComputerSystem, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	s := b.systems[p.Get("ComputerSystemId")]
 	if s == nil {
 		return nil, nil
@@ -109,15 +118,29 @@ func (b *backend) PatchComputerSystem(_ context.Context, p server.Params, patch 
 	if patch.HostName != nil {
 		s.HostName = *patch.HostName
 	}
-	return s, nil
+	return new(*s), nil
 }
 
 func (b *backend) ListChassis(_ context.Context) ([]string, error) {
 	return []string{"/redfish/v1/Chassis/1"}, nil
 }
 
+// GetChassis returns nil for an unknown chassis, which the generated handler
+// answers with 404.
 func (b *backend) GetChassis(_ context.Context, p server.Params) (*gen.Chassis, error) {
-	return b.chassis[p.Get("ChassisId")], nil // nil maps to a 404 in the generated handler
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if c := b.chassis[p.Get("ChassisId")]; c != nil {
+		return new(*c), nil
+	}
+	return nil, nil
+}
+
+// hasChassis reports whether the chassis with the Id in p exists.
+func (b *backend) hasChassis(p server.Params) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.chassis[p.Get("ChassisId")] != nil
 }
 
 func (b *backend) ListComputerSystem(_ context.Context) ([]string, error) {
@@ -125,21 +148,44 @@ func (b *backend) ListComputerSystem(_ context.Context) ([]string, error) {
 }
 
 func (b *backend) GetComputerSystem(_ context.Context, p server.Params) (*gen.ComputerSystem, error) {
-	return b.systems[p.Get("ComputerSystemId")], nil
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if s := b.systems[p.Get("ComputerSystemId")]; s != nil {
+		return new(*s), nil
+	}
+	return nil, nil
 }
 
 // ResetComputerSystem performs the #ComputerSystem.Reset action, updating the
-// in-memory PowerState. A real BMC would drive the platform reset lines.
+// in-memory PowerState. Without a ResetType it power cycles the system. A
+// real BMC would drive the platform reset lines.
 func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params *gen.ComputerSystemResetParameters) (*server.ActionResult, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	s := b.systems[p.Get("ComputerSystemId")]
-	if s == nil || params.ResetType == nil {
-		return nil, nil
+	if s == nil {
+		return nil, &server.Error{
+			Status:    http.StatusNotFound,
+			MessageID: odata.MsgResourceNotFound,
+			Message:   "The resource at URI '" + p.Path() + "' was not found.",
+		}
 	}
-	switch *params.ResetType {
+	resetType := gen.ResourceResetTypePowerCycle
+	if params.ResetType != nil {
+		resetType = *params.ResetType
+	}
+	switch resetType {
 	case gen.ResourceResetTypeForceOff, gen.ResourceResetTypeGracefulShutdown:
 		s.PowerState = gen.ResourcePowerStateOff
-	default:
+	case gen.ResourceResetTypeOn, gen.ResourceResetTypeForceOn, gen.ResourceResetTypeForceRestart,
+		gen.ResourceResetTypeGracefulRestart, gen.ResourceResetTypePowerCycle:
 		s.PowerState = gen.ResourcePowerStateOn
+	default:
+		return nil, &server.Error{
+			Status:    http.StatusBadRequest,
+			MessageID: odata.MsgActionParameterValueFormat,
+			Message:   "The value " + string(resetType) + " for the parameter ResetType in the action ComputerSystem.Reset is not supported.",
+		}
 	}
 	return nil, nil
 }

@@ -8,7 +8,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -289,21 +291,61 @@ func TestComputerSystemAdvertisesResetAction(t *testing.T) {
 
 func TestComputerSystemReset(t *testing.T) {
 	srv := newServer(t)
-	body := `{"ResetType":"ForceOff"}`
-	resp, err := http.Post(srv.URL+"/redfish/v1/Systems/1/Actions/ComputerSystem.Reset",
-		"application/json", strings.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
+	for _, tt := range []struct {
+		uri, body string
+		status    int
+		power     string // PowerState afterwards
+	}{
+		{"/redfish/v1/Systems/1", `{"ResetType":"ForceOff"}`, http.StatusNoContent, "Off"},
+		{"/redfish/v1/Systems/1", `{}`, http.StatusNoContent, "On"},
+		{"/redfish/v1/Systems/1", `{"ResetType":"ForceOff"}`, http.StatusNoContent, "Off"},
+		{"/redfish/v1/Systems/1", ``, http.StatusNoContent, "On"},
+		{"/redfish/v1/Systems/1", `{"ResetType":"Nmi"}`, http.StatusBadRequest, "On"},
+		{"/redfish/v1/Systems/nope", `{"ResetType":"On"}`, http.StatusNotFound, "On"},
+	} {
+		resp, err := http.Post(srv.URL+tt.uri+"/Actions/ComputerSystem.Reset", "application/json", strings.NewReader(tt.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != tt.status {
+			t.Errorf("POST %s %s: status %d, want %d", tt.uri, tt.body, resp.StatusCode, tt.status)
+		}
+		if m := getJSON(t, srv.URL, "/redfish/v1/Systems/1"); m["PowerState"] != tt.power {
+			t.Errorf("after POST %s %s: PowerState = %v, want %s", tt.uri, tt.body, m["PowerState"], tt.power)
+		}
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("POST Reset status = %d, want 204", resp.StatusCode)
+}
+
+// TestConcurrentRequests reads and changes the chassis and the system at
+// once, for the race detector.
+func TestConcurrentRequests(t *testing.T) {
+	srv := newServer(t)
+	// One login first, so that the others find the password verified
+	// instead of waiting to hash it.
+	getJSON(t, srv.URL, "/redfish/v1/Chassis")
+	get := func(path string) {
+		if resp, err := http.Get(srv.URL + path); err == nil {
+			resp.Body.Close()
+		}
 	}
-	// The action must have updated the system's power state.
-	m := getJSON(t, srv.URL, "/redfish/v1/Systems/1")
-	if m["PowerState"] != "Off" {
-		t.Errorf("PowerState = %v, want Off after ForceOff", m["PowerState"])
+	var wg sync.WaitGroup
+	for i := range 4 {
+		wg.Go(func() {
+			req, _ := http.NewRequest(http.MethodPatch, srv.URL+"/redfish/v1/Chassis/1", strings.NewReader(`{"AssetTag":"t`+strconv.Itoa(i)+`"}`))
+			if resp, err := http.DefaultClient.Do(req); err == nil {
+				resp.Body.Close()
+			}
+		})
+		wg.Go(func() {
+			if resp, err := http.Post(srv.URL+"/redfish/v1/Systems/1/Actions/ComputerSystem.Reset", "application/json", strings.NewReader(`{}`)); err == nil {
+				resp.Body.Close()
+			}
+		})
+		wg.Go(func() { get("/redfish/v1/Chassis/1") })
+		wg.Go(func() { get("/redfish/v1/Systems/1") })
 	}
+	wg.Wait()
 }
 
 func TestNotFound(t *testing.T) {

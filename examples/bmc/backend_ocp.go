@@ -10,8 +10,9 @@ import (
 )
 
 // This file implements the additional resources required by the OCP Baseline
-// Hardware Management profile: Managers, AccountService/Accounts, and the
-// Chassis Thermal/Power subsystems. Data is static; a real BMC would source it
+// Hardware Management profile: the Manager with its network protocol,
+// Ethernet interfaces and logs, and the Chassis subsystems, sensors and
+// controls; accounts and sessions are served by the auth package. Data is static; a real BMC would source it
 // from hardware and persistent configuration.
 //
 // Parameterized resources receive a server.Params carrying the path segments of
@@ -70,7 +71,7 @@ func (b *backend) PatchManagerNetworkProtocol(ctx context.Context, p server.Para
 // --- Chassis subsystems, sub-collections, and metrics -----------------------
 
 func (b *backend) GetThermalSubsystem(_ context.Context, p server.Params) (*gen.ThermalSubsystem, error) {
-	if b.chassis[p.Get("ChassisId")] == nil {
+	if !b.hasChassis(p) {
 		return nil, nil
 	}
 	return &gen.ThermalSubsystem{
@@ -85,7 +86,7 @@ func (b *backend) PatchThermalSubsystem(ctx context.Context, p server.Params, _ 
 }
 
 func (b *backend) GetPowerSubsystem(_ context.Context, p server.Params) (*gen.PowerSubsystem, error) {
-	if b.chassis[p.Get("ChassisId")] == nil {
+	if !b.hasChassis(p) {
 		return nil, nil
 	}
 	return &gen.PowerSubsystem{
