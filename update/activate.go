@@ -99,7 +99,7 @@ func (s *Service) ActivateSoftwareInventory(ctx context.Context, p server.Params
 	if item == nil {
 		return nil, &server.Error{
 			Status:    http.StatusNotFound,
-			MessageID: odata.MsgResourceNotFound,
+			MessageID: odata.MsgResourceMissingAtURI,
 			Message:   "The resource at URI '" + image + "' was not found.",
 		}
 	}

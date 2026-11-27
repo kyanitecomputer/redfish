@@ -48,16 +48,15 @@ func newBackend() *backend {
 // Management profile requires. Every field used here is already present in the
 // generated model; only the data is supplied by the backend.
 func chassisFixture() *gen.Chassis {
-	indicator := true
 	return &gen.Chassis{
 		Id:                      "1",
 		Name:                    "Main Chassis",
-		ChassisType:             gen.ChassisChassisTypeRackMount,
+		ChassisType:             gen.ChassisTypeRackMount,
 		Manufacturer:            "Kyanite",
 		Model:                   "Cairn-1U",
 		SerialNumber:            "CRN-0001",
 		IndicatorLED:            gen.ChassisIndicatorLEDOff,
-		LocationIndicatorActive: &indicator,
+		LocationIndicatorActive: new(true),
 		PowerState:              gen.ResourcePowerStateOn,
 		Status:                  &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
 		ThermalSubsystem:        odata.Link("/redfish/v1/Chassis/1/ThermalSubsystem"),
@@ -166,7 +165,7 @@ func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params
 	if s == nil {
 		return nil, &server.Error{
 			Status:    http.StatusNotFound,
-			MessageID: odata.MsgResourceNotFound,
+			MessageID: odata.MsgResourceMissingAtURI,
 			Message:   "The resource at URI '" + p.Path() + "' was not found.",
 		}
 	}
@@ -183,7 +182,7 @@ func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params
 	default:
 		return nil, &server.Error{
 			Status:    http.StatusBadRequest,
-			MessageID: odata.MsgActionParameterValueFormat,
+			MessageID: odata.MsgActionParameterValueFormatError,
 			Message:   "The value " + string(resetType) + " for the parameter ResetType in the action ComputerSystem.Reset is not supported.",
 		}
 	}

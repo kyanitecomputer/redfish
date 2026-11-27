@@ -60,7 +60,7 @@ func (m *Manager) Register(mux *http.ServeMux) {
 	gen.RegisterTaskService(mux, m)
 	gen.RegisterTaskCollection(mux, m)
 	gen.RegisterTask(mux, m)
-	server.Handle(mux, "GET", MonitorURI+"/{TaskId}", m.serveMonitor)
+	server.Handle(mux, http.MethodGet, MonitorURI+"/{TaskId}", m.serveMonitor)
 }
 
 // Start runs fn in its own goroutine as a new task called name and returns the
@@ -74,7 +74,7 @@ func (m *Manager) Start(name string, fn Func) *server.ActionResult {
 		ODataID:         CollectionURI + "/" + id,
 		Id:              id,
 		Name:            name,
-		TaskState:       gen.TaskTaskStateRunning,
+		TaskState:       gen.TaskStateRunning,
 		TaskStatus:      gen.ResourceHealthOK,
 		StartTime:       now(),
 		TaskMonitor:     MonitorURI + "/" + id,
@@ -82,7 +82,6 @@ func (m *Manager) Start(name string, fn Func) *server.ActionResult {
 	}}
 	m.tasks[id] = e
 	m.order = append(m.order, id)
-	m.prune()
 	t := e.task
 	m.mu.Unlock()
 
@@ -106,8 +105,8 @@ func (m *Manager) run(e *entry, fn Func) {
 	if err == nil {
 		pc := int64(100)
 		e.task.PercentComplete = &pc
-		e.task.TaskState = gen.TaskTaskStateCompleted
-		e.task.Messages = []gen.MessageMessage{{
+		e.task.TaskState = gen.TaskStateCompleted
+		e.task.Messages = []gen.Message{{
 			MessageId:       "TaskEvent.1.0.TaskCompletedOK",
 			Message:         "The task with Id '" + e.task.Id + "' has completed.",
 			MessageArgs:     []string{e.task.Id},
@@ -115,13 +114,13 @@ func (m *Manager) run(e *entry, fn Func) {
 		}}
 		return
 	}
-	e.task.TaskState = gen.TaskTaskStateException
+	e.task.TaskState = gen.TaskStateException
 	e.task.TaskStatus = gen.ResourceHealthCritical
 	id, msg := odata.MsgGeneralError, err.Error()
 	if se, ok := errors.AsType[*server.Error](err); ok {
 		id, msg = se.MessageID, se.Message
 	}
-	e.task.Messages = []gen.MessageMessage{
+	e.task.Messages = []gen.Message{
 		{
 			MessageId:       "TaskEvent.1.0.TaskAborted",
 			Message:         "The task with Id '" + e.task.Id + "' has been aborted.",
@@ -180,13 +179,12 @@ func (m *Manager) serveMonitor(w http.ResponseWriter, r *http.Request, p server.
 
 // GetTaskService implements gen.TaskServiceProvider.
 func (m *Manager) GetTaskService(_ context.Context) (*gen.TaskService, error) {
-	enabled, events := true, false
 	return &gen.TaskService{
 		Id:                              "TaskService",
 		Name:                            "Task Service",
-		ServiceEnabled:                  &enabled,
+		ServiceEnabled:                  new(true),
 		CompletedTaskOverWritePolicy:    gen.TaskServiceOverWritePolicyOldest,
-		LifeCycleEventOnTaskStateChange: &events,
+		LifeCycleEventOnTaskStateChange: new(false),
 		DateTime:                        now(),
 		Tasks:                           odata.Link(CollectionURI),
 	}, nil
@@ -213,7 +211,7 @@ func (m *Manager) ListTask(_ context.Context, p server.Params) ([]string, error)
 		if _, ok := m.tasks[parent]; !ok {
 			return nil, &server.Error{
 				Status:    http.StatusNotFound,
-				MessageID: odata.MsgResourceNotFound,
+				MessageID: odata.MsgResourceMissingAtURI,
 				Message:   "The resource at URI '" + p.Path() + "' was not found.",
 			}
 		}

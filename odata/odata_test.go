@@ -93,15 +93,15 @@ func TestCollectionShape(t *testing.T) {
 
 func TestErrorBody(t *testing.T) {
 	e := Error{
-		Code:    MsgResourceNotFound,
+		Code:    MsgResourceMissingAtURI,
 		Message: "The resource was not found.",
 		ExtendedInfo: []ExtendedInfo{
-			{MessageID: MsgResourceNotFound, Message: "Not found", Severity: "Critical"},
+			{MessageID: MsgResourceMissingAtURI, Message: "Not found", Severity: "Critical"},
 		},
 	}
 	m := valid(t, e.Bytes())
 	inner := m["error"].(map[string]any)
-	if inner["code"] != MsgResourceNotFound {
+	if inner["code"] != MsgResourceMissingAtURI {
 		t.Errorf("code = %v", inner["code"])
 	}
 	info := inner["@Message.ExtendedInfo"].([]any)
@@ -128,5 +128,16 @@ func TestFloat(t *testing.T) {
 			t.Errorf("Float(%v) = %s, want %s", tt.v, got, tt.want)
 		}
 		valid(t, b.Bytes())
+	}
+}
+
+func TestZeroBuilder(t *testing.T) {
+	var b Builder
+	if got := string(b.Bytes()); got != "{}" {
+		t.Errorf("zero Builder = %s", got)
+	}
+	b.Int("n", 1)
+	if got := string(b.Bytes()); got != `{"n":1}` {
+		t.Errorf("zero Builder with a member = %s", got)
 	}
 }

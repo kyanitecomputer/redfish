@@ -1,14 +1,19 @@
 package csdl
 
 import (
+	"sync"
 	"testing"
 )
 
 const schemaDir = "../../schema/csdl"
 
+// schemaBundle is the DSP8010 bundle, parsed once for all tests, which only
+// read it.
+var schemaBundle = sync.OnceValues(func() (*Bundle, error) { return LoadDir(schemaDir) })
+
 func loadBundle(t *testing.T) *Bundle {
 	t.Helper()
-	b, err := LoadDir(schemaDir)
+	b, err := schemaBundle()
 	if err != nil {
 		t.Fatalf("LoadDir: %v", err)
 	}

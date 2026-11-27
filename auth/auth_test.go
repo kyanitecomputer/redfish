@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"src.kyanite.computer/redfish/gen"
-	"src.kyanite.computer/redfish/odata"
-	"src.kyanite.computer/redfish/server"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/odata"
+	"src.kyanite.computer/redfish/server"
 )
 
 // testService serves the auth resources and a few others behind Handler, for
@@ -440,8 +441,7 @@ func TestDisabledCertificate(t *testing.T) {
 
 func TestBusyLogin(t *testing.T) {
 	ts := newTestService(t)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	ts.s.accounts.verifyWait = 10 * time.Millisecond
 	for range verifySlots {
 		ts.s.accounts.slots <- struct{}{}
 	}
@@ -626,7 +626,7 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 		defer mu.Unlock()
 		var timeout int
 		var basic string
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			fmt.Sscanf(line, "policy SessionTimeout %d", &timeout)
 			fmt.Sscanf(line, "policy HTTPBasicAuth %s", &basic)
 		}
@@ -638,7 +638,7 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		for i := range 2000 {
-			ts.s.PatchSessionService(context.Background(), &gen.SessionServicePatch{SessionTimeout: ptr(int64(2000 + i))})
+			ts.s.PatchSessionService(context.Background(), &gen.SessionServicePatch{SessionTimeout: new(int64(2000 + i))})
 		}
 	})
 	wg.Go(func() {
@@ -649,7 +649,7 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 			} else if i > 1000 {
 				basic = ""
 			}
-			patch := &gen.AccountServicePatch{MinPasswordLength: ptr(int64(12))}
+			patch := &gen.AccountServicePatch{MinPasswordLength: new(int64(12))}
 			if basic != "" {
 				patch.HTTPBasicAuth = &basic
 			}
@@ -662,8 +662,6 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 	}
 }
 
-func ptr[T any](v T) *T { return &v }
-
 // savingFunc is a Storage that hands every saved database to a function.
 type savingFunc func([]byte)
 
@@ -673,8 +671,7 @@ func (f savingFunc) Save(data []byte) error { f(data); return nil }
 func TestBusyPasswordChange(t *testing.T) {
 	ts := newTestService(t)
 	token, _ := ts.login("op", pw)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	ts.s.accounts.verifyWait = 10 * time.Millisecond
 	release := fillSlots(ts.s.accounts)
 	defer release()
 	if w, _ := ts.do("PATCH", AccountsURI+"/op", "token:"+token, `{"Password":"a new long password"}`); w.Code != http.StatusServiceUnavailable {
@@ -702,8 +699,7 @@ func TestPolicyPatchBounds(t *testing.T) {
 func TestBusyChangePasswordAction(t *testing.T) {
 	ts := newTestService(t)
 	token, _ := ts.login("op", pw)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	ts.s.accounts.verifyWait = 10 * time.Millisecond
 	release := fillSlots(ts.s.accounts)
 	defer release()
 	w, _ := ts.do("POST", AccountsURI+"/op/Actions/ManagerAccount.ChangePassword", "token:"+token,
@@ -730,7 +726,7 @@ func TestOwnPasswordChangeKeepsSession(t *testing.T) {
 	// session.
 	logins := []func(){
 		func() {
-			if w, m := ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`); w.Code != http.StatusServiceUnavailable || messageID(m) != odata.MsgCreateLimitReached {
+			if w, m := ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`); w.Code != http.StatusServiceUnavailable || messageID(m) != odata.MsgCreateLimitReachedForResource {
 				t.Errorf("login u5 with a full store: status %d, message %q", w.Code, messageID(m))
 			}
 		},
@@ -745,8 +741,8 @@ func TestOwnPasswordChangeKeepsSession(t *testing.T) {
 		{"POST", AccountsURI + "/op/Actions/ManagerAccount.ChangePassword", `{"NewPassword":"another long password","SessionAccountPassword":"a new long password"}`},
 	} {
 		ran := false
-		ts.s.beforeRebind = func() {
-			ts.s.beforeRebind = nil
+		ts.s.accounts.probe.beforeRebind = func() {
+			ts.s.accounts.probe.beforeRebind = nil
 			ran = true
 			logins[i]()
 		}
@@ -791,8 +787,8 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 		token, _ := ts.login("op", pw)
 		// Not a PATCH of the account: PATCHes of accounts run one at a
 		// time.
-		ts.s.accounts.beforeChange = func() {
-			ts.s.accounts.beforeChange = nil
+		ts.s.accounts.probe.beforeChange = func() {
+			ts.s.accounts.probe.beforeChange = nil
 			if err := ts.s.accounts.SetPassword("op", reset); err != nil {
 				t.Fatalf("reset: %v", err)
 			}
@@ -818,9 +814,9 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 		strings.NewReader(`{"NewPassword":"a new long password","SessionAccountPassword":"`+reset+`"}`))
 	r = r.WithContext(context.WithValue(r.Context(), principalKey{}, Principal{Account: acc}))
 	w := httptest.NewRecorder()
-	ts.s.accounts.beforeChange = func() { t.Error("the new password was hashed after a superseded proof") }
+	ts.s.accounts.probe.beforeChange = func() { t.Error("the new password was hashed after a superseded proof") }
 	mux.ServeHTTP(w, r)
-	ts.s.accounts.beforeChange = nil
+	ts.s.accounts.probe.beforeChange = nil
 	if w.Code != http.StatusConflict {
 		t.Errorf("proof with a password set after the request was authenticated: status %d, want 409", w.Code)
 	}
@@ -869,7 +865,33 @@ func TestSupersededAdministrator(t *testing.T) {
 	if _, ok := ts.s.accounts.Get("viewer"); !ok {
 		t.Error("the account was deleted")
 	}
-	if acc, _ := ts.s.accounts.Get("op"); !ts.s.accounts.Locked("op") || acc.RoleId != Operator {
+	if acc, _ := ts.s.accounts.Get("op"); !ts.s.accounts.Locked("op") || acc.RoleID != Operator {
 		t.Error("op was changed")
+	}
+}
+
+// TestRequiredPrivilege checks that the fixed rules match whole path
+// segments: a sibling of a service is not part of it.
+func TestRequiredPrivilege(t *testing.T) {
+	ts := newTestService(t)
+	for _, tt := range []struct {
+		method, path string
+		want         Privilege
+	}{
+		{"PATCH", AccountServiceURI, ConfigureUsers},
+		{"PATCH", AccountServiceURI + "/", ConfigureUsers},
+		{"POST", AccountServiceURI + "Extra", ConfigureComponents},
+		{"PATCH", SessionServiceURI, ConfigureManager},
+		{"POST", SessionServiceURI + "Extra", ConfigureComponents},
+		{"POST", "/redfish/v1/Managers/bmc/Actions/Manager.Reset", ConfigureManager},
+		{"POST", "/redfish/v1/ManagersExtra", ConfigureComponents},
+		{"DELETE", "/redfish/v1/TaskService/Tasks/1", ConfigureManager},
+		{"POST", "/redfish/v1/TaskServiceExtra", ConfigureComponents},
+		{"GET", "/redfish/v1/ManagersExtra", Login},
+	} {
+		r := httptest.NewRequest(tt.method, tt.path, nil)
+		if got := ts.s.required(r, Principal{}); got != tt.want {
+			t.Errorf("%s %s: %s, want %s", tt.method, tt.path, got, tt.want)
+		}
 	}
 }

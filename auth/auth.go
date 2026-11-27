@@ -68,8 +68,6 @@ type Service struct {
 	accounts *Accounts
 	sessions *sessions
 	now      func() time.Time
-	// beforeRebind, if set, is called by keepOwnSession first, for tests.
-	beforeRebind func()
 }
 
 // New returns a Service for the accounts a.
@@ -200,7 +198,7 @@ func (s *Service) current(user string, gen uint64) bool {
 func (s *Service) loginFailed(w http.ResponseWriter, err error) {
 	if errors.Is(err, ErrBusy) {
 		w.Header().Set("Retry-After", "1")
-		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgServiceUnavailable,
+		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgServiceTemporarilyUnavailable,
 			"The service is temporarily unavailable. Too many logins arrived at once; retry later.")
 		return
 	}
@@ -229,7 +227,7 @@ func (s *Service) required(r *http.Request, p Principal) Privilege {
 		}
 		return ConfigureUsers
 	}
-	if strings.HasPrefix(path, AccountServiceURI) {
+	if under(path, AccountServiceURI) {
 		if read {
 			return Login
 		}
@@ -241,7 +239,7 @@ func (s *Service) required(r *http.Request, p Principal) Privilege {
 		}
 		return ConfigureManager
 	}
-	if strings.HasPrefix(path, SessionServiceURI) {
+	if under(path, SessionServiceURI) {
 		if read {
 			return Login
 		}
@@ -261,8 +259,14 @@ func DefaultPrivilege(r *http.Request) Privilege {
 	switch {
 	case r.Method == http.MethodGet || r.Method == http.MethodHead:
 		return Login
-	case strings.HasPrefix(r.URL.Path, "/redfish/v1/Managers"), strings.HasPrefix(r.URL.Path, "/redfish/v1/TaskService"):
+	case under(r.URL.Path, "/redfish/v1/Managers"), under(r.URL.Path, "/redfish/v1/TaskService"):
 		return ConfigureManager
 	}
 	return ConfigureComponents
+}
+
+// under reports whether path is the URI prefix or below it.
+func under(path, prefix string) bool {
+	rest, ok := strings.CutPrefix(path, prefix)
+	return ok && (rest == "" || rest[0] == '/')
 }

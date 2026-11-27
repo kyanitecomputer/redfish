@@ -23,7 +23,7 @@ func (b *backend) Inventory(_ context.Context) (*update.Inventory, error) {
 				Name:         "BMC Firmware",
 				Manufacturer: "Kyanite",
 				Version:      "1.0.0",
-				Updateable:   boolPtr(true),
+				Updateable:   new(true),
 				Status:       &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
 			},
 			{
@@ -31,7 +31,7 @@ func (b *backend) Inventory(_ context.Context) (*update.Inventory, error) {
 				Name:         "Host BIOS",
 				Manufacturer: "Kyanite",
 				Version:      "2026.06",
-				Updateable:   boolPtr(true),
+				Updateable:   new(true),
 				Status:       &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
 			},
 		},
@@ -56,5 +56,3 @@ func (b *backend) Install(_ context.Context, img update.Image, _ update.Request,
 func (b *backend) Activate(context.Context, []string, []string, func(int)) error {
 	return nil
 }
-
-func boolPtr(v bool) *bool { return &v }

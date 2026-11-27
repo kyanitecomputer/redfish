@@ -120,7 +120,7 @@ func TestETag(t *testing.T) {
 		t.Fatal("no ETag on a resource")
 	}
 	w = httptest.NewRecorder()
-	WriteError(w, http.StatusNotFound, odata.MsgResourceNotFound, "missing")
+	WriteError(w, http.StatusNotFound, odata.MsgResourceMissingAtURI, "missing")
 	if e := w.Header().Get("ETag"); e != "" {
 		t.Errorf("error response has ETag %s", e)
 	}
@@ -142,5 +142,21 @@ func TestETag(t *testing.T) {
 		if got := CheckIfMatch(r, []byte(`{}`)); got != tt.ok {
 			t.Errorf("If-Match %s: %v, want %v", tt.ifMatch, got, tt.ok)
 		}
+	}
+}
+
+func TestStatic(t *testing.T) {
+	h := StaticXML("<x/>")
+	var tags []string
+	for range 2 {
+		w := httptest.NewRecorder()
+		h(w, httptest.NewRequest(http.MethodGet, "/redfish/v1/$metadata", nil))
+		if w.Code != http.StatusOK || w.Body.String() != "<x/>" || !strings.HasPrefix(w.Header().Get("Content-Type"), "application/xml") {
+			t.Fatalf("status %d, Content-Type %q, body %q", w.Code, w.Header().Get("Content-Type"), w.Body)
+		}
+		tags = append(tags, w.Header().Get("ETag"))
+	}
+	if tags[0] == "" || tags[0] != tags[1] {
+		t.Errorf("ETags %q", tags)
 	}
 }

@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	h, err := newHandler(newBackend())
+	h, err := newHandler(newBackend(), auth.DefaultIterations)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,12 +29,14 @@ func main() {
 }
 
 // newHandler registers the served resources against a fresh ServeMux, behind
-// the authentication of an in-memory admin account.
-func newHandler(b *backend) (http.Handler, error) {
+// the authentication of an in-memory admin account whose password is hashed
+// with iterations PBKDF2 iterations.
+func newHandler(b *backend, iterations int) (http.Handler, error) {
 	accounts, err := auth.NewAccounts(&auth.Memory{})
 	if err != nil {
 		return nil, err
 	}
+	accounts.Iterations = iterations
 	// The validators log in as admin/admin, shorter than the default minimum.
 	p := accounts.Policy()
 	p.MinPasswordLength = 5

@@ -47,7 +47,8 @@ func AppendString(dst []byte, s string) []byte {
 }
 
 // Builder incrementally constructs a JSON object with ordered keys by appending
-// to an internal buffer. The zero value is not usable; call NewBuilder.
+// to an internal buffer. The zero value is an empty object; NewBuilder
+// preallocates the buffer.
 type Builder struct {
 	buf   []byte
 	dirty bool
@@ -111,6 +112,12 @@ func (b *Builder) OptFloat(name string, v *float64) {
 
 // StrArray writes a JSON array of strings. A nil slice is omitted.
 func (b *Builder) StrArray(name string, vs []string) {
+	StrArray(b, name, vs)
+}
+
+// StrArray writes a JSON array of strings, or of string-backed enumeration
+// values, to b. A nil slice is omitted.
+func StrArray[S ~string](b *Builder, name string, vs []S) {
 	if vs == nil {
 		return
 	}
@@ -120,7 +127,7 @@ func (b *Builder) StrArray(name string, vs []string) {
 		if i > 0 {
 			b.buf = append(b.buf, ',')
 		}
-		b.buf = AppendString(b.buf, v)
+		b.buf = AppendString(b.buf, string(v))
 	}
 	b.buf = append(b.buf, ']')
 }

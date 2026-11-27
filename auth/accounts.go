@@ -55,9 +55,15 @@ var roles = []struct {
 // RolePrivileges returns the privileges of a predefined role, or nil for a
 // role that does not exist.
 func RolePrivileges(role string) []Privilege {
+	return slices.Clone(privileges(role))
+}
+
+// privileges is RolePrivileges without the copy, which callers must not
+// change.
+func privileges(role string) []Privilege {
 	for _, r := range roles {
 		if r.id == role {
-			return slices.Clone(r.privileges)
+			return r.privileges
 		}
 	}
 	return nil
@@ -66,7 +72,7 @@ func RolePrivileges(role string) []Privilege {
 // Account is a local account.
 type Account struct {
 	UserName string
-	RoleId   string
+	RoleID   string
 	Enabled  bool
 
 	// gen changes when the account is created, gets another password or is
@@ -76,7 +82,7 @@ type Account struct {
 
 // Has reports whether the role of the account grants p.
 func (a Account) Has(p Privilege) bool {
-	return slices.Contains(RolePrivileges(a.RoleId), p)
+	return slices.Contains(privileges(a.RoleID), p)
 }
 
 // BasicAuth is whether HTTP Basic authentication is accepted, as
@@ -200,19 +206,20 @@ const (
 	maxWaiting  = 8
 )
 
-// verifyWait is how long a login waits for a slot to hash its password.
-var verifyWait = 5 * time.Second
-
-// maxFailures bounds the user names without an account whose failed logins
-// are counted; those of accounts are always counted.
-var maxFailures = 4096
+const (
+	// verifyWait is how long a login waits for a slot to hash its password.
+	verifyWait = 5 * time.Second
+	// maxFailures bounds the user names without an account whose failed
+	// logins are counted; those of accounts are always counted.
+	maxFailures = 4096
+)
 
 // ErrBusy is the error of a login, or a change of a password, that waited
 // too long for a slot to hash the password, as too many arrived at once. It
 // is a *server.Error with status 503.
 var ErrBusy error = &server.Error{
 	Status:    http.StatusServiceUnavailable,
-	MessageID: odata.MsgServiceUnavailable,
+	MessageID: odata.MsgServiceTemporarilyUnavailable,
 	Message:   "The service is temporarily unavailable: too many logins or password changes at once. Retry later.",
 }
 
@@ -245,19 +252,14 @@ type Accounts struct {
 	now     func() time.Time
 	slots   chan struct{}
 	waiting atomic.Int32
-	hashed  atomic.Int64 // passwords hashed, for tests
-	work    atomic.Int64 // PBKDF2 iterations of logins, new hashes included, for tests
 	// rehashAfter is when a new hash at login may be saved again after
 	// saving one failed, in Unix nanoseconds.
 	rehashAfter atomic.Int64
-	active      atomic.Int32 // passwords being hashed
-	maxSeen     atomic.Int32 // most passwords hashed at once, for tests
-	// beforeCheck, if set, is called by a login that holds a slot and has
-	// chosen the hash to check, for tests.
-	beforeCheck func()
-	// beforeChange, if set, is called by change after hashing a new
-	// password, if any, before it takes the lock, for tests.
-	beforeChange func()
+	// verifyWait and maxFailures are the constants of the same names,
+	// unless a test changes them.
+	verifyWait  time.Duration
+	maxFailures int
+	probe       *probe // nil but in tests
 
 	mu       sync.Mutex
 	policy   Policy
@@ -304,16 +306,16 @@ type reservation struct {
 // with the device.
 func NewAccounts(s Storage) (*Accounts, error) {
 	a := &Accounts{
-		storage:  s,
-		now:      time.Now,
-		slots:    make(chan struct{}, verifySlots),
-		policy:   DefaultPolicy,
-		failures: map[string]*failures{},
-		verified: map[[32]byte]time.Time{},
+		storage:     s,
+		now:         time.Now,
+		verifyWait:  verifyWait,
+		maxFailures: maxFailures,
+		slots:       make(chan struct{}, verifySlots),
+		policy:      DefaultPolicy,
+		failures:    map[string]*failures{},
+		verified:    map[[32]byte]time.Time{},
 	}
-	if _, err := rand.Read(a.key[:]); err != nil {
-		return nil, err
-	}
+	rand.Read(a.key[:])
 	data, err := s.Load()
 	if err != nil {
 		return nil, err
@@ -419,7 +421,7 @@ func (a *Accounts) superseded(by *Account) bool {
 		return false
 	}
 	cur := a.find(by.UserName)
-	return cur == nil || cur.gen != by.gen || cur.RoleId != by.RoleId
+	return cur == nil || cur.gen != by.gen || cur.RoleID != by.RoleID
 }
 
 // Create adds an enabled account. The name must be 1 to 32 letters, digits,
@@ -434,7 +436,7 @@ func (a *Accounts) create(name, password, role string, enabled bool, by *Account
 	if err := checkName(name); err != nil {
 		return err
 	}
-	if RolePrivileges(role) == nil {
+	if privileges(role) == nil {
 		return badRole(role)
 	}
 	if err := checkPassword(a.Policy(), password); err != nil {
@@ -456,7 +458,7 @@ func (a *Accounts) create(name, password, role string, enabled bool, by *Account
 	if err := checkPassword(a.policy, password); err != nil {
 		return err
 	}
-	acc := &account{Account: Account{UserName: name, RoleId: role, Enabled: enabled, gen: newGen()}, hash: h}
+	acc := &account{Account: Account{UserName: name, RoleID: role, Enabled: enabled, gen: newGen()}, hash: h}
 	return a.commit(append(slices.Clone(a.list), acc), a.policy)
 }
 
@@ -487,7 +489,7 @@ func (a *Accounts) Change(name string, role *string, enabled *bool, password *st
 // the same generation and role when the change is saved (disabling an
 // account gives it a new generation).
 func (a *Accounts) change(name string, role *string, enabled *bool, password *string, by *Account) (uint64, Account, error) {
-	if role != nil && RolePrivileges(*role) == nil {
+	if role != nil && privileges(*role) == nil {
 		return 0, Account{}, badRole(*role)
 	}
 	var h string
@@ -500,9 +502,7 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 			return 0, Account{}, err
 		}
 	}
-	if a.beforeChange != nil {
-		a.beforeChange()
-	}
+	a.probe.change()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.superseded(by) {
@@ -521,7 +521,7 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 	prev := a.list[i].gen
 	acc := *a.list[i]
 	if role != nil {
-		acc.RoleId = *role
+		acc.RoleID = *role
 	}
 	if enabled != nil {
 		if acc.Enabled && !*enabled {
@@ -582,7 +582,7 @@ func (a *Accounts) delete(name string, by *Account) error {
 func adminCount(list []*account) int {
 	n := 0
 	for _, acc := range list {
-		if acc.Enabled && acc.RoleId == Administrator {
+		if acc.Enabled && acc.RoleID == Administrator {
 			n++
 		}
 	}
@@ -688,19 +688,18 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 	}
 	a.mu.Unlock()
 
-	if a.beforeCheck != nil {
-		a.beforeCheck()
-	}
-	ok := a.check(h, password)
+	a.probe.check()
+	ph, _ := parseHash(h)
+	ok := a.check(ph, password)
 	// The cooldown is checked here to save hashing, and again before the
 	// save, which decides.
 	var rehash string
 	switch {
-	case ok && acc != nil && acc.Enabled && hashIterations(h) < cost && now.UnixNano() >= a.rehashAfter.Load():
-		a.work.Add(int64(cost))
+	case ok && acc != nil && acc.Enabled && ph.iter < cost && now.UnixNano() >= a.rehashAfter.Load():
+		a.probe.addWork(cost)
 		rehash, _ = hash(password, cost)
-	case !ok && hashWork(h) < cost:
-		a.pad(cost - hashWork(h))
+	case !ok && ph.work() < cost:
+		a.pad(cost - ph.work())
 	}
 
 	a.mu.Lock()
@@ -754,14 +753,14 @@ func (a *Accounts) hashPassword(password string) (string, error) {
 }
 
 // acquire waits for a slot to hash a password, or fails with ErrBusy after
-// verifyWait or when maxWaiting logins wait already.
+// a.verifyWait or when maxWaiting logins wait already.
 func (a *Accounts) acquire() error {
 	if a.waiting.Add(1) > maxWaiting {
 		a.waiting.Add(-1)
 		return ErrBusy
 	}
 	defer a.waiting.Add(-1)
-	t := time.NewTimer(verifyWait)
+	t := time.NewTimer(a.verifyWait)
 	defer t.Stop()
 	select {
 	case a.slots <- struct{}{}:
@@ -774,19 +773,16 @@ func (a *Accounts) acquire() error {
 func (a *Accounts) release() { <-a.slots }
 
 // check reports whether password matches h; the caller holds a slot.
-func (a *Accounts) check(h, password string) bool {
-	a.hashed.Add(1)
-	a.work.Add(int64(hashWork(h)))
-	n := a.active.Add(1)
-	defer a.active.Add(-1)
-	for m := a.maxSeen.Load(); n > m && !a.maxSeen.CompareAndSwap(m, n); m = a.maxSeen.Load() {
+func (a *Accounts) check(h pbkdf2Hash, password string) bool {
+	if a.probe != nil {
+		defer a.probe.hashing(h.work())()
 	}
-	return verify(h, password)
+	return h.matches(password)
 }
 
 // pad does iter PBKDF2 iterations for nothing; the caller holds a slot.
 func (a *Accounts) pad(iter int) {
-	a.work.Add(int64(iter))
+	a.probe.addWork(iter)
 	_, _ = pbkdf2.Key(sha256.New, "", padSalt[:], iter, sha256.Size)
 }
 
@@ -817,7 +813,7 @@ func (a *Accounts) locked(name string, now time.Time) bool {
 
 // countFailure counts a failed login with the user name, and locks it when
 // that reaches the threshold. The names of accounts are always counted;
-// when maxFailures other names are counted, those that are not locked are
+// when a.maxFailures other names are counted, those that are not locked are
 // forgotten, and while that leaves no room, other names are not counted.
 // It returns what it did, for undo and clearWindow. a.mu must be held.
 func (a *Accounts) countFailure(name string, now time.Time) reservation {
@@ -827,13 +823,13 @@ func (a *Accounts) countFailure(name string, now time.Time) reservation {
 	}
 	f := a.failures[name]
 	if f == nil {
-		if a.find(name) == nil && a.unknownFailures() >= maxFailures {
+		if a.find(name) == nil && a.unknownFailures() >= a.maxFailures {
 			for n, old := range a.failures {
 				if a.find(n) == nil && !now.Before(old.lockedUntil) {
 					delete(a.failures, n)
 				}
 			}
-			if a.unknownFailures() >= maxFailures {
+			if a.unknownFailures() >= a.maxFailures {
 				return reservation{}
 			}
 		}
@@ -925,48 +921,52 @@ func hash(password string, iter int) (string, error) {
 	return fmt.Sprintf("$pbkdf2-sha256$%d$%s$%s", iter, b64.EncodeToString(salt), b64.EncodeToString(key)), nil
 }
 
-// parseHash splits a stored hash, and reports whether it is one that verify
-// can check.
-func parseHash(h string) (iter int, salt, key []byte, ok bool) {
+// pbkdf2Hash is a stored password hash, split.
+type pbkdf2Hash struct {
+	iter      int
+	salt, key []byte
+}
+
+// parseHash splits a stored hash, and reports whether it is one that can be
+// checked. The zero pbkdf2Hash, of a hash that cannot, matches no password.
+func parseHash(h string) (pbkdf2Hash, bool) {
 	f := strings.Split(h, "$")
 	if len(f) != 5 || f[0] != "" || f[1] != "pbkdf2-sha256" {
-		return 0, nil, nil, false
+		return pbkdf2Hash{}, false
 	}
 	iter, err := strconv.Atoi(f[2])
 	if err != nil || iter < 1 || iter > maxIterations {
-		return 0, nil, nil, false
+		return pbkdf2Hash{}, false
 	}
 	b64 := base64.RawStdEncoding
 	salt, err1 := b64.DecodeString(f[3])
 	key, err2 := b64.DecodeString(f[4])
 	if err1 != nil || err2 != nil || len(salt) < 8 || len(salt) > 64 || len(key) < 16 || len(key) > 64 {
-		return 0, nil, nil, false
+		return pbkdf2Hash{}, false
 	}
-	return iter, salt, key, true
+	return pbkdf2Hash{iter, salt, key}, true
 }
 
 // hashIterations returns the iteration count of a stored hash, 0 if it has
 // none.
 func hashIterations(h string) int {
-	iter, _, _, _ := parseHash(h)
-	return iter
+	p, _ := parseHash(h)
+	return p.iter
 }
 
-// hashWork returns the PBKDF2 iterations that checking a stored hash takes:
-// its count for each SHA-256 block of its key, 0 if it cannot be checked.
-func hashWork(h string) int {
-	iter, _, key, _ := parseHash(h)
-	return iter * ((len(key) + sha256.Size - 1) / sha256.Size)
+// work returns the PBKDF2 iterations that checking the hash takes: its count
+// for each SHA-256 block of its key.
+func (p pbkdf2Hash) work() int {
+	return p.iter * ((len(p.key) + sha256.Size - 1) / sha256.Size)
 }
 
-// verify reports whether password matches hash.
-func verify(hash, password string) bool {
-	iter, salt, want, ok := parseHash(hash)
-	if !ok {
+// matches reports whether password matches the hash.
+func (p pbkdf2Hash) matches(password string) bool {
+	if p.iter == 0 {
 		return false
 	}
-	got, err := pbkdf2.Key(sha256.New, password, salt, iter, len(want))
-	return err == nil && subtle.ConstantTimeCompare(got, want) == 1
+	got, err := pbkdf2.Key(sha256.New, password, p.salt, p.iter, len(p.key))
+	return err == nil && subtle.ConstantTimeCompare(got, p.key) == 1
 }
 
 func checkName(name string) error {
@@ -1011,7 +1011,7 @@ func errExists(name string) error {
 func errNoAccount(name string) error {
 	return &server.Error{
 		Status:    http.StatusNotFound,
-		MessageID: odata.MsgResourceNotFound,
+		MessageID: odata.MsgResourceMissingAtURI,
 		Message:   "The account " + name + " does not exist.",
 	}
 }
@@ -1038,7 +1038,7 @@ func format(list []*account, p Policy) []byte {
 		if !acc.Enabled {
 			state = "disabled"
 		}
-		fmt.Fprintf(&b, "account %s %s %s %s\n", acc.UserName, acc.RoleId, state, acc.hash)
+		fmt.Fprintf(&b, "account %s %s %s %s\n", acc.UserName, acc.RoleID, state, acc.hash)
 	}
 	return b.Bytes()
 }
@@ -1082,12 +1082,12 @@ func parse(data []byte) ([]*account, Policy, error) {
 				return nil, p, bad("unknown setting")
 			}
 		case f[0] == "account" && len(f) == 5:
-			acc := &account{Account: Account{UserName: f[1], RoleId: f[2], Enabled: f[3] == "enabled", gen: newGen()}, hash: f[4]}
-			_, _, _, hashOK := parseHash(acc.hash)
+			acc := &account{Account: Account{UserName: f[1], RoleID: f[2], Enabled: f[3] == "enabled", gen: newGen()}, hash: f[4]}
+			_, hashOK := parseHash(acc.hash)
 			switch {
 			case checkName(acc.UserName) != nil:
 				return nil, p, bad("bad user name")
-			case RolePrivileges(acc.RoleId) == nil:
+			case privileges(acc.RoleID) == nil:
 				return nil, p, bad("unknown role")
 			case f[3] != "enabled" && f[3] != "disabled":
 				return nil, p, bad("bad state")

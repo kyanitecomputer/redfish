@@ -129,7 +129,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	gen.RegisterSoftwareInventory(mux, s)
 	if _, ok := installerOf(s.backend); ok {
 		gen.RegisterSimpleUpdateUpdateService(mux, s)
-		server.Handle(mux, "POST", MultipartPushURI, s.servePush)
+		server.Handle(mux, http.MethodPost, MultipartPushURI, s.servePush)
 	}
 	if _, ok := activatorOf(s.backend); ok {
 		gen.RegisterActivateUpdateService(mux, s)
@@ -277,7 +277,7 @@ func (s *Service) start(name string, fn task.Func) (*server.ActionResult, error)
 		}
 		return nil, &server.Error{
 			Status:    http.StatusServiceUnavailable,
-			MessageID: odata.MsgServiceUnavailable,
+			MessageID: odata.MsgServiceTemporarilyUnavailable,
 			Message:   "The service is temporarily unavailable. " + reason,
 		}
 	}
@@ -315,7 +315,7 @@ func (s *Service) PatchUpdateService(ctx context.Context, patch *gen.UpdateServi
 		if refused {
 			return nil, &server.Error{
 				Status:    http.StatusServiceUnavailable,
-				MessageID: odata.MsgServiceUnavailable,
+				MessageID: odata.MsgServiceTemporarilyUnavailable,
 				Message:   "The service is temporarily unavailable. The update service is stopped for a reset.",
 			}
 		}
@@ -390,7 +390,7 @@ func (s *Service) inventory(ctx context.Context, p server.Params) ([]*gen.Softwa
 	default:
 		return nil, "", &server.Error{
 			Status:    http.StatusNotFound,
-			MessageID: odata.MsgResourceNotFound,
+			MessageID: odata.MsgResourceMissingAtURI,
 			Message:   "The resource at URI '" + p.Path() + "' was not found.",
 		}
 	}

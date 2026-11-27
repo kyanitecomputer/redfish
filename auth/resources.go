@@ -21,15 +21,15 @@ func (s *Service) Register(mux *http.ServeMux) {
 	gen.RegisterSessionService(mux, s)
 	gen.RegisterSessionCollection(mux, s)
 	gen.RegisterSession(mux, s)
-	server.Handle(mux, "POST", SessionsURI, s.serveCreateSession)
-	server.Handle(mux, "DELETE", SessionsURI+"/{SessionId}", s.serveDeleteSession)
+	server.Handle(mux, http.MethodPost, SessionsURI, s.serveCreateSession)
+	server.Handle(mux, http.MethodDelete, SessionsURI+"/{SessionId}", s.serveDeleteSession)
 
 	gen.RegisterAccountService(mux, s)
 	gen.RegisterManagerAccountCollection(mux, s)
 	gen.RegisterManagerAccount(mux, s)
 	gen.RegisterChangePasswordManagerAccount(mux, s)
-	server.Handle(mux, "POST", AccountsURI, s.serveCreateAccount)
-	server.Handle(mux, "DELETE", AccountsURI+"/{ManagerAccountId}", s.serveDeleteAccount)
+	server.Handle(mux, http.MethodPost, AccountsURI, s.serveCreateAccount)
+	server.Handle(mux, http.MethodDelete, AccountsURI+"/{ManagerAccountId}", s.serveDeleteAccount)
 	gen.RegisterRoleCollection(mux, s)
 	gen.RegisterRole(mux, s)
 }
@@ -38,13 +38,11 @@ func (s *Service) Register(mux *http.ServeMux) {
 
 // GetSessionService implements gen.SessionServiceProvider.
 func (s *Service) GetSessionService(context.Context) (*gen.SessionService, error) {
-	enabled := true
-	timeout := int64(s.accounts.Policy().SessionTimeout / time.Second)
 	return &gen.SessionService{
 		Id:             "SessionService",
 		Name:           "Session Service",
-		ServiceEnabled: &enabled,
-		SessionTimeout: &timeout,
+		ServiceEnabled: new(true),
+		SessionTimeout: new(int64(s.accounts.Policy().SessionTimeout / time.Second)),
 		Status:         &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
 		Sessions:       odata.Link(SessionsURI),
 	}, nil
@@ -102,12 +100,12 @@ func (s *Service) sessionResource(sess session) *gen.Session {
 		Id:          sess.id,
 		Name:        "User Session",
 		UserName:    sess.user,
-		SessionType: gen.SessionSessionTypesRedfish,
+		SessionType: gen.SessionTypesRedfish,
 		CreatedTime: sess.created.UTC().Format(time.RFC3339),
 	}
 	res.ClientOriginIPAddress = sess.origin
 	if acc, ok := s.accounts.Get(sess.user); ok {
-		res.Roles = []string{acc.RoleId}
+		res.Roles = []string{acc.RoleID}
 	}
 	return res
 }
@@ -130,14 +128,14 @@ func (s *Service) serveCreateSession(w http.ResponseWriter, r *http.Request, _ s
 		s.loginFailed(w, err)
 		return
 	}
-	max := s.MaxSessions
-	if max == 0 {
-		max = DefaultMaxSessions
+	limit := s.MaxSessions
+	if limit == 0 {
+		limit = DefaultMaxSessions
 	}
 	origin, _, _ := net.SplitHostPort(r.RemoteAddr)
-	sess, token, ok := s.sessions.create(acc, origin, s.now(), s.accounts.Policy().SessionTimeout, max, s.current)
+	sess, token, ok := s.sessions.create(acc, origin, s.now(), s.accounts.Policy().SessionTimeout, limit, s.current)
 	if !ok {
-		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgCreateLimitReached,
+		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgCreateLimitReachedForResource,
 			"The create operation failed because the resource has reached the limit of possible resources.")
 		return
 	}
@@ -163,21 +161,16 @@ func (s *Service) GetAccountService(_ context.Context, p server.Params) (*gen.Ac
 		return nil, nil
 	}
 	pol := s.accounts.Policy()
-	enabled := true
-	minLen, maxLen := int64(pol.MinPasswordLength), int64(pol.MaxPasswordLength)
-	threshold := int64(pol.LockoutThreshold)
-	duration := int64(pol.LockoutDuration / time.Second)
-	resetAfter := int64(pol.LockoutCounterResetAfter / time.Second)
 	return &gen.AccountService{
 		Id:                              "AccountService",
 		Name:                            "Account Service",
-		ServiceEnabled:                  &enabled,
+		ServiceEnabled:                  new(true),
 		Status:                          &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
-		MinPasswordLength:               &minLen,
-		MaxPasswordLength:               &maxLen,
-		AccountLockoutThreshold:         &threshold,
-		AccountLockoutDuration:          &duration,
-		AccountLockoutCounterResetAfter: &resetAfter,
+		MinPasswordLength:               new(int64(pol.MinPasswordLength)),
+		MaxPasswordLength:               new(int64(pol.MaxPasswordLength)),
+		AccountLockoutThreshold:         new(int64(pol.LockoutThreshold)),
+		AccountLockoutDuration:          new(int64(pol.LockoutDuration / time.Second)),
+		AccountLockoutCounterResetAfter: new(int64(pol.LockoutCounterResetAfter / time.Second)),
 		LocalAccountAuth:                gen.AccountServiceLocalAccountAuthEnabled,
 		HTTPBasicAuth:                   gen.AccountServiceBasicAuthState(pol.BasicAuth),
 		Accounts:                        odata.Link(AccountsURI),
@@ -267,18 +260,17 @@ func (s *Service) GetManagerAccount(_ context.Context, p server.Params) (*gen.Ma
 
 func (s *Service) accountResource(acc Account) *gen.ManagerAccount {
 	uri := AccountsURI + "/" + acc.UserName
-	enabled, locked, change := acc.Enabled, s.accounts.Locked(acc.UserName), false
 	return &gen.ManagerAccount{
 		ODataID:                uri,
 		Id:                     acc.UserName,
 		Name:                   "User Account",
 		UserName:               acc.UserName,
-		RoleId:                 acc.RoleId,
-		Enabled:                &enabled,
-		Locked:                 &locked,
-		PasswordChangeRequired: &change,
-		AccountTypes:           []string{"Redfish"},
-		Links:                  &gen.ManagerAccountLinks{Role: odata.Link(RolesURI + "/" + acc.RoleId)},
+		RoleId:                 acc.RoleID,
+		Enabled:                new(acc.Enabled),
+		Locked:                 new(s.accounts.Locked(acc.UserName)),
+		PasswordChangeRequired: new(false),
+		AccountTypes:           []gen.ManagerAccountAccountTypes{gen.ManagerAccountAccountTypesRedfish},
+		Links:                  &gen.ManagerAccountLinks{Role: odata.Link(RolesURI + "/" + acc.RoleID)},
 		Actions: &gen.ManagerAccountActions{
 			ChangePassword: &odata.ActionTarget{Target: uri + "/Actions/ManagerAccount.ChangePassword"},
 		},
@@ -349,9 +341,7 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 // authenticated pr has ended too. (change refuses such a change when given
 // the principal, so this only guards callers that do not give it.)
 func (s *Service) keepOwnSession(prev uint64, acc Account, pr Principal) {
-	if s.beforeRebind != nil {
-		s.beforeRebind()
-	}
+	s.accounts.probe.rebind()
 	if acc.Enabled && acc.UserName == pr.Account.UserName && pr.SessionID != "" && prev == pr.Account.gen {
 		s.sessions.rebind(pr.SessionID, prev, acc.gen)
 	}
@@ -401,7 +391,7 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 	} else if err != nil {
 		return nil, &server.Error{
 			Status:    http.StatusBadRequest,
-			MessageID: odata.MsgActionParameterValueFormat,
+			MessageID: odata.MsgActionParameterValueFormatError,
 			Message:   "The value for the parameter SessionAccountPassword is not the password of the account of the session.",
 		}
 	} else if acc.gen != pr.Account.gen {
@@ -481,16 +471,15 @@ func (s *Service) GetRole(_ context.Context, p server.Params) (*gen.Role, error)
 	if privs == nil {
 		return nil, nil
 	}
-	predefined := true
-	assigned := make([]string, len(privs))
+	assigned := make([]gen.PrivilegesPrivilegeType, len(privs))
 	for i, pr := range privs {
-		assigned[i] = string(pr)
+		assigned[i] = gen.PrivilegesPrivilegeType(pr)
 	}
 	return &gen.Role{
 		Id:                 id,
 		Name:               id + " Role",
 		RoleId:             id,
-		IsPredefined:       &predefined,
+		IsPredefined:       new(true),
 		AssignedPrivileges: assigned,
 	}, nil
 }
@@ -504,7 +493,7 @@ var errInsufficient = &server.Error{
 func notFound(p server.Params) error {
 	return &server.Error{
 		Status:    http.StatusNotFound,
-		MessageID: odata.MsgResourceNotFound,
+		MessageID: odata.MsgResourceMissingAtURI,
 		Message:   "The resource at URI '" + p.Path() + "' was not found.",
 	}
 }

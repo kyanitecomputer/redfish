@@ -31,7 +31,7 @@ func (b *backend) GetManager(_ context.Context, p server.Params) (*gen.Manager, 
 	return &gen.Manager{
 		Id:                 "bmc",
 		Name:               "Manager",
-		ManagerType:        gen.ManagerManagerTypeBMC,
+		ManagerType:        gen.ManagerTypeBMC,
 		UUID:               "92384634-2938-2342-8820-489239905431",
 		FirmwareVersion:    "1.0.0",
 		Status:             &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
@@ -53,14 +53,13 @@ func (b *backend) GetManagerNetworkProtocol(_ context.Context, p server.Params) 
 	if p.Get("ManagerId") != "bmc" {
 		return nil, nil
 	}
-	httpsEnabled := true
 	return &gen.ManagerNetworkProtocol{
 		Id:       "NetworkProtocol",
 		Name:     "Manager Network Protocol",
 		HostName: "cairn-bmc",
 		FQDN:     "cairn-bmc.local",
 		Status:   &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
-		HTTPS:    &gen.ManagerNetworkProtocolHTTPSProtocol{ProtocolEnabled: &httpsEnabled, Port: i64(443)},
+		HTTPS:    &gen.ManagerNetworkProtocolHTTPSProtocol{ProtocolEnabled: new(true), Port: new(int64(443))},
 	}, nil
 }
 
@@ -120,13 +119,12 @@ func (b *backend) GetEthernetInterface(_ context.Context, p server.Params) (*gen
 	if p.Get("ManagerId") != "bmc" || p.Get("EthernetInterfaceId") != "eth0" {
 		return nil, nil
 	}
-	enabled := true
 	return &gen.EthernetInterface{
 		Id:               "eth0",
 		Name:             "Manager Ethernet Interface",
 		MACAddress:       "AA:BB:CC:DD:EE:00",
-		SpeedMbps:        i64(1000),
-		InterfaceEnabled: &enabled,
+		SpeedMbps:        new(int64(1000)),
+		InterfaceEnabled: new(true),
 		LinkStatus:       gen.EthernetInterfaceLinkStatusLinkUp,
 		Status:           &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
 		HostName:         "cairn-bmc",
@@ -156,11 +154,10 @@ func (b *backend) GetLogService(_ context.Context, p server.Params) (*gen.LogSer
 	if p.Get("ManagerId") != "bmc" || p.Get("LogServiceId") != "Log" {
 		return nil, nil
 	}
-	enabled := true
 	return &gen.LogService{
 		Id:             "Log",
 		Name:           "Manager Log Service",
-		ServiceEnabled: &enabled,
+		ServiceEnabled: new(true),
 		Entries:        odata.Link("/redfish/v1/Managers/bmc/LogServices/Log/Entries"),
 	}, nil
 }
@@ -195,10 +192,8 @@ func (b *backend) logEntry(id string) *gen.LogEntry {
 		Id:        id,
 		Name:      "Log Entry " + id,
 		Created:   "2026-06-11T00:00:00Z",
-		EntryType: gen.LogEntryLogEntryTypeEvent,
+		EntryType: gen.LogEntryTypeEvent,
 		Message:   "System started.",
 		Severity:  gen.LogEntryEventSeverityOK,
 	}
 }
-
-func i64(v int64) *int64 { return &v }

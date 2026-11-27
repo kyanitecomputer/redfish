@@ -9,7 +9,7 @@ type ActionTarget struct {
 }
 
 // Bytes encodes the action target object: {"target": ..., "@Redfish.ActionInfo": ...}.
-func (a *ActionTarget) Bytes() []byte {
+func (a ActionTarget) Bytes() []byte {
 	b := NewBuilder()
 	b.String("target", a.Target)
 	b.OptString("@Redfish.ActionInfo", a.ActionInfo)

@@ -235,15 +235,14 @@ func (b *Backend) Inventory(ctx context.Context) (*update.Inventory, error) {
 		}
 		inv.Firmware = append(inv.Firmware, it)
 	}
-	factoryRunning, no, yes := st.factory, false, true
 	inv.Firmware = append(inv.Firmware, &gen.SoftwareInventory{
 		Id:             FactoryID,
 		Name:           "RSU factory image",
 		Description:    "RSU factory image, loaded when no slot can be",
 		Version:        b.version(ctx, "FACTORY_IM"),
-		Active:         &factoryRunning,
-		Updateable:     &no,
-		WriteProtected: &yes,
+		Active:         new(st.factory),
+		Updateable:     new(false),
+		WriteProtected: new(true),
 		Status:         &gen.ResourceStatus{State: gen.ResourceStateEnabled},
 	})
 	return inv, nil
@@ -331,7 +330,7 @@ func notSupported(param string) error {
 func badValue(msg string) error {
 	return &server.Error{
 		Status:    http.StatusBadRequest,
-		MessageID: odata.MsgActionParameterValueFormat,
+		MessageID: odata.MsgActionParameterValueFormatError,
 		Message:   msg,
 	}
 }
