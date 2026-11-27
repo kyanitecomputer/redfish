@@ -870,3 +870,29 @@ func TestSupersededAdministrator(t *testing.T) {
 		t.Error("op was changed")
 	}
 }
+
+// TestRequiredPrivilege checks that the fixed rules match whole path
+// segments: a sibling of a service is not part of it.
+func TestRequiredPrivilege(t *testing.T) {
+	ts := newTestService(t)
+	for _, tt := range []struct {
+		method, path string
+		want         Privilege
+	}{
+		{"PATCH", AccountServiceURI, ConfigureUsers},
+		{"PATCH", AccountServiceURI + "/", ConfigureUsers},
+		{"POST", AccountServiceURI + "Extra", ConfigureComponents},
+		{"PATCH", SessionServiceURI, ConfigureManager},
+		{"POST", SessionServiceURI + "Extra", ConfigureComponents},
+		{"POST", "/redfish/v1/Managers/bmc/Actions/Manager.Reset", ConfigureManager},
+		{"POST", "/redfish/v1/ManagersExtra", ConfigureComponents},
+		{"DELETE", "/redfish/v1/TaskService/Tasks/1", ConfigureManager},
+		{"POST", "/redfish/v1/TaskServiceExtra", ConfigureComponents},
+		{"GET", "/redfish/v1/ManagersExtra", Login},
+	} {
+		r := httptest.NewRequest(tt.method, tt.path, nil)
+		if got := ts.s.required(r, Principal{}); got != tt.want {
+			t.Errorf("%s %s: %s, want %s", tt.method, tt.path, got, tt.want)
+		}
+	}
+}

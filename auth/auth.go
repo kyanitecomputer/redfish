@@ -227,7 +227,7 @@ func (s *Service) required(r *http.Request, p Principal) Privilege {
 		}
 		return ConfigureUsers
 	}
-	if strings.HasPrefix(path, AccountServiceURI) {
+	if under(path, AccountServiceURI) {
 		if read {
 			return Login
 		}
@@ -239,7 +239,7 @@ func (s *Service) required(r *http.Request, p Principal) Privilege {
 		}
 		return ConfigureManager
 	}
-	if strings.HasPrefix(path, SessionServiceURI) {
+	if under(path, SessionServiceURI) {
 		if read {
 			return Login
 		}
@@ -259,8 +259,14 @@ func DefaultPrivilege(r *http.Request) Privilege {
 	switch {
 	case r.Method == http.MethodGet || r.Method == http.MethodHead:
 		return Login
-	case strings.HasPrefix(r.URL.Path, "/redfish/v1/Managers"), strings.HasPrefix(r.URL.Path, "/redfish/v1/TaskService"):
+	case under(r.URL.Path, "/redfish/v1/Managers"), under(r.URL.Path, "/redfish/v1/TaskService"):
 		return ConfigureManager
 	}
 	return ConfigureComponents
+}
+
+// under reports whether path is the URI prefix or below it.
+func under(path, prefix string) bool {
+	rest, ok := strings.CutPrefix(path, prefix)
+	return ok && (rest == "" || rest[0] == '/')
 }
