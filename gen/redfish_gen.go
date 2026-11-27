@@ -11869,14 +11869,10 @@ const odataServiceDoc = `{"@odata.context":"/redfish/v1/$metadata","@odata.id":"
 
 // RegisterMetadata serves the service metadata document at /redfish/v1/$metadata.
 func RegisterMetadata(mux *http.ServeMux) {
-	mux.HandleFunc("GET /redfish/v1/$metadata", func(w http.ResponseWriter, r *http.Request) {
-		server.WriteXML(w, []byte(metadataXML))
-	})
+	mux.HandleFunc("GET /redfish/v1/$metadata", server.StaticXML(metadataXML))
 }
 
 // RegisterODataService serves the OData service document at /redfish/v1/odata.
 func RegisterODataService(mux *http.ServeMux) {
-	mux.HandleFunc("GET /redfish/v1/odata", func(w http.ResponseWriter, r *http.Request) {
-		server.WriteJSON(w, []byte(odataServiceDoc))
-	})
+	mux.HandleFunc("GET /redfish/v1/odata", server.StaticJSON(odataServiceDoc))
 }

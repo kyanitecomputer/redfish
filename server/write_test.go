@@ -144,3 +144,19 @@ func TestETag(t *testing.T) {
 		}
 	}
 }
+
+func TestStatic(t *testing.T) {
+	h := StaticXML("<x/>")
+	var tags []string
+	for range 2 {
+		w := httptest.NewRecorder()
+		h(w, httptest.NewRequest(http.MethodGet, "/redfish/v1/$metadata", nil))
+		if w.Code != http.StatusOK || w.Body.String() != "<x/>" || !strings.HasPrefix(w.Header().Get("Content-Type"), "application/xml") {
+			t.Fatalf("status %d, Content-Type %q, body %q", w.Code, w.Header().Get("Content-Type"), w.Body)
+		}
+		tags = append(tags, w.Header().Get("ETag"))
+	}
+	if tags[0] == "" || tags[0] != tags[1] {
+		t.Errorf("ETags %q", tags)
+	}
+}

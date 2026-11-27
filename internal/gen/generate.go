@@ -590,13 +590,11 @@ func writeMetadata(b *bytes.Buffer, m *Model) {
 
 	fmt.Fprintf(b, "// RegisterMetadata serves the service metadata document at /redfish/v1/$metadata.\n")
 	fmt.Fprintf(b, "func RegisterMetadata(mux *http.ServeMux) {\n")
-	fmt.Fprintf(b, "\tmux.HandleFunc(\"GET /redfish/v1/$metadata\", func(w http.ResponseWriter, r *http.Request) {\n")
-	fmt.Fprintf(b, "\t\tserver.WriteXML(w, []byte(metadataXML))\n\t})\n}\n\n")
+	fmt.Fprintf(b, "\tmux.HandleFunc(\"GET /redfish/v1/$metadata\", server.StaticXML(metadataXML))\n}\n\n")
 
 	fmt.Fprintf(b, "// RegisterODataService serves the OData service document at /redfish/v1/odata.\n")
 	fmt.Fprintf(b, "func RegisterODataService(mux *http.ServeMux) {\n")
-	fmt.Fprintf(b, "\tmux.HandleFunc(\"GET /redfish/v1/odata\", func(w http.ResponseWriter, r *http.Request) {\n")
-	fmt.Fprintf(b, "\t\tserver.WriteJSON(w, []byte(odataServiceDoc))\n\t})\n}\n\n")
+	fmt.Fprintf(b, "\tmux.HandleFunc(\"GET /redfish/v1/odata\", server.StaticJSON(odataServiceDoc))\n}\n\n")
 }
 
 func writeStructFields(b *bytes.Buffer, fields []Field) {
