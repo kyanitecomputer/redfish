@@ -12,12 +12,13 @@ Part of the [Kyanite](https://github.com/kyanitecomputer) stack.
 - Parses the DMTF DSP8010 CSDL (OData EDMX) schema bundle and resolves versioned entity, complex, enum, and
   type-definition references.
 - Generates Go source for an explicit list of resources only, plus the complex and enum types they transitively need.
-- Emits reflection-free models with explicit marshalers; no `reflect` or reflection-based `encoding/json` in the serving path.
+- Emits models with explicit marshalers and body parsers that use neither `reflect` nor `encoding/json`. (`net/http`
+  itself links `reflect`, and the `update/rauc` backend decodes the output of `rauc status` with `encoding/json`.)
 - Emits one opt-in `Register*` function per resource, so anything a binary does not register is removed by the linker.
 - Uses `net/http.ServeMux` method+pattern routing; no third-party router.
 - Covers the OData surface a Redfish service needs:
   - trimmed `$metadata` (EDMX) for the generated types and the OData service document
-  - `@odata.id`, `@odata.type`, `@odata.context`, and `@odata.etag` injection
+  - `@odata.id`, `@odata.type` and `@odata.context`, and `ETag` headers
   - collections (`Members`, `Members@odata.count`), including AutoExpand collections
   - standard Redfish error bodies
 - Supports sparse `PATCH` on writable properties with `ETag`/`If-Match` checks, and bound actions such as
