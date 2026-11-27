@@ -25,7 +25,7 @@ func Render(m *Model) ([]byte, error) {
 	fmt.Fprintf(&b, "\npackage %s\n\n", m.Package)
 	b.WriteString("import (\n")
 	if needsJSON {
-		fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n", "bytes", "encoding/json/jsontext", "strconv")
+		fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n\t%q\n", "bytes", "encoding/json/jsontext", "io", "strconv")
 	}
 	fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n\t%q\n)\n\n", "context", "net/http", odataPkg, serverPkg)
 
@@ -176,7 +176,8 @@ func writeSparseStruct(b *bytes.Buffer, typeName, doc string, fields []Field) {
 // that ignores unknown and null-valued properties.
 func writeSparseParser(b *bytes.Buffer, typeName string, fields []Field) {
 	fmt.Fprintf(b, "// UnmarshalJSON parses the known properties of a %s body,\n", typeName)
-	fmt.Fprintf(b, "// ignoring unknown and null-valued properties.\n")
+	fmt.Fprintf(b, "// ignoring unknown and null-valued properties. Data must hold one JSON\n")
+	fmt.Fprintf(b, "// object and nothing after it.\n")
 	fmt.Fprintf(b, "func (p *%s) UnmarshalJSON(data []byte) error {\n", typeName)
 	fmt.Fprintf(b, "\tdec := jsontext.NewDecoder(bytes.NewReader(data))\n")
 	fmt.Fprintf(b, "\tif t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {\n")
@@ -194,7 +195,7 @@ func writeSparseParser(b *bytes.Buffer, typeName string, fields []Field) {
 		writePatchCase(b, f)
 	}
 	fmt.Fprintf(b, "\t\tdefault:\n\t\t\tif err := dec.SkipValue(); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
-	fmt.Fprintf(b, "\t\t}\n\t}\n\treturn nil\n}\n\n")
+	fmt.Fprintf(b, "\t\t}\n\t}\n\treturn patchReadEnd(dec)\n}\n\n")
 }
 
 // writeActions emits, for each bound action of a resource, a parameters struct
@@ -426,6 +427,19 @@ type patchError struct{ msg string }
 
 func (e *patchError) Error() string { return e.msg }
 
+// patchReadEnd reports an error unless the body ends after the object just
+// read.
+func patchReadEnd(dec *jsontext.Decoder) error {
+	_, err := dec.ReadToken()
+	switch err {
+	case io.EOF:
+		return nil
+	case nil:
+		return errPatchType
+	}
+	return err
+}
+
 func patchReadString(dec *jsontext.Decoder) (string, error) {
 	t, err := dec.ReadToken()
 	if err != nil {
@@ -500,7 +514,8 @@ func patchReadStrings(dec *jsontext.Decoder) ([]string, error) {
 }
 
 // patchReadLinks reads a JSON array of reference objects ({"@odata.id": ...}),
-// ignoring any other members of each object.
+// ignoring any other members of each object. Every object needs a non-empty
+// @odata.id.
 func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
 		if err != nil {
@@ -534,6 +549,9 @@ func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 		}
 		if _, err := dec.ReadToken(); err != nil {
 			return nil, err
+		}
+		if id == "" {
+			return nil, errPatchType
 		}
 		out = append(out, odata.Link(id))
 	}

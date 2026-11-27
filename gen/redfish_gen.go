@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json/jsontext"
+	"io"
 	"net/http"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
@@ -21,6 +22,19 @@ var errPatchType = &patchError{"unexpected JSON type in PATCH body"}
 type patchError struct{ msg string }
 
 func (e *patchError) Error() string { return e.msg }
+
+// patchReadEnd reports an error unless the body ends after the object just
+// read.
+func patchReadEnd(dec *jsontext.Decoder) error {
+	_, err := dec.ReadToken()
+	switch err {
+	case io.EOF:
+		return nil
+	case nil:
+		return errPatchType
+	}
+	return err
+}
 
 func patchReadString(dec *jsontext.Decoder) (string, error) {
 	t, err := dec.ReadToken()
@@ -96,7 +110,8 @@ func patchReadStrings(dec *jsontext.Decoder) ([]string, error) {
 }
 
 // patchReadLinks reads a JSON array of reference objects ({"@odata.id": ...}),
-// ignoring any other members of each object.
+// ignoring any other members of each object. Every object needs a non-empty
+// @odata.id.
 func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
 		if err != nil {
@@ -130,6 +145,9 @@ func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 		}
 		if _, err := dec.ReadToken(); err != nil {
 			return nil, err
+		}
+		if id == "" {
+			return nil, errPatchType
 		}
 		out = append(out, odata.Link(id))
 	}
@@ -4539,7 +4557,8 @@ type SessionServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a SessionServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SessionServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -4594,7 +4613,7 @@ func (p *SessionServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SessionServiceProvider supplies the SessionService resource.
@@ -4749,7 +4768,8 @@ type SessionCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a SessionCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SessionCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -4792,7 +4812,7 @@ func (p *SessionCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SessionProvider supplies the Session resource.
@@ -5070,7 +5090,8 @@ type ChassisPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ChassisPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ChassisPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5159,7 +5180,7 @@ func (p *ChassisPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ChassisProvider supplies the Chassis resource.
@@ -5237,7 +5258,8 @@ type ChassisResetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ChassisResetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ChassisResetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5275,7 +5297,7 @@ func (p *ChassisResetParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetChassisProvider performs the #Chassis.Reset action.
@@ -5581,7 +5603,8 @@ type ComputerSystemPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5669,7 +5692,7 @@ func (p *ComputerSystemPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ComputerSystemProvider supplies the ComputerSystem resource.
@@ -5752,7 +5775,8 @@ type ComputerSystemAddResourceBlockParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemAddResourceBlockParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemAddResourceBlockParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5795,7 +5819,7 @@ func (p *ComputerSystemAddResourceBlockParameters) UnmarshalJSON(data []byte) er
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // AddResourceBlockComputerSystemProvider performs the #ComputerSystem.AddResourceBlock action.
@@ -5839,7 +5863,8 @@ type ComputerSystemDecommissionParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemDecommissionParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemDecommissionParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5894,7 +5919,7 @@ func (p *ComputerSystemDecommissionParameters) UnmarshalJSON(data []byte) error 
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // DecommissionComputerSystemProvider performs the #ComputerSystem.Decommission action.
@@ -5939,7 +5964,8 @@ type ComputerSystemExportConfigurationParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemExportConfigurationParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemExportConfigurationParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6002,7 +6028,7 @@ func (p *ComputerSystemExportConfigurationParameters) UnmarshalJSON(data []byte)
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ExportConfigurationComputerSystemProvider performs the #ComputerSystem.ExportConfiguration action.
@@ -6044,7 +6070,8 @@ type ComputerSystemRemoveResourceBlockParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemRemoveResourceBlockParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemRemoveResourceBlockParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6087,7 +6114,7 @@ func (p *ComputerSystemRemoveResourceBlockParameters) UnmarshalJSON(data []byte)
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // RemoveResourceBlockComputerSystemProvider performs the #ComputerSystem.RemoveResourceBlock action.
@@ -6128,7 +6155,8 @@ type ComputerSystemResetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemResetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemResetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6166,7 +6194,7 @@ func (p *ComputerSystemResetParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetComputerSystemProvider performs the #ComputerSystem.Reset action.
@@ -6436,7 +6464,8 @@ type ManagerPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6522,7 +6551,7 @@ func (p *ManagerPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerProvider supplies the Manager resource.
@@ -6623,7 +6652,8 @@ type ManagerModifyRedundancySetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerModifyRedundancySetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerModifyRedundancySetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6666,7 +6696,7 @@ func (p *ManagerModifyRedundancySetParameters) UnmarshalJSON(data []byte) error 
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ModifyRedundancySetManagerProvider performs the #Manager.ModifyRedundancySet action.
@@ -6705,7 +6735,8 @@ type ManagerResetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerResetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerResetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6743,7 +6774,7 @@ func (p *ManagerResetParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetManagerProvider performs the #Manager.Reset action.
@@ -6782,7 +6813,8 @@ type ManagerResetToDefaultsParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerResetToDefaultsParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerResetToDefaultsParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6820,7 +6852,7 @@ func (p *ManagerResetToDefaultsParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetToDefaultsManagerProvider performs the #Manager.ResetToDefaults action.
@@ -6860,7 +6892,8 @@ type ManagerUpdateSecurityModeParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerUpdateSecurityModeParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerUpdateSecurityModeParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6904,7 +6937,7 @@ func (p *ManagerUpdateSecurityModeParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // UpdateSecurityModeManagerProvider performs the #Manager.UpdateSecurityMode action.
@@ -7061,7 +7094,8 @@ type ManagerNetworkProtocolPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerNetworkProtocolPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerNetworkProtocolPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7099,7 +7133,7 @@ func (p *ManagerNetworkProtocolPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerNetworkProtocolProvider supplies the ManagerNetworkProtocol resource.
@@ -7299,7 +7333,8 @@ type AccountServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a AccountServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *AccountServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7410,7 +7445,7 @@ func (p *AccountServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // AccountServiceProvider supplies the AccountService resource.
@@ -7606,7 +7641,8 @@ type ManagerAccountPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7709,7 +7745,7 @@ func (p *ManagerAccountPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerAccountCreate holds the properties of ManagerAccount present in the body of a POST that
@@ -7730,7 +7766,8 @@ type ManagerAccountCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7833,7 +7870,7 @@ func (p *ManagerAccountCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerAccountProvider supplies the ManagerAccount resource.
@@ -7914,7 +7951,8 @@ type ManagerAccountChangePasswordParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountChangePasswordParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountChangePasswordParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7957,7 +7995,7 @@ func (p *ManagerAccountChangePasswordParameters) UnmarshalJSON(data []byte) erro
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ChangePasswordManagerAccountProvider performs the #ManagerAccount.ChangePassword action.
@@ -8043,7 +8081,8 @@ type ManagerAccountVerifyTimeBasedOneTimePasswordParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountVerifyTimeBasedOneTimePasswordParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountVerifyTimeBasedOneTimePasswordParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -8080,7 +8119,7 @@ func (p *ManagerAccountVerifyTimeBasedOneTimePasswordParameters) UnmarshalJSON(d
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // VerifyTimeBasedOneTimePasswordManagerAccountProvider performs the #ManagerAccount.VerifyTimeBasedOneTimePassword action.
@@ -8187,7 +8226,8 @@ type RoleCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a RoleCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *RoleCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -8224,7 +8264,7 @@ func (p *RoleCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // RoleProvider supplies the Role resource.
@@ -8338,7 +8378,8 @@ type ThermalSubsystemPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ThermalSubsystemPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ThermalSubsystemPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -8375,7 +8416,7 @@ func (p *ThermalSubsystemPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ThermalSubsystemProvider supplies the ThermalSubsystem resource.
@@ -9136,7 +9177,8 @@ type EthernetInterfacePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a EthernetInterfacePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *EthernetInterfacePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9228,7 +9270,7 @@ func (p *EthernetInterfacePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // EthernetInterfaceProvider supplies the EthernetInterface resource.
@@ -9433,7 +9475,8 @@ type LogServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9495,7 +9538,7 @@ func (p *LogServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // LogServiceProvider supplies the LogService resource.
@@ -9589,7 +9632,8 @@ type LogServiceClearLogParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServiceClearLogParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServiceClearLogParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9626,7 +9670,7 @@ func (p *LogServiceClearLogParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ClearLogLogServiceProvider performs the #LogService.ClearLog action.
@@ -9678,7 +9722,8 @@ type LogServiceCollectDiagnosticDataParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServiceCollectDiagnosticDataParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServiceCollectDiagnosticDataParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9747,7 +9792,7 @@ func (p *LogServiceCollectDiagnosticDataParameters) UnmarshalJSON(data []byte) e
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // CollectDiagnosticDataLogServiceProvider performs the #LogService.CollectDiagnosticData action.
@@ -9828,7 +9873,8 @@ type LogServicePushDiagnosticDataParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServicePushDiagnosticDataParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServicePushDiagnosticDataParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9890,7 +9936,7 @@ func (p *LogServicePushDiagnosticDataParameters) UnmarshalJSON(data []byte) erro
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // PushDiagnosticDataLogServiceProvider performs the #LogService.PushDiagnosticData action.
@@ -10100,7 +10146,8 @@ type LogEntryPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogEntryPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogEntryPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10137,7 +10184,7 @@ func (p *LogEntryPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // LogEntryCreate holds the properties of LogEntry present in the body of a POST that
@@ -10148,7 +10195,8 @@ type LogEntryCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogEntryCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogEntryCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10192,7 +10240,7 @@ func (p *LogEntryCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // LogEntryProvider supplies the LogEntry resource.
@@ -10382,7 +10430,8 @@ type UpdateServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10443,7 +10492,7 @@ func (p *UpdateServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // UpdateServiceProvider supplies the UpdateService resource.
@@ -10521,7 +10570,8 @@ type UpdateServiceActivateParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServiceActivateParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServiceActivateParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10558,7 +10608,7 @@ func (p *UpdateServiceActivateParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ActivateUpdateServiceProvider performs the #UpdateService.Activate action.
@@ -10599,7 +10649,8 @@ type UpdateServiceGenerateSSHIdentityKeyPairParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServiceGenerateSSHIdentityKeyPairParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServiceGenerateSSHIdentityKeyPairParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10650,7 +10701,7 @@ func (p *UpdateServiceGenerateSSHIdentityKeyPairParameters) UnmarshalJSON(data [
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // GenerateSSHIdentityKeyPairUpdateServiceProvider performs the #UpdateService.GenerateSSHIdentityKeyPair action.
@@ -10719,7 +10770,8 @@ type UpdateServiceSimpleUpdateParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServiceSimpleUpdateParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServiceSimpleUpdateParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10805,7 +10857,7 @@ func (p *UpdateServiceSimpleUpdateParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SimpleUpdateUpdateServiceProvider performs the #UpdateService.SimpleUpdate action.
@@ -10973,7 +11025,8 @@ type SoftwareInventoryPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a SoftwareInventoryPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SoftwareInventoryPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11010,7 +11063,7 @@ func (p *SoftwareInventoryPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SoftwareInventoryProvider supplies the SoftwareInventory resource.
@@ -11092,7 +11145,8 @@ type SoftwareInventoryActivateParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a SoftwareInventoryActivateParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SoftwareInventoryActivateParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11129,7 +11183,7 @@ func (p *SoftwareInventoryActivateParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ActivateSoftwareInventoryProvider performs the #SoftwareInventory.Activate action.
@@ -11170,7 +11224,8 @@ type SoftwareInventoryCancelParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a SoftwareInventoryCancelParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SoftwareInventoryCancelParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11207,7 +11262,7 @@ func (p *SoftwareInventoryCancelParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // CancelSoftwareInventoryProvider performs the #SoftwareInventory.Cancel action.
@@ -11298,7 +11353,8 @@ type TaskServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a TaskServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *TaskServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11347,7 +11403,7 @@ func (p *TaskServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // TaskServiceProvider supplies the TaskService resource.
