@@ -252,36 +252,6 @@ const (
 	ActionInfoParameterTypesObjectArray ActionInfoParameterTypes = "ObjectArray"
 )
 
-// ChassisChassisType is a Redfish string enumeration.
-type ChassisChassisType string
-
-const (
-	ChassisChassisTypeRack             ChassisChassisType = "Rack"
-	ChassisChassisTypeBlade            ChassisChassisType = "Blade"
-	ChassisChassisTypeEnclosure        ChassisChassisType = "Enclosure"
-	ChassisChassisTypeStandAlone       ChassisChassisType = "StandAlone"
-	ChassisChassisTypeRackMount        ChassisChassisType = "RackMount"
-	ChassisChassisTypeCard             ChassisChassisType = "Card"
-	ChassisChassisTypeCartridge        ChassisChassisType = "Cartridge"
-	ChassisChassisTypeRow              ChassisChassisType = "Row"
-	ChassisChassisTypePod              ChassisChassisType = "Pod"
-	ChassisChassisTypeExpansion        ChassisChassisType = "Expansion"
-	ChassisChassisTypeSidecar          ChassisChassisType = "Sidecar"
-	ChassisChassisTypeZone             ChassisChassisType = "Zone"
-	ChassisChassisTypeSled             ChassisChassisType = "Sled"
-	ChassisChassisTypeShelf            ChassisChassisType = "Shelf"
-	ChassisChassisTypeDrawer           ChassisChassisType = "Drawer"
-	ChassisChassisTypeModule           ChassisChassisType = "Module"
-	ChassisChassisTypeComponent        ChassisChassisType = "Component"
-	ChassisChassisTypeIPBasedDrive     ChassisChassisType = "IPBasedDrive"
-	ChassisChassisTypeRackGroup        ChassisChassisType = "RackGroup"
-	ChassisChassisTypeStorageEnclosure ChassisChassisType = "StorageEnclosure"
-	ChassisChassisTypeImmersionTank    ChassisChassisType = "ImmersionTank"
-	ChassisChassisTypeHeatExchanger    ChassisChassisType = "HeatExchanger"
-	ChassisChassisTypePowerStrip       ChassisChassisType = "PowerStrip"
-	ChassisChassisTypeOther            ChassisChassisType = "Other"
-)
-
 // ChassisDoorState is a Redfish string enumeration.
 type ChassisDoorState string
 
@@ -355,6 +325,36 @@ const (
 	ChassisThermalDirectionBackToFront ChassisThermalDirection = "BackToFront"
 	ChassisThermalDirectionTopExhaust  ChassisThermalDirection = "TopExhaust"
 	ChassisThermalDirectionSealed      ChassisThermalDirection = "Sealed"
+)
+
+// ChassisType is a Redfish string enumeration.
+type ChassisType string
+
+const (
+	ChassisTypeRack             ChassisType = "Rack"
+	ChassisTypeBlade            ChassisType = "Blade"
+	ChassisTypeEnclosure        ChassisType = "Enclosure"
+	ChassisTypeStandAlone       ChassisType = "StandAlone"
+	ChassisTypeRackMount        ChassisType = "RackMount"
+	ChassisTypeCard             ChassisType = "Card"
+	ChassisTypeCartridge        ChassisType = "Cartridge"
+	ChassisTypeRow              ChassisType = "Row"
+	ChassisTypePod              ChassisType = "Pod"
+	ChassisTypeExpansion        ChassisType = "Expansion"
+	ChassisTypeSidecar          ChassisType = "Sidecar"
+	ChassisTypeZone             ChassisType = "Zone"
+	ChassisTypeSled             ChassisType = "Sled"
+	ChassisTypeShelf            ChassisType = "Shelf"
+	ChassisTypeDrawer           ChassisType = "Drawer"
+	ChassisTypeModule           ChassisType = "Module"
+	ChassisTypeComponent        ChassisType = "Component"
+	ChassisTypeIPBasedDrive     ChassisType = "IPBasedDrive"
+	ChassisTypeRackGroup        ChassisType = "RackGroup"
+	ChassisTypeStorageEnclosure ChassisType = "StorageEnclosure"
+	ChassisTypeImmersionTank    ChassisType = "ImmersionTank"
+	ChassisTypeHeatExchanger    ChassisType = "HeatExchanger"
+	ChassisTypePowerStrip       ChassisType = "PowerStrip"
+	ChassisTypeOther            ChassisType = "Other"
 )
 
 // ComputerSystemAutomaticRetryConfig is a Redfish string enumeration.
@@ -700,17 +700,17 @@ const (
 	EthernetInterfaceTeamModeAdaptiveLoadBalancing         EthernetInterfaceTeamMode = "AdaptiveLoadBalancing"
 )
 
-// EventEventType is a Redfish string enumeration.
-type EventEventType string
+// EventType is a Redfish string enumeration.
+type EventType string
 
 const (
-	EventEventTypeStatusChange    EventEventType = "StatusChange"
-	EventEventTypeResourceUpdated EventEventType = "ResourceUpdated"
-	EventEventTypeResourceAdded   EventEventType = "ResourceAdded"
-	EventEventTypeResourceRemoved EventEventType = "ResourceRemoved"
-	EventEventTypeAlert           EventEventType = "Alert"
-	EventEventTypeMetricReport    EventEventType = "MetricReport"
-	EventEventTypeOther           EventEventType = "Other"
+	EventTypeStatusChange    EventType = "StatusChange"
+	EventTypeResourceUpdated EventType = "ResourceUpdated"
+	EventTypeResourceAdded   EventType = "ResourceAdded"
+	EventTypeResourceRemoved EventType = "ResourceRemoved"
+	EventTypeAlert           EventType = "Alert"
+	EventTypeMetricReport    EventType = "MetricReport"
+	EventTypeOther           EventType = "Other"
 )
 
 // IPAddressesAddressState is a Redfish string enumeration.
@@ -804,16 +804,6 @@ const (
 	LogEntryLogDiagnosticDataTypesDevice      LogEntryLogDiagnosticDataTypes = "Device"
 )
 
-// LogEntryLogEntryType is a Redfish string enumeration.
-type LogEntryLogEntryType string
-
-const (
-	LogEntryLogEntryTypeEvent LogEntryLogEntryType = "Event"
-	LogEntryLogEntryTypeSEL   LogEntryLogEntryType = "SEL"
-	LogEntryLogEntryTypeOem   LogEntryLogEntryType = "Oem"
-	LogEntryLogEntryTypeCXL   LogEntryLogEntryType = "CXL"
-)
-
 // LogEntryOriginatorTypes is a Redfish string enumeration.
 type LogEntryOriginatorTypes string
 
@@ -821,6 +811,16 @@ const (
 	LogEntryOriginatorTypesClient            LogEntryOriginatorTypes = "Client"
 	LogEntryOriginatorTypesInternal          LogEntryOriginatorTypes = "Internal"
 	LogEntryOriginatorTypesSupportingService LogEntryOriginatorTypes = "SupportingService"
+)
+
+// LogEntryType is a Redfish string enumeration.
+type LogEntryType string
+
+const (
+	LogEntryTypeEvent LogEntryType = "Event"
+	LogEntryTypeSEL   LogEntryType = "SEL"
+	LogEntryTypeOem   LogEntryType = "Oem"
+	LogEntryTypeCXL   LogEntryType = "CXL"
 )
 
 // LogServiceAutoClearResolvedEntries is a Redfish string enumeration.
@@ -1006,19 +1006,6 @@ const (
 	ManagerGraphicalConnectTypesSupportedOem   ManagerGraphicalConnectTypesSupported = "Oem"
 )
 
-// ManagerManagerType is a Redfish string enumeration.
-type ManagerManagerType string
-
-const (
-	ManagerManagerTypeManagementController ManagerManagerType = "ManagementController"
-	ManagerManagerTypeEnclosureManager     ManagerManagerType = "EnclosureManager"
-	ManagerManagerTypeBMC                  ManagerManagerType = "BMC"
-	ManagerManagerTypeRackManager          ManagerManagerType = "RackManager"
-	ManagerManagerTypeAuxiliaryController  ManagerManagerType = "AuxiliaryController"
-	ManagerManagerTypeService              ManagerManagerType = "Service"
-	ManagerManagerTypeFabricManager        ManagerManagerType = "FabricManager"
-)
-
 // ManagerNetworkProtocolIPv6AddressGenerationMode is a Redfish string enumeration.
 type ManagerNetworkProtocolIPv6AddressGenerationMode string
 
@@ -1115,64 +1102,77 @@ const (
 	ManagerSerialConnectTypesSupportedOem    ManagerSerialConnectTypesSupported = "Oem"
 )
 
-// PhysicalContextPhysicalContext is a Redfish string enumeration.
-type PhysicalContextPhysicalContext string
+// ManagerType is a Redfish string enumeration.
+type ManagerType string
 
 const (
-	PhysicalContextPhysicalContextRoom                     PhysicalContextPhysicalContext = "Room"
-	PhysicalContextPhysicalContextIntake                   PhysicalContextPhysicalContext = "Intake"
-	PhysicalContextPhysicalContextExhaust                  PhysicalContextPhysicalContext = "Exhaust"
-	PhysicalContextPhysicalContextLiquidInlet              PhysicalContextPhysicalContext = "LiquidInlet"
-	PhysicalContextPhysicalContextLiquidOutlet             PhysicalContextPhysicalContext = "LiquidOutlet"
-	PhysicalContextPhysicalContextFront                    PhysicalContextPhysicalContext = "Front"
-	PhysicalContextPhysicalContextBack                     PhysicalContextPhysicalContext = "Back"
-	PhysicalContextPhysicalContextUpper                    PhysicalContextPhysicalContext = "Upper"
-	PhysicalContextPhysicalContextLower                    PhysicalContextPhysicalContext = "Lower"
-	PhysicalContextPhysicalContextCPU                      PhysicalContextPhysicalContext = "CPU"
-	PhysicalContextPhysicalContextCPUSubsystem             PhysicalContextPhysicalContext = "CPUSubsystem"
-	PhysicalContextPhysicalContextGPU                      PhysicalContextPhysicalContext = "GPU"
-	PhysicalContextPhysicalContextGPUSubsystem             PhysicalContextPhysicalContext = "GPUSubsystem"
-	PhysicalContextPhysicalContextFPGA                     PhysicalContextPhysicalContext = "FPGA"
-	PhysicalContextPhysicalContextAccelerator              PhysicalContextPhysicalContext = "Accelerator"
-	PhysicalContextPhysicalContextASIC                     PhysicalContextPhysicalContext = "ASIC"
-	PhysicalContextPhysicalContextBackplane                PhysicalContextPhysicalContext = "Backplane"
-	PhysicalContextPhysicalContextSystemBoard              PhysicalContextPhysicalContext = "SystemBoard"
-	PhysicalContextPhysicalContextPowerSupply              PhysicalContextPhysicalContext = "PowerSupply"
-	PhysicalContextPhysicalContextPowerSubsystem           PhysicalContextPhysicalContext = "PowerSubsystem"
-	PhysicalContextPhysicalContextVoltageRegulator         PhysicalContextPhysicalContext = "VoltageRegulator"
-	PhysicalContextPhysicalContextRectifier                PhysicalContextPhysicalContext = "Rectifier"
-	PhysicalContextPhysicalContextStorageDevice            PhysicalContextPhysicalContext = "StorageDevice"
-	PhysicalContextPhysicalContextStorageSubsystem         PhysicalContextPhysicalContext = "StorageSubsystem"
-	PhysicalContextPhysicalContextNetworkingDevice         PhysicalContextPhysicalContext = "NetworkingDevice"
-	PhysicalContextPhysicalContextExpansionSubsystem       PhysicalContextPhysicalContext = "ExpansionSubsystem"
-	PhysicalContextPhysicalContextComputeBay               PhysicalContextPhysicalContext = "ComputeBay"
-	PhysicalContextPhysicalContextStorageBay               PhysicalContextPhysicalContext = "StorageBay"
-	PhysicalContextPhysicalContextNetworkBay               PhysicalContextPhysicalContext = "NetworkBay"
-	PhysicalContextPhysicalContextExpansionBay             PhysicalContextPhysicalContext = "ExpansionBay"
-	PhysicalContextPhysicalContextPowerSupplyBay           PhysicalContextPhysicalContext = "PowerSupplyBay"
-	PhysicalContextPhysicalContextMemory                   PhysicalContextPhysicalContext = "Memory"
-	PhysicalContextPhysicalContextMemorySubsystem          PhysicalContextPhysicalContext = "MemorySubsystem"
-	PhysicalContextPhysicalContextChassis                  PhysicalContextPhysicalContext = "Chassis"
-	PhysicalContextPhysicalContextFan                      PhysicalContextPhysicalContext = "Fan"
-	PhysicalContextPhysicalContextCoolingSubsystem         PhysicalContextPhysicalContext = "CoolingSubsystem"
-	PhysicalContextPhysicalContextMotor                    PhysicalContextPhysicalContext = "Motor"
-	PhysicalContextPhysicalContextTransformer              PhysicalContextPhysicalContext = "Transformer"
-	PhysicalContextPhysicalContextACUtilityInput           PhysicalContextPhysicalContext = "ACUtilityInput"
-	PhysicalContextPhysicalContextACStaticBypassInput      PhysicalContextPhysicalContext = "ACStaticBypassInput"
-	PhysicalContextPhysicalContextACMaintenanceBypassInput PhysicalContextPhysicalContext = "ACMaintenanceBypassInput"
-	PhysicalContextPhysicalContextDCBus                    PhysicalContextPhysicalContext = "DCBus"
-	PhysicalContextPhysicalContextACOutput                 PhysicalContextPhysicalContext = "ACOutput"
-	PhysicalContextPhysicalContextACInput                  PhysicalContextPhysicalContext = "ACInput"
-	PhysicalContextPhysicalContextPowerOutlet              PhysicalContextPhysicalContext = "PowerOutlet"
-	PhysicalContextPhysicalContextTrustedModule            PhysicalContextPhysicalContext = "TrustedModule"
-	PhysicalContextPhysicalContextBoard                    PhysicalContextPhysicalContext = "Board"
-	PhysicalContextPhysicalContextTransceiver              PhysicalContextPhysicalContext = "Transceiver"
-	PhysicalContextPhysicalContextBattery                  PhysicalContextPhysicalContext = "Battery"
-	PhysicalContextPhysicalContextPump                     PhysicalContextPhysicalContext = "Pump"
-	PhysicalContextPhysicalContextFilter                   PhysicalContextPhysicalContext = "Filter"
-	PhysicalContextPhysicalContextReservoir                PhysicalContextPhysicalContext = "Reservoir"
-	PhysicalContextPhysicalContextSwitch                   PhysicalContextPhysicalContext = "Switch"
-	PhysicalContextPhysicalContextManager                  PhysicalContextPhysicalContext = "Manager"
+	ManagerTypeManagementController ManagerType = "ManagementController"
+	ManagerTypeEnclosureManager     ManagerType = "EnclosureManager"
+	ManagerTypeBMC                  ManagerType = "BMC"
+	ManagerTypeRackManager          ManagerType = "RackManager"
+	ManagerTypeAuxiliaryController  ManagerType = "AuxiliaryController"
+	ManagerTypeService              ManagerType = "Service"
+	ManagerTypeFabricManager        ManagerType = "FabricManager"
+)
+
+// PhysicalContext is a Redfish string enumeration.
+type PhysicalContext string
+
+const (
+	PhysicalContextRoom                     PhysicalContext = "Room"
+	PhysicalContextIntake                   PhysicalContext = "Intake"
+	PhysicalContextExhaust                  PhysicalContext = "Exhaust"
+	PhysicalContextLiquidInlet              PhysicalContext = "LiquidInlet"
+	PhysicalContextLiquidOutlet             PhysicalContext = "LiquidOutlet"
+	PhysicalContextFront                    PhysicalContext = "Front"
+	PhysicalContextBack                     PhysicalContext = "Back"
+	PhysicalContextUpper                    PhysicalContext = "Upper"
+	PhysicalContextLower                    PhysicalContext = "Lower"
+	PhysicalContextCPU                      PhysicalContext = "CPU"
+	PhysicalContextCPUSubsystem             PhysicalContext = "CPUSubsystem"
+	PhysicalContextGPU                      PhysicalContext = "GPU"
+	PhysicalContextGPUSubsystem             PhysicalContext = "GPUSubsystem"
+	PhysicalContextFPGA                     PhysicalContext = "FPGA"
+	PhysicalContextAccelerator              PhysicalContext = "Accelerator"
+	PhysicalContextASIC                     PhysicalContext = "ASIC"
+	PhysicalContextBackplane                PhysicalContext = "Backplane"
+	PhysicalContextSystemBoard              PhysicalContext = "SystemBoard"
+	PhysicalContextPowerSupply              PhysicalContext = "PowerSupply"
+	PhysicalContextPowerSubsystem           PhysicalContext = "PowerSubsystem"
+	PhysicalContextVoltageRegulator         PhysicalContext = "VoltageRegulator"
+	PhysicalContextRectifier                PhysicalContext = "Rectifier"
+	PhysicalContextStorageDevice            PhysicalContext = "StorageDevice"
+	PhysicalContextStorageSubsystem         PhysicalContext = "StorageSubsystem"
+	PhysicalContextNetworkingDevice         PhysicalContext = "NetworkingDevice"
+	PhysicalContextExpansionSubsystem       PhysicalContext = "ExpansionSubsystem"
+	PhysicalContextComputeBay               PhysicalContext = "ComputeBay"
+	PhysicalContextStorageBay               PhysicalContext = "StorageBay"
+	PhysicalContextNetworkBay               PhysicalContext = "NetworkBay"
+	PhysicalContextExpansionBay             PhysicalContext = "ExpansionBay"
+	PhysicalContextPowerSupplyBay           PhysicalContext = "PowerSupplyBay"
+	PhysicalContextMemory                   PhysicalContext = "Memory"
+	PhysicalContextMemorySubsystem          PhysicalContext = "MemorySubsystem"
+	PhysicalContextChassis                  PhysicalContext = "Chassis"
+	PhysicalContextFan                      PhysicalContext = "Fan"
+	PhysicalContextCoolingSubsystem         PhysicalContext = "CoolingSubsystem"
+	PhysicalContextMotor                    PhysicalContext = "Motor"
+	PhysicalContextTransformer              PhysicalContext = "Transformer"
+	PhysicalContextACUtilityInput           PhysicalContext = "ACUtilityInput"
+	PhysicalContextACStaticBypassInput      PhysicalContext = "ACStaticBypassInput"
+	PhysicalContextACMaintenanceBypassInput PhysicalContext = "ACMaintenanceBypassInput"
+	PhysicalContextDCBus                    PhysicalContext = "DCBus"
+	PhysicalContextACOutput                 PhysicalContext = "ACOutput"
+	PhysicalContextACInput                  PhysicalContext = "ACInput"
+	PhysicalContextPowerOutlet              PhysicalContext = "PowerOutlet"
+	PhysicalContextTrustedModule            PhysicalContext = "TrustedModule"
+	PhysicalContextBoard                    PhysicalContext = "Board"
+	PhysicalContextTransceiver              PhysicalContext = "Transceiver"
+	PhysicalContextBattery                  PhysicalContext = "Battery"
+	PhysicalContextPump                     PhysicalContext = "Pump"
+	PhysicalContextFilter                   PhysicalContext = "Filter"
+	PhysicalContextReservoir                PhysicalContext = "Reservoir"
+	PhysicalContextSwitch                   PhysicalContext = "Switch"
+	PhysicalContextManager                  PhysicalContext = "Manager"
 )
 
 // PrivilegesPrivilegeType is a Redfish string enumeration.
@@ -1192,15 +1192,15 @@ const (
 	PrivilegesPrivilegeTypeOperateStorageBackup               PrivilegesPrivilegeType = "OperateStorageBackup"
 )
 
-// RedundancyRedundancyType is a Redfish string enumeration.
-type RedundancyRedundancyType string
+// RedundancyType is a Redfish string enumeration.
+type RedundancyType string
 
 const (
-	RedundancyRedundancyTypeFailover     RedundancyRedundancyType = "Failover"
-	RedundancyRedundancyTypeNPlusM       RedundancyRedundancyType = "NPlusM"
-	RedundancyRedundancyTypeSharing      RedundancyRedundancyType = "Sharing"
-	RedundancyRedundancyTypeSparing      RedundancyRedundancyType = "Sparing"
-	RedundancyRedundancyTypeNotRedundant RedundancyRedundancyType = "NotRedundant"
+	RedundancyTypeFailover     RedundancyType = "Failover"
+	RedundancyTypeNPlusM       RedundancyType = "NPlusM"
+	RedundancyTypeSharing      RedundancyType = "Sharing"
+	RedundancyTypeSparing      RedundancyType = "Sparing"
+	RedundancyTypeNotRedundant RedundancyType = "NotRedundant"
 )
 
 // ResolutionStepResolutionType is a Redfish string enumeration.
@@ -1334,19 +1334,19 @@ const (
 	ResourceStateDegraded           ResourceState = "Degraded"
 )
 
-// SessionSessionTypes is a Redfish string enumeration.
-type SessionSessionTypes string
+// SessionTypes is a Redfish string enumeration.
+type SessionTypes string
 
 const (
-	SessionSessionTypesHostConsole        SessionSessionTypes = "HostConsole"
-	SessionSessionTypesManagerConsole     SessionSessionTypes = "ManagerConsole"
-	SessionSessionTypesIPMI               SessionSessionTypes = "IPMI"
-	SessionSessionTypesKVMIP              SessionSessionTypes = "KVMIP"
-	SessionSessionTypesOEM                SessionSessionTypes = "OEM"
-	SessionSessionTypesRedfish            SessionSessionTypes = "Redfish"
-	SessionSessionTypesVirtualMedia       SessionSessionTypes = "VirtualMedia"
-	SessionSessionTypesWebUI              SessionSessionTypes = "WebUI"
-	SessionSessionTypesOutboundConnection SessionSessionTypes = "OutboundConnection"
+	SessionTypesHostConsole        SessionTypes = "HostConsole"
+	SessionTypesManagerConsole     SessionTypes = "ManagerConsole"
+	SessionTypesIPMI               SessionTypes = "IPMI"
+	SessionTypesKVMIP              SessionTypes = "KVMIP"
+	SessionTypesOEM                SessionTypes = "OEM"
+	SessionTypesRedfish            SessionTypes = "Redfish"
+	SessionTypesVirtualMedia       SessionTypes = "VirtualMedia"
+	SessionTypesWebUI              SessionTypes = "WebUI"
+	SessionTypesOutboundConnection SessionTypes = "OutboundConnection"
 )
 
 // SoftwareInventoryReleaseType is a Redfish string enumeration.
@@ -1375,23 +1375,23 @@ const (
 	TaskServiceOverWritePolicyOldest TaskServiceOverWritePolicy = "Oldest"
 )
 
-// TaskTaskState is a Redfish string enumeration.
-type TaskTaskState string
+// TaskState is a Redfish string enumeration.
+type TaskState string
 
 const (
-	TaskTaskStateNew         TaskTaskState = "New"
-	TaskTaskStateStarting    TaskTaskState = "Starting"
-	TaskTaskStateRunning     TaskTaskState = "Running"
-	TaskTaskStateSuspended   TaskTaskState = "Suspended"
-	TaskTaskStateInterrupted TaskTaskState = "Interrupted"
-	TaskTaskStatePending     TaskTaskState = "Pending"
-	TaskTaskStateStopping    TaskTaskState = "Stopping"
-	TaskTaskStateCompleted   TaskTaskState = "Completed"
-	TaskTaskStateKilled      TaskTaskState = "Killed"
-	TaskTaskStateException   TaskTaskState = "Exception"
-	TaskTaskStateService     TaskTaskState = "Service"
-	TaskTaskStateCancelling  TaskTaskState = "Cancelling"
-	TaskTaskStateCancelled   TaskTaskState = "Cancelled"
+	TaskStateNew         TaskState = "New"
+	TaskStateStarting    TaskState = "Starting"
+	TaskStateRunning     TaskState = "Running"
+	TaskStateSuspended   TaskState = "Suspended"
+	TaskStateInterrupted TaskState = "Interrupted"
+	TaskStatePending     TaskState = "Pending"
+	TaskStateStopping    TaskState = "Stopping"
+	TaskStateCompleted   TaskState = "Completed"
+	TaskStateKilled      TaskState = "Killed"
+	TaskStateException   TaskState = "Exception"
+	TaskStateService     TaskState = "Service"
+	TaskStateCancelling  TaskState = "Cancelling"
+	TaskStateCancelled   TaskState = "Cancelled"
 )
 
 // UpdateServiceApplyTime is a Redfish string enumeration.
@@ -1602,13 +1602,13 @@ func (x *AccountServiceLDAPService) Bytes() []byte {
 
 // AccountServiceMFABypass is a generated Redfish complex type.
 type AccountServiceMFABypass struct {
-	BypassTypes []string
+	BypassTypes []AccountServiceMFABypassType
 }
 
 // Bytes encodes AccountServiceMFABypass as Redfish JSON.
 func (x *AccountServiceMFABypass) Bytes() []byte {
 	b := odata.NewBuilder()
-	b.StrArray("BypassTypes", x.BypassTypes)
+	odata.StrArray(b, "BypassTypes", x.BypassTypes)
 	return b.Bytes()
 }
 
@@ -1713,7 +1713,7 @@ type AccountServiceRoleMapping struct {
 	LocalRole            string
 	Oem                  *ResourceOem
 	MFABypass            *AccountServiceMFABypass
-	LocalAccountTypes    []string
+	LocalAccountTypes    []ManagerAccountAccountTypes
 	LocalOEMAccountTypes []string
 }
 
@@ -1729,7 +1729,7 @@ func (x *AccountServiceRoleMapping) Bytes() []byte {
 	if x.MFABypass != nil {
 		b.Raw("MFABypass", x.MFABypass.Bytes())
 	}
-	b.StrArray("LocalAccountTypes", x.LocalAccountTypes)
+	odata.StrArray(b, "LocalAccountTypes", x.LocalAccountTypes)
 	b.StrArray("LocalOEMAccountTypes", x.LocalOEMAccountTypes)
 	return b.Bytes()
 }
@@ -1761,7 +1761,7 @@ func (x *AccountServiceSecurID) Bytes() []byte {
 // AccountServiceTACACSplusService is a generated Redfish complex type.
 type AccountServiceTACACSplusService struct {
 	PrivilegeLevelArgument    string
-	PasswordExchangeProtocols []string
+	PasswordExchangeProtocols []AccountServiceTACACSplusPasswordExchangeProtocol
 	AuthorizationService      string
 	Oem                       *ResourceOem
 }
@@ -1770,7 +1770,7 @@ type AccountServiceTACACSplusService struct {
 func (x *AccountServiceTACACSplusService) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptString("PrivilegeLevelArgument", x.PrivilegeLevelArgument)
-	b.StrArray("PasswordExchangeProtocols", x.PasswordExchangeProtocols)
+	odata.StrArray(b, "PasswordExchangeProtocols", x.PasswordExchangeProtocols)
 	b.OptString("AuthorizationService", x.AuthorizationService)
 	if x.Oem != nil {
 		b.Raw("Oem", x.Oem.Bytes())
@@ -2058,7 +2058,7 @@ type ComputerSystemBoot struct {
 	BootSourceOverrideMode          ComputerSystemBootSourceOverrideMode
 	BootNext                        string
 	BootOrder                       []string
-	AliasBootOrder                  []string
+	AliasBootOrder                  []ComputerSystemBootSource
 	BootOrderPropertySelection      ComputerSystemBootOrderTypes
 	HttpBootUri                     string
 	AutomaticRetryConfig            ComputerSystemAutomaticRetryConfig
@@ -2079,7 +2079,7 @@ func (x *ComputerSystemBoot) Bytes() []byte {
 	b.OptString("BootSourceOverrideMode", string(x.BootSourceOverrideMode))
 	b.OptString("BootNext", x.BootNext)
 	b.StrArray("BootOrder", x.BootOrder)
-	b.StrArray("AliasBootOrder", x.AliasBootOrder)
+	odata.StrArray(b, "AliasBootOrder", x.AliasBootOrder)
 	b.OptString("BootOrderPropertySelection", string(x.BootOrderPropertySelection))
 	b.OptString("HttpBootUri", x.HttpBootUri)
 	b.OptString("AutomaticRetryConfig", string(x.AutomaticRetryConfig))
@@ -2120,13 +2120,13 @@ func (x *ComputerSystemBootProgress) Bytes() []byte {
 
 // ComputerSystemComposition is a generated Redfish complex type.
 type ComputerSystemComposition struct {
-	UseCases []string
+	UseCases []ComputerSystemCompositionUseCase
 }
 
 // Bytes encodes ComputerSystemComposition as Redfish JSON.
 func (x *ComputerSystemComposition) Bytes() []byte {
 	b := odata.NewBuilder()
-	b.StrArray("UseCases", x.UseCases)
+	odata.StrArray(b, "UseCases", x.UseCases)
 	return b.Bytes()
 }
 
@@ -2134,7 +2134,7 @@ func (x *ComputerSystemComposition) Bytes() []byte {
 type ComputerSystemHostGraphicalConsole struct {
 	ServiceEnabled        *bool
 	Port                  *int64
-	ConnectTypesSupported []string
+	ConnectTypesSupported []ComputerSystemGraphicalConnectTypesSupported
 	MaxConcurrentSessions *int64
 }
 
@@ -2143,7 +2143,7 @@ func (x *ComputerSystemHostGraphicalConsole) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ServiceEnabled", x.ServiceEnabled)
 	b.OptInt("Port", x.Port)
-	b.StrArray("ConnectTypesSupported", x.ConnectTypesSupported)
+	odata.StrArray(b, "ConnectTypesSupported", x.ConnectTypesSupported)
 	b.OptInt("MaxConcurrentSessions", x.MaxConcurrentSessions)
 	return b.Bytes()
 }
@@ -2896,14 +2896,14 @@ func (x *LogServiceOemActions) Bytes() []byte {
 // LogServiceSyslogFilter is a generated Redfish complex type.
 type LogServiceSyslogFilter struct {
 	LowestSeverity LogServiceSyslogSeverity
-	LogFacilities  []string
+	LogFacilities  []LogServiceSyslogFacility
 }
 
 // Bytes encodes LogServiceSyslogFilter as Redfish JSON.
 func (x *LogServiceSyslogFilter) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptString("LowestSeverity", string(x.LowestSeverity))
-	b.StrArray("LogFacilities", x.LogFacilities)
+	odata.StrArray(b, "LogFacilities", x.LogFacilities)
 	return b.Bytes()
 }
 
@@ -3023,7 +3023,7 @@ func (x *ManagerActions) Bytes() []byte {
 type ManagerCommandShell struct {
 	ServiceEnabled        *bool
 	MaxConcurrentSessions *int64
-	ConnectTypesSupported []string
+	ConnectTypesSupported []ManagerCommandConnectTypesSupported
 }
 
 // Bytes encodes ManagerCommandShell as Redfish JSON.
@@ -3031,7 +3031,7 @@ func (x *ManagerCommandShell) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ServiceEnabled", x.ServiceEnabled)
 	b.OptInt("MaxConcurrentSessions", x.MaxConcurrentSessions)
-	b.StrArray("ConnectTypesSupported", x.ConnectTypesSupported)
+	odata.StrArray(b, "ConnectTypesSupported", x.ConnectTypesSupported)
 	return b.Bytes()
 }
 
@@ -3057,7 +3057,7 @@ func (x *ManagerDaylightSavingTime) Bytes() []byte {
 type ManagerGraphicalConsole struct {
 	ServiceEnabled        *bool
 	MaxConcurrentSessions *int64
-	ConnectTypesSupported []string
+	ConnectTypesSupported []ManagerGraphicalConnectTypesSupported
 }
 
 // Bytes encodes ManagerGraphicalConsole as Redfish JSON.
@@ -3065,7 +3065,7 @@ func (x *ManagerGraphicalConsole) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ServiceEnabled", x.ServiceEnabled)
 	b.OptInt("MaxConcurrentSessions", x.MaxConcurrentSessions)
-	b.StrArray("ConnectTypesSupported", x.ConnectTypesSupported)
+	odata.StrArray(b, "ConnectTypesSupported", x.ConnectTypesSupported)
 	return b.Bytes()
 }
 
@@ -3350,7 +3350,7 @@ func (x *ManagerNetworkProtocolSSDProtocol) Bytes() []byte {
 type ManagerNetworkProtocolSSHProtocol struct {
 	ProtocolEnabled          *bool
 	Port                     *int64
-	PreferredAuthentications []string
+	PreferredAuthentications []ManagerNetworkProtocolSSHPreferredAuthentication
 }
 
 // Bytes encodes ManagerNetworkProtocolSSHProtocol as Redfish JSON.
@@ -3358,7 +3358,7 @@ func (x *ManagerNetworkProtocolSSHProtocol) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ProtocolEnabled", x.ProtocolEnabled)
 	b.OptInt("Port", x.Port)
-	b.StrArray("PreferredAuthentications", x.PreferredAuthentications)
+	odata.StrArray(b, "PreferredAuthentications", x.PreferredAuthentications)
 	return b.Bytes()
 }
 
@@ -3376,7 +3376,7 @@ func (x *ManagerOemActions) Bytes() []byte {
 type ManagerSerialConsole struct {
 	ServiceEnabled        *bool
 	MaxConcurrentSessions *int64
-	ConnectTypesSupported []string
+	ConnectTypesSupported []ManagerSerialConnectTypesSupported
 }
 
 // Bytes encodes ManagerSerialConsole as Redfish JSON.
@@ -3384,12 +3384,12 @@ func (x *ManagerSerialConsole) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.OptBool("ServiceEnabled", x.ServiceEnabled)
 	b.OptInt("MaxConcurrentSessions", x.MaxConcurrentSessions)
-	b.StrArray("ConnectTypesSupported", x.ConnectTypesSupported)
+	odata.StrArray(b, "ConnectTypesSupported", x.ConnectTypesSupported)
 	return b.Bytes()
 }
 
-// MessageMessage is a generated Redfish complex type.
-type MessageMessage struct {
+// Message is a generated Redfish complex type.
+type Message struct {
 	MessageId                string
 	Message                  string
 	RelatedProperties        []string
@@ -3398,13 +3398,13 @@ type MessageMessage struct {
 	Resolution               string
 	Oem                      *ResourceOem
 	MessageSeverity          ResourceHealth
-	ResolutionSteps          []ResolutionStepResolutionStep
+	ResolutionSteps          []ResolutionStep
 	Username                 string
 	UserAuthenticationSource string
 }
 
-// Bytes encodes MessageMessage as Redfish JSON.
-func (x *MessageMessage) Bytes() []byte {
+// Bytes encodes Message as Redfish JSON.
+func (x *Message) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.String("MessageId", x.MessageId)
 	b.OptString("Message", x.Message)
@@ -3468,7 +3468,7 @@ func (x *PowerSubsystemPowerAllocation) Bytes() []byte {
 
 // RedundancyRedundantGroup is a generated Redfish complex type.
 type RedundancyRedundantGroup struct {
-	RedundancyType             RedundancyRedundancyType
+	RedundancyType             RedundancyType
 	MaxSupportedInGroup        *int64
 	MinNeededInGroup           int64
 	Status                     ResourceStatus
@@ -3496,8 +3496,8 @@ func (x *RedundancyRedundantGroup) Bytes() []byte {
 	return b.Bytes()
 }
 
-// ResolutionStepResolutionStep is a generated Redfish complex type.
-type ResolutionStepResolutionStep struct {
+// ResolutionStep is a generated Redfish complex type.
+type ResolutionStep struct {
 	ResolutionType       ResolutionStepResolutionType
 	Priority             *int64
 	ActionURI            string
@@ -3508,8 +3508,8 @@ type ResolutionStepResolutionStep struct {
 	Oem                  *ResourceOem
 }
 
-// Bytes encodes ResolutionStepResolutionStep as Redfish JSON.
-func (x *ResolutionStepResolutionStep) Bytes() []byte {
+// Bytes encodes ResolutionStep as Redfish JSON.
+func (x *ResolutionStep) Bytes() []byte {
 	b := odata.NewBuilder()
 	b.String("ResolutionType", string(x.ResolutionType))
 	b.OptInt("Priority", x.Priority)
@@ -3538,7 +3538,7 @@ type ResourceCondition struct {
 	Message                  string
 	Severity                 ResourceHealth
 	Resolution               string
-	ResolutionSteps          []ResolutionStepResolutionStep
+	ResolutionSteps          []ResolutionStep
 	Username                 string
 	UserAuthenticationSource string
 	ConditionType            ResourceConditionType
@@ -4729,7 +4729,7 @@ type Session struct {
 	UserName              string
 	Password              string
 	Actions               *SessionActions
-	SessionType           SessionSessionTypes
+	SessionType           SessionTypes
 	OemSessionType        string
 	ClientOriginIPAddress string
 	CreatedTime           string
@@ -4882,7 +4882,7 @@ type Chassis struct {
 	Id                           string
 	Description                  string
 	Name                         string
-	ChassisType                  ChassisChassisType
+	ChassisType                  ChassisType
 	Manufacturer                 string
 	Model                        string
 	SKU                          string
@@ -5398,7 +5398,7 @@ type ComputerSystem struct {
 	Actions                             *ComputerSystemActions
 	Status                              *ResourceStatus
 	TrustedModules                      []ComputerSystemTrustedModules
-	HostingRoles                        []string
+	HostingRoles                        []ComputerSystemHostingRole
 	HostedServices                      *ComputerSystemHostedServices
 	HostWatchdogTimer                   *ComputerSystemWatchdogTimer
 	SubModel                            string
@@ -5493,7 +5493,7 @@ func (x *ComputerSystem) Bytes() []byte {
 		}
 		b.RawArray("TrustedModules", items)
 	}
-	b.StrArray("HostingRoles", x.HostingRoles)
+	odata.StrArray(b, "HostingRoles", x.HostingRoles)
 	if x.HostedServices != nil {
 		b.Raw("HostedServices", x.HostedServices.Bytes())
 	}
@@ -5881,7 +5881,7 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 
 // ComputerSystemDecommissionParameters holds the input parameters of the #ComputerSystem.Decommission action.
 type ComputerSystemDecommissionParameters struct {
-	DecommissionTypes    []string
+	DecommissionTypes    []ComputerSystemDecommissionType
 	OEMDecommissionTypes []string
 	ComputerSystemETag   *string
 	RequireSecureErase   *bool
@@ -5919,7 +5919,10 @@ func (p *ComputerSystemDecommissionParameters) UnmarshalJSON(data []byte) error 
 			if err != nil {
 				return err
 			}
-			p.DecommissionTypes = v
+			p.DecommissionTypes = make([]ComputerSystemDecommissionType, len(v))
+			for i := range v {
+				p.DecommissionTypes[i] = ComputerSystemDecommissionType(v[i])
+			}
 		case "OEMDecommissionTypes":
 			v, err := patchReadStrings(dec)
 			if err != nil {
@@ -5982,7 +5985,7 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 // ComputerSystemExportConfigurationParameters holds the input parameters of the #ComputerSystem.ExportConfiguration action.
 type ComputerSystemExportConfigurationParameters struct {
 	ExportType           *ComputerSystemExportType
-	Components           []string
+	Components           []ComputerSystemComponent
 	OEMComponents        []string
 	Security             *ComputerSystemExportSecurity
 	EncryptionPassphrase *string
@@ -6027,7 +6030,10 @@ func (p *ComputerSystemExportConfigurationParameters) UnmarshalJSON(data []byte)
 			if err != nil {
 				return err
 			}
-			p.Components = v
+			p.Components = make([]ComputerSystemComponent, len(v))
+			for i := range v {
+				p.Components[i] = ComputerSystemComponent(v[i])
+			}
 		case "OEMComponents":
 			v, err := patchReadStrings(dec)
 			if err != nil {
@@ -6310,7 +6316,7 @@ type Manager struct {
 	Id                         string
 	Description                string
 	Name                       string
-	ManagerType                ManagerManagerType
+	ManagerType                ManagerType
 	Links                      *ManagerLinks
 	ServiceEntryPointUUID      string
 	UUID                       string
@@ -7267,9 +7273,9 @@ type AccountService struct {
 	ActiveDirectory                    *AccountServiceExternalAccountProvider
 	AccountLockoutCounterResetEnabled  *bool
 	TACACSplus                         *AccountServiceExternalAccountProvider
-	SupportedAccountTypes              []string
+	SupportedAccountTypes              []ManagerAccountAccountTypes
 	SupportedOEMAccountTypes           []string
-	RestrictedPrivileges               []string
+	RestrictedPrivileges               []PrivilegesPrivilegeType
 	RestrictedOemPrivileges            []string
 	PasswordExpirationDays             *int64
 	OAuth2                             *AccountServiceExternalAccountProvider
@@ -7322,9 +7328,9 @@ func (x *AccountService) Bytes() []byte {
 	if x.TACACSplus != nil {
 		b.Raw("TACACSplus", x.TACACSplus.Bytes())
 	}
-	b.StrArray("SupportedAccountTypes", x.SupportedAccountTypes)
+	odata.StrArray(b, "SupportedAccountTypes", x.SupportedAccountTypes)
 	b.StrArray("SupportedOEMAccountTypes", x.SupportedOEMAccountTypes)
-	b.StrArray("RestrictedPrivileges", x.RestrictedPrivileges)
+	odata.StrArray(b, "RestrictedPrivileges", x.RestrictedPrivileges)
 	b.StrArray("RestrictedOemPrivileges", x.RestrictedOemPrivileges)
 	b.OptInt("PasswordExpirationDays", x.PasswordExpirationDays)
 	if x.OAuth2 != nil {
@@ -7610,7 +7616,7 @@ type ManagerAccount struct {
 	Actions                        *ManagerAccountActions
 	PasswordChangeRequired         *bool
 	SNMP                           *ManagerAccountSNMPUserInfo
-	AccountTypes                   []string
+	AccountTypes                   []ManagerAccountAccountTypes
 	OEMAccountTypes                []string
 	PasswordExpiration             string
 	StrictAccountTypes             *bool
@@ -7651,7 +7657,7 @@ func (x *ManagerAccount) Bytes() []byte {
 	if x.SNMP != nil {
 		b.Raw("SNMP", x.SNMP.Bytes())
 	}
-	b.StrArray("AccountTypes", x.AccountTypes)
+	odata.StrArray(b, "AccountTypes", x.AccountTypes)
 	b.StrArray("OEMAccountTypes", x.OEMAccountTypes)
 	b.OptString("PasswordExpiration", x.PasswordExpiration)
 	b.OptBool("StrictAccountTypes", x.StrictAccountTypes)
@@ -8244,7 +8250,7 @@ type Role struct {
 	Description        string
 	Name               string
 	IsPredefined       *bool
-	AssignedPrivileges []string
+	AssignedPrivileges []PrivilegesPrivilegeType
 	OemPrivileges      []string
 	Actions            *RoleActions
 	RoleId             string
@@ -8265,7 +8271,7 @@ func (x *Role) Bytes() []byte {
 	b.OptString("Description", x.Description)
 	b.String("Name", x.Name)
 	b.OptBool("IsPredefined", x.IsPredefined)
-	b.StrArray("AssignedPrivileges", x.AssignedPrivileges)
+	odata.StrArray(b, "AssignedPrivileges", x.AssignedPrivileges)
 	b.StrArray("OemPrivileges", x.OemPrivileges)
 	if x.Actions != nil {
 		b.Raw("Actions", x.Actions.Bytes())
@@ -9479,7 +9485,7 @@ type LogService struct {
 	LogEntryType             LogServiceLogEntryTypes
 	SyslogFilters            []LogServiceSyslogFilter
 	AutoDSTEnabled           *bool
-	LogPurposes              []string
+	LogPurposes              []LogServiceLogPurpose
 	OEMLogPurpose            string
 	Persistency              *bool
 	Overflow                 *bool
@@ -9520,7 +9526,7 @@ func (x *LogService) Bytes() []byte {
 		b.RawArray("SyslogFilters", items)
 	}
 	b.OptBool("AutoDSTEnabled", x.AutoDSTEnabled)
-	b.StrArray("LogPurposes", x.LogPurposes)
+	odata.StrArray(b, "LogPurposes", x.LogPurposes)
 	b.OptString("OEMLogPurpose", x.OEMLogPurpose)
 	b.OptBool("Persistency", x.Persistency)
 	b.OptBool("Overflow", x.Overflow)
@@ -10106,7 +10112,7 @@ type LogEntry struct {
 	Name                         string
 	Severity                     LogEntryEventSeverity
 	Created                      string
-	EntryType                    LogEntryLogEntryType
+	EntryType                    LogEntryType
 	OemRecordFormat              string
 	EntryCode                    string
 	SensorType                   string
@@ -10115,7 +10121,7 @@ type LogEntry struct {
 	MessageId                    string
 	MessageArgs                  []string
 	Links                        *LogEntryLinks
-	EventType                    EventEventType
+	EventType                    EventType
 	EventId                      string
 	EventTimestamp               string
 	Actions                      *LogEntryActions
@@ -10141,7 +10147,7 @@ type LogEntry struct {
 	Persistency                  *bool
 	CPER                         *LogEntryCPER
 	DiagnosticData               string
-	ResolutionSteps              []ResolutionStepResolutionStep
+	ResolutionSteps              []ResolutionStep
 	Username                     string
 	UserAuthenticationSource     string
 	SerialNumber                 string
@@ -10271,7 +10277,7 @@ func (p *LogEntryPatch) UnmarshalJSON(data []byte) error {
 // LogEntryCreate holds the properties of LogEntry present in the body of a POST that
 // creates one: the writable ones and those required on create.
 type LogEntryCreate struct {
-	EntryType *LogEntryLogEntryType
+	EntryType *LogEntryType
 	Resolved  *bool
 }
 
@@ -10307,7 +10313,7 @@ func (p *LogEntryCreate) UnmarshalJSON(data []byte) error {
 			if err != nil {
 				return err
 			}
-			ev := LogEntryLogEntryType(v)
+			ev := LogEntryType(v)
 			p.EntryType = &ev
 		case "Resolved":
 			v, err := patchReadBool(dec)
@@ -10436,7 +10442,7 @@ type UpdateService struct {
 	MultipartHttpPushUri                  string
 	VerifyRemoteServerCertificate         *bool
 	VerifyRemoteServerSSHKey              *bool
-	SupportedUpdateImageFormats           []string
+	SupportedUpdateImageFormats           []UpdateServiceSupportedUpdateImageFormatType
 	LocalImageStoreAvailableCapacityBytes *int64
 	LocalImageStoreTotalCapacityBytes     *int64
 	FirmwareInventory                     odata.Link
@@ -10479,7 +10485,7 @@ func (x *UpdateService) Bytes() []byte {
 	b.OptString("MultipartHttpPushUri", x.MultipartHttpPushUri)
 	b.OptBool("VerifyRemoteServerCertificate", x.VerifyRemoteServerCertificate)
 	b.OptBool("VerifyRemoteServerSSHKey", x.VerifyRemoteServerSSHKey)
-	b.StrArray("SupportedUpdateImageFormats", x.SupportedUpdateImageFormats)
+	odata.StrArray(b, "SupportedUpdateImageFormats", x.SupportedUpdateImageFormats)
 	b.OptInt("LocalImageStoreAvailableCapacityBytes", x.LocalImageStoreAvailableCapacityBytes)
 	b.OptInt("LocalImageStoreTotalCapacityBytes", x.LocalImageStoreTotalCapacityBytes)
 	if x.FirmwareInventory != "" {
@@ -11057,7 +11063,7 @@ type SoftwareInventory struct {
 	AdditionalVersions        *SoftwareInventoryAdditionalVersions
 	VersionScheme             SoftwareInventoryVersionScheme
 	ReleaseType               SoftwareInventoryReleaseType
-	AssociatedPhysicalContext PhysicalContextPhysicalContext
+	AssociatedPhysicalContext PhysicalContext
 	Active                    *bool
 	Staged                    *bool
 	ResetRequiredOnUpdate     *bool
@@ -11643,11 +11649,11 @@ type Task struct {
 	Id                string
 	Description       string
 	Name              string
-	TaskState         TaskTaskState
+	TaskState         TaskState
 	StartTime         string
 	EndTime           string
 	TaskStatus        ResourceHealth
-	Messages          []MessageMessage
+	Messages          []Message
 	Actions           *TaskActions
 	TaskMonitor       string
 	Payload           *TaskPayload

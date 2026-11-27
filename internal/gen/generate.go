@@ -271,7 +271,7 @@ func actionURIs(uris []string, segment string) []string {
 // for arrays, otherwise a pointer to the scalar type.
 func sparseType(f Field) string {
 	switch f.Kind {
-	case KindStringSlice, KindNavSlice:
+	case KindStringSlice, KindEnumSlice, KindNavSlice:
 		return f.GoType
 	default:
 		return "*" + patchElemType(f)
@@ -306,6 +306,10 @@ func writePatchCase(b *bytes.Buffer, f Field) {
 		fmt.Fprintf(b, "\t\t\tv, err := patchReadString(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tev := %s(v)\n\t\t\tp.%s = &ev\n", f.GoType, f.GoName)
 	case KindStringSlice:
 		fmt.Fprintf(b, "\t\t\tv, err := patchReadStrings(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tp.%s = v\n", f.GoName)
+	case KindEnumSlice:
+		fmt.Fprintf(b, "\t\t\tv, err := patchReadStrings(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
+		fmt.Fprintf(b, "\t\t\tp.%s = make(%s, len(v))\n\t\t\tfor i := range v {\n\t\t\t\tp.%s[i] = %s(v[i])\n\t\t\t}\n",
+			f.GoName, f.GoType, f.GoName, strings.TrimPrefix(f.GoType, "[]"))
 	case KindNavSlice:
 		fmt.Fprintf(b, "\t\t\tv, err := patchReadLinks(dec)\n\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tp.%s = v\n", f.GoName)
 	default: // KindString
@@ -648,6 +652,8 @@ func writeFieldEmit(b *bytes.Buffer, f Field) {
 		}
 	case KindStringSlice:
 		fmt.Fprintf(b, "\tb.StrArray(%q, %s)\n", j, x)
+	case KindEnumSlice:
+		fmt.Fprintf(b, "\todata.StrArray(b, %q, %s)\n", j, x)
 	case KindNavSingle:
 		fmt.Fprintf(b, "\tif %s != \"\" {\n\t\tb.Ref(%q, string(%s))\n\t}\n", x, j, x)
 	case KindNavSlice:

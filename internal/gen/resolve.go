@@ -19,10 +19,14 @@ func Build(b *csdl.Bundle, pkg string, targets []string) (*Model, error) {
 		model:       &Model{Package: pkg},
 		complexSeen: map[string]bool{},
 		enumSeen:    map[string]bool{},
+		names:       map[string]string{},
 	}
 	for _, t := range targets {
 		if err := r.resource(t); err != nil {
 			return nil, fmt.Errorf("gen: target %s: %w", t, err)
+		}
+		if r.err != nil {
+			return nil, fmt.Errorf("gen: target %s: %w", t, r.err)
 		}
 	}
 	sort.Slice(r.model.Complexes, func(i, j int) bool {
@@ -40,6 +44,17 @@ type resolver struct {
 	model       *Model
 	complexSeen map[string]bool
 	enumSeen    map[string]bool
+	names       map[string]string // Go name of each type -> its unversioned CSDL name
+	err         error             // the first Go name two types share
+}
+
+// claim records that the CSDL type qualified is generated as the Go type
+// gn, and fails the build when another type already has that name.
+func (r *resolver) claim(gn, qualified string) {
+	if q, ok := r.names[gn]; ok && q != qualified && r.err == nil {
+		r.err = fmt.Errorf("%s and %s are both generated as %s", q, qualified, gn)
+	}
+	r.names[gn] = qualified
 }
 
 var versionSuffix = regexp.MustCompile(`\.v\d+_\d+_\d+$`)
@@ -47,10 +62,33 @@ var versionSuffix = regexp.MustCompile(`\.v\d+_\d+_\d+$`)
 // baseNamespace strips a versioned suffix: "ServiceRoot.v1_21_0" -> "ServiceRoot".
 func baseNamespace(ns string) string { return versionSuffix.ReplaceAllString(ns, "") }
 
-// goName builds a unique, exported Go identifier for a nested type from its
-// base namespace and local name, e.g. ("ServiceRoot","Links") -> "ServiceRootLinks".
+// goName builds an exported Go identifier for a nested type from its base
+// namespace and local name: ("ServiceRoot", "Links") -> "ServiceRootLinks".
+// A name that starts with the namespace is not prefixed again:
+// ("Task", "TaskState") -> "TaskState", ("Message", "Message") -> "Message".
 func goName(baseNS, name string) string {
-	return ident(strings.ReplaceAll(baseNS, ".", "") + name)
+	prefix := strings.ReplaceAll(baseNS, ".", "")
+	if strings.HasPrefix(name, prefix) {
+		return ident(name)
+	}
+	return ident(prefix + name)
+}
+
+// goName is goName, except that a name that starts with the namespace keeps
+// the prefix when the namespace also defines the rest of the name, which
+// gets the short form: OutboundConnection has both RetryPolicyType and
+// OutboundConnectionRetryPolicyType.
+func (r *resolver) goName(baseNS, name string) string {
+	prefix := strings.ReplaceAll(baseNS, ".", "")
+	if rest, ok := strings.CutPrefix(name, prefix); ok && rest != "" && r.defines(baseNS, rest) {
+		return ident(prefix + name)
+	}
+	return goName(baseNS, name)
+}
+
+// defines reports whether a namespace of baseNS defines a type named name.
+func (r *resolver) defines(baseNS, name string) bool {
+	return r.b.Defines(baseNS, name)
 }
 
 // ident sanitizes a string into an exported Go identifier.
@@ -83,6 +121,7 @@ func (r *resolver) resource(typeRef string) error {
 	}
 	chain := r.entityChain(et)
 	baseNS := baseNamespace(leafNS)
+	r.claim(et.Name, baseNS+"."+et.Name)
 
 	res := &Resource{
 		GoName:      et.Name,
@@ -142,7 +181,7 @@ func (r *resolver) actionParam(p csdl.Parameter) (Field, bool) {
 			return Field{GoName: ident(p.Name), JSONName: p.Name, GoType: "[]odata.Link", Kind: KindNavSlice}, true
 		}
 		f, ok := r.scalarField(p.Name, p.Type, true, false)
-		return f, ok && f.Kind == KindStringSlice
+		return f, ok && (f.Kind == KindStringSlice || f.Kind == KindEnumSlice)
 	}
 	f, ok := r.scalarField(p.Name, p.Type, true, false)
 	return f, ok && f.scalarKind()
@@ -310,7 +349,7 @@ func (r *resolver) scalarField(name, typeRef string, nullable, required bool) (F
 	if en, ok := r.b.ResolveEnum(inner); ok {
 		gn := r.enum(baseNamespace(ns), en)
 		if isColl {
-			f.Kind, f.GoType = KindStringSlice, "[]string"
+			f.Kind, f.GoType = KindEnumSlice, "[]"+gn
 			return f, true
 		}
 		f.Kind, f.GoType = KindEnum, gn
@@ -337,7 +376,8 @@ func (r *resolver) scalarField(name, typeRef string, nullable, required bool) (F
 }
 
 func (r *resolver) enum(baseNS string, en *csdl.EnumType) string {
-	gn := goName(baseNS, en.Name)
+	gn := r.goName(baseNS, en.Name)
+	r.claim(gn, baseNS+"."+en.Name)
 	if r.enumSeen[gn] {
 		return gn
 	}
@@ -351,7 +391,8 @@ func (r *resolver) enum(baseNS string, en *csdl.EnumType) string {
 }
 
 func (r *resolver) complex(ns string, ct *csdl.ComplexType) string {
-	gn := goName(baseNamespace(ns), ct.Name)
+	gn := r.goName(baseNamespace(ns), ct.Name)
+	r.claim(gn, baseNamespace(ns)+"."+ct.Name)
 	if r.complexSeen[gn] {
 		return gn
 	}

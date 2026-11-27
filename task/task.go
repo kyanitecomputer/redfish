@@ -74,7 +74,7 @@ func (m *Manager) Start(name string, fn Func) *server.ActionResult {
 		ODataID:         CollectionURI + "/" + id,
 		Id:              id,
 		Name:            name,
-		TaskState:       gen.TaskTaskStateRunning,
+		TaskState:       gen.TaskStateRunning,
 		TaskStatus:      gen.ResourceHealthOK,
 		StartTime:       now(),
 		TaskMonitor:     MonitorURI + "/" + id,
@@ -106,8 +106,8 @@ func (m *Manager) run(e *entry, fn Func) {
 	if err == nil {
 		pc := int64(100)
 		e.task.PercentComplete = &pc
-		e.task.TaskState = gen.TaskTaskStateCompleted
-		e.task.Messages = []gen.MessageMessage{{
+		e.task.TaskState = gen.TaskStateCompleted
+		e.task.Messages = []gen.Message{{
 			MessageId:       "TaskEvent.1.0.TaskCompletedOK",
 			Message:         "The task with Id '" + e.task.Id + "' has completed.",
 			MessageArgs:     []string{e.task.Id},
@@ -115,13 +115,13 @@ func (m *Manager) run(e *entry, fn Func) {
 		}}
 		return
 	}
-	e.task.TaskState = gen.TaskTaskStateException
+	e.task.TaskState = gen.TaskStateException
 	e.task.TaskStatus = gen.ResourceHealthCritical
 	id, msg := odata.MsgGeneralError, err.Error()
 	if se, ok := errors.AsType[*server.Error](err); ok {
 		id, msg = se.MessageID, se.Message
 	}
-	e.task.Messages = []gen.MessageMessage{
+	e.task.Messages = []gen.Message{
 		{
 			MessageId:       "TaskEvent.1.0.TaskAborted",
 			Message:         "The task with Id '" + e.task.Id + "' has been aborted.",

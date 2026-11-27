@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -153,6 +154,23 @@ func baseOf(ns string) string {
 		return m[1]
 	}
 	return ns
+}
+
+// Defines reports whether the unversioned namespace base, or one of its
+// versions, defines an entity, complex, enum or type definition named name.
+func (b *Bundle) Defines(base, name string) bool {
+	for ns, s := range b.schemas {
+		if baseOf(ns) != base {
+			continue
+		}
+		if slices.ContainsFunc(s.EntityTypes, func(t EntityType) bool { return t.Name == name }) ||
+			slices.ContainsFunc(s.ComplexTypes, func(t ComplexType) bool { return t.Name == name }) ||
+			slices.ContainsFunc(s.EnumTypes, func(t EnumType) bool { return t.Name == name }) ||
+			slices.ContainsFunc(s.TypeDefinitions, func(t TypeDefinition) bool { return t.Name == name }) {
+			return true
+		}
+	}
+	return false
 }
 
 // BoundActions returns the actions bound to the resource identified by its

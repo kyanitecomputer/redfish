@@ -13,6 +13,7 @@ const (
 	KindInt                     // Go int64 / *int64
 	KindFloat                   // Go float64 / *float64
 	KindStringSlice             // Go []string
+	KindEnumSlice               // Go slice of a string-backed enum type
 	KindEnum                    // Go string-backed enum type
 	KindComplex                 // Go nested struct type
 	KindNavSingle               // Go odata.Link (single reference)

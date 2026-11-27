@@ -102,7 +102,7 @@ func (s *Service) sessionResource(sess session) *gen.Session {
 		Id:          sess.id,
 		Name:        "User Session",
 		UserName:    sess.user,
-		SessionType: gen.SessionSessionTypesRedfish,
+		SessionType: gen.SessionTypesRedfish,
 		CreatedTime: sess.created.UTC().Format(time.RFC3339),
 	}
 	res.ClientOriginIPAddress = sess.origin
@@ -277,7 +277,7 @@ func (s *Service) accountResource(acc Account) *gen.ManagerAccount {
 		Enabled:                &enabled,
 		Locked:                 &locked,
 		PasswordChangeRequired: &change,
-		AccountTypes:           []string{"Redfish"},
+		AccountTypes:           []gen.ManagerAccountAccountTypes{gen.ManagerAccountAccountTypesRedfish},
 		Links:                  &gen.ManagerAccountLinks{Role: odata.Link(RolesURI + "/" + acc.RoleId)},
 		Actions: &gen.ManagerAccountActions{
 			ChangePassword: &odata.ActionTarget{Target: uri + "/Actions/ManagerAccount.ChangePassword"},
@@ -482,9 +482,9 @@ func (s *Service) GetRole(_ context.Context, p server.Params) (*gen.Role, error)
 		return nil, nil
 	}
 	predefined := true
-	assigned := make([]string, len(privs))
+	assigned := make([]gen.PrivilegesPrivilegeType, len(privs))
 	for i, pr := range privs {
-		assigned[i] = string(pr)
+		assigned[i] = gen.PrivilegesPrivilegeType(pr)
 	}
 	return &gen.Role{
 		Id:                 id,

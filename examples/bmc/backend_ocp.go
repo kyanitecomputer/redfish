@@ -31,7 +31,7 @@ func (b *backend) GetManager(_ context.Context, p server.Params) (*gen.Manager, 
 	return &gen.Manager{
 		Id:                 "bmc",
 		Name:               "Manager",
-		ManagerType:        gen.ManagerManagerTypeBMC,
+		ManagerType:        gen.ManagerTypeBMC,
 		UUID:               "92384634-2938-2342-8820-489239905431",
 		FirmwareVersion:    "1.0.0",
 		Status:             &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
@@ -195,7 +195,7 @@ func (b *backend) logEntry(id string) *gen.LogEntry {
 		Id:        id,
 		Name:      "Log Entry " + id,
 		Created:   "2026-06-11T00:00:00Z",
-		EntryType: gen.LogEntryLogEntryTypeEvent,
+		EntryType: gen.LogEntryTypeEvent,
 		Message:   "System started.",
 		Severity:  gen.LogEntryEventSeverityOK,
 	}

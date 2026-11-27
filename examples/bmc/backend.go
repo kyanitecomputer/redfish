@@ -52,7 +52,7 @@ func chassisFixture() *gen.Chassis {
 	return &gen.Chassis{
 		Id:                      "1",
 		Name:                    "Main Chassis",
-		ChassisType:             gen.ChassisChassisTypeRackMount,
+		ChassisType:             gen.ChassisTypeRackMount,
 		Manufacturer:            "Kyanite",
 		Model:                   "Cairn-1U",
 		SerialNumber:            "CRN-0001",

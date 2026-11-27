@@ -3,6 +3,7 @@ package gen
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -148,5 +149,84 @@ func TestBaseTypeCycle(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("Build loops on a BaseType cycle")
+	}
+}
+
+func TestGoName(t *testing.T) {
+	for _, tt := range []struct{ ns, name, want string }{
+		{"ServiceRoot", "Links", "ServiceRootLinks"},
+		{"Resource", "Status", "ResourceStatus"},
+		{"Task", "TaskState", "TaskState"},
+		{"Message", "Message", "Message"},
+		{"Chassis", "ChassisType", "ChassisType"},
+		{"Manager", "ManagerType", "ManagerType"},
+		{"ManagerAccount", "AccountTypes", "ManagerAccountAccountTypes"},
+	} {
+		if got := goName(tt.ns, tt.name); got != tt.want {
+			t.Errorf("goName(%q, %q) = %q, want %q", tt.ns, tt.name, got, tt.want)
+		}
+	}
+}
+
+// TestEnumSlice checks that an array of an enumeration keeps its type.
+func TestEnumSlice(t *testing.T) {
+	m := buildModel(t, "ManagerAccount.ManagerAccount")
+	for _, f := range m.Resources[0].Fields {
+		if f.JSONName == "AccountTypes" {
+			if f.Kind != KindEnumSlice || f.GoType != "[]ManagerAccountAccountTypes" {
+				t.Errorf("AccountTypes = {Kind: %v, GoType: %q}", f.Kind, f.GoType)
+			}
+			return
+		}
+	}
+	t.Error("no AccountTypes")
+}
+
+// TestNameClash checks that two types generated under one Go name fail the
+// build: Loop.Links and LoopLinks.LoopLinks are both LoopLinks.
+func TestNameClash(t *testing.T) {
+	const doc = `<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+  <edmx:DataServices>
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="Loop.v1_0_0">
+      <EntityType Name="Loop">
+        <Property Name="A" Type="Loop.v1_0_0.Links"/>
+        <Property Name="B" Type="LoopLinks.v1_0_0.LoopLinks"/>
+      </EntityType>
+      <ComplexType Name="Links"/>
+    </Schema>
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="LoopLinks.v1_0_0">
+      <ComplexType Name="LoopLinks"/>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>`
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Loop_v1.xml"), []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := csdl.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Build(b, "gen", []string{"Loop.Loop"}); err == nil || !strings.Contains(err.Error(), "LoopLinks") {
+		t.Errorf("Build = %v, want a clash of LoopLinks", err)
+	}
+}
+
+// TestNameKeepsPrefix builds OutboundConnection, whose namespace defines
+// both RetryPolicyType and OutboundConnectionRetryPolicyType.
+func TestNameKeepsPrefix(t *testing.T) {
+	m := buildModel(t, "OutboundConnection.OutboundConnection")
+	names := map[string]bool{}
+	for _, c := range m.Complexes {
+		names[c.GoName] = true
+	}
+	for _, e := range m.Enums {
+		names[e.GoName] = true
+	}
+	for _, want := range []string{"OutboundConnectionRetryPolicyType", "OutboundConnectionOutboundConnectionRetryPolicyType"} {
+		if !names[want] {
+			t.Errorf("no type %s", want)
+		}
 	}
 }
