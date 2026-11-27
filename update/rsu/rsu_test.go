@@ -336,6 +336,7 @@ func TestValidate(t *testing.T) {
 		{"stage", update.Image{URI: "/data/rsu.raucb"}, update.Request{Stage: true}, 400},
 		{"exclude", update.Image{URI: "/data/rsu.raucb"}, update.Request{ExcludeTargets: []string{fw + "p1"}}, 400},
 		{"credentials", update.Image{URI: "/data/rsu.raucb", Username: "u"}, update.Request{}, 400},
+		{"password", update.Image{URI: "/data/rsu.raucb", Password: "p"}, update.Request{}, 400},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -70,8 +70,9 @@ type Config struct {
 	// offers no updates through the backend, and Install fails with 501 Not
 	// Implemented.
 	Installer string
-	// SpoolDir holds pushed images while they are installed; it is created if
-	// needed. os.TempDir() when empty, which is often a RAM file system: set
+	// SpoolDir holds pushed images while they are installed, in files named
+	// rsu-*.raucb, as RAUC, on which installers may build, requires; it is
+	// created if needed. os.TempDir() when empty, which is often a RAM file system: set
 	// it to a directory with room for the largest image.
 	SpoolDir string
 	// Slots names the SPT partitions that are application slots, such as
@@ -282,8 +283,10 @@ func (b *Backend) check(ctx context.Context, img update.Image, req update.Reques
 		return nil, notSupported("Stage")
 	case len(req.ExcludeTargets) > 0:
 		return nil, notSupported("ExcludeTargets")
-	case img.Username != "" || img.Password != "":
+	case img.Username != "":
 		return nil, notSupported("Username")
+	case img.Password != "":
+		return nil, notSupported("Password")
 	case img.Body == nil && (strings.Contains(img.URI, "://") || strings.HasPrefix(img.URI, "-")):
 		return nil, badValue("The value for the parameter ImageURI must be a local path; the RSU update backend does not download images.")
 	}
