@@ -15,11 +15,15 @@ import (
 	"time"
 )
 
+// testIterations is the PBKDF2 iteration count of the tests, which need no
+// strong hash.
+const testIterations = 1000
+
 // newServer serves the example; requests without credentials log in as
 // admin with HTTP Basic.
 func newServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	h, err := newHandler(newBackend())
+	h, err := newHandler(newBackend(), testIterations)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +38,7 @@ func newServer(t *testing.T) *httptest.Server {
 }
 
 func TestAuthentication(t *testing.T) {
-	h, err := newHandler(newBackend())
+	h, err := newHandler(newBackend(), testIterations)
 	if err != nil {
 		t.Fatal(err)
 	}

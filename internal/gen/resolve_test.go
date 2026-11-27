@@ -4,15 +4,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"src.kyanite.computer/redfish/internal/csdl"
 )
 
+// schemaBundle is the DSP8010 bundle, parsed once for all tests; Build only
+// reads it.
+var schemaBundle = sync.OnceValues(func() (*csdl.Bundle, error) { return csdl.LoadDir("../../schema/csdl") })
+
 func buildModel(t *testing.T, targets ...string) *Model {
 	t.Helper()
-	b, err := csdl.LoadDir("../../schema/csdl")
+	b, err := schemaBundle()
 	if err != nil {
 		t.Fatalf("LoadDir: %v", err)
 	}
