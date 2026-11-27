@@ -111,3 +111,36 @@ func TestReadBody(t *testing.T) {
 		t.Errorf("timed out body: %v, want 408", err)
 	}
 }
+
+func TestETag(t *testing.T) {
+	w := httptest.NewRecorder()
+	WriteJSON(w, []byte(`{}`))
+	tag := w.Header().Get("ETag")
+	if tag == "" {
+		t.Fatal("no ETag on a resource")
+	}
+	w = httptest.NewRecorder()
+	WriteError(w, http.StatusNotFound, odata.MsgResourceNotFound, "missing")
+	if e := w.Header().Get("ETag"); e != "" {
+		t.Errorf("error response has ETag %s", e)
+	}
+	for _, tt := range []struct {
+		ifMatch string
+		ok      bool
+	}{
+		{"", true},
+		{"*", true},
+		{tag, true},
+		{`"other", ` + tag, true},
+		{"W/" + tag, false},
+		{`"other"`, false},
+	} {
+		r := httptest.NewRequest(http.MethodPatch, "/", nil)
+		if tt.ifMatch != "" {
+			r.Header.Set("If-Match", tt.ifMatch)
+		}
+		if got := CheckIfMatch(r, []byte(`{}`)); got != tt.ok {
+			t.Errorf("If-Match %s: %v, want %v", tt.ifMatch, got, tt.ok)
+		}
+	}
+}

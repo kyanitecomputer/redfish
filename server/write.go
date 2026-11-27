@@ -34,11 +34,15 @@ func etag(body []byte) string {
 	return `"` + strconv.FormatUint(h.Sum64(), 16) + `"`
 }
 
+// writeJSON writes a JSON response. A successful one gets the ETag of its
+// body; an error body is no representation of the resource and gets none.
 func writeJSON(w http.ResponseWriter, status int, body []byte) {
 	h := w.Header()
 	h.Set("Content-Type", odata.ContentType)
 	h.Set("OData-Version", odata.Version)
-	h.Set("ETag", etag(body))
+	if status < 300 {
+		h.Set("ETag", etag(body))
+	}
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }
@@ -177,7 +181,9 @@ func PreconditionFailed(w http.ResponseWriter) {
 }
 
 // CheckIfMatch reports whether a request may proceed given its If-Match header
-// and the resource's current body. A missing header or "*" always matches.
+// and the resource's current body. A missing header or "*" always matches;
+// otherwise one of the entity tags must equal the current one, and a weak tag
+// never does (RFC 9110, section 13.1.1).
 func CheckIfMatch(r *http.Request, currentBody []byte) bool {
 	im := strings.TrimSpace(r.Header.Get("If-Match"))
 	if im == "" || im == "*" {
@@ -185,9 +191,7 @@ func CheckIfMatch(r *http.Request, currentBody []byte) bool {
 	}
 	cur := etag(currentBody)
 	for tag := range strings.SplitSeq(im, ",") {
-		tag = strings.TrimSpace(tag)
-		tag = strings.TrimPrefix(tag, "W/") // accept weak form defensively
-		if tag == cur {
+		if strings.TrimSpace(tag) == cur {
 			return true
 		}
 	}
