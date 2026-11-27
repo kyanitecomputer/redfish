@@ -9,6 +9,7 @@ import (
 	"hash/fnv"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -193,9 +194,42 @@ func CheckIfMatch(r *http.Request, currentBody []byte) bool {
 	return false
 }
 
-// ReadBody reads a request body up to a fixed size limit.
+// ReadBody reads the body of r, which may hold up to 1 MiB. Its errors are
+// those of ReadError.
 func ReadBody(r *http.Request) ([]byte, error) {
-	return io.ReadAll(io.LimitReader(r.Body, maxBodyBytes))
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBodyBytes+1))
+	if err == nil && len(body) > maxBodyBytes {
+		err = &http.MaxBytesError{Limit: maxBodyBytes}
+	}
+	if err != nil {
+		return nil, ReadError(err)
+	}
+	return body, nil
+}
+
+// ReadError returns the error that answers a failure to read a request
+// body: 413 when the body exceeds a limit (an *http.MaxBytesError), 408 when
+// the client stopped sending it (see BodyIdleTimeout), otherwise 400.
+func ReadError(err error) *Error {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		return &Error{
+			Status:    http.StatusRequestEntityTooLarge,
+			MessageID: odata.MsgGeneralError,
+			Message:   "The request body exceeds the size the service accepts.",
+		}
+	}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return &Error{
+			Status:    http.StatusRequestTimeout,
+			MessageID: odata.MsgGeneralError,
+			Message:   "The client stopped sending the request body before it was complete.",
+		}
+	}
+	return &Error{
+		Status:    http.StatusBadRequest,
+		MessageID: odata.MsgUnrecognizedBody,
+		Message:   "The request body could not be read.",
+	}
 }
 
 func severityFor(status int) string {

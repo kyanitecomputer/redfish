@@ -238,7 +238,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 		fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 		fmt.Fprintf(b, "\t\tvar params %s\n", paramsType)
 		if len(a.Params) > 0 {
-			fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+			fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 			fmt.Fprintf(b, "\t\tif len(bytes.TrimSpace(body)) > 0 {\n")
 			fmt.Fprintf(b, "\t\t\tif err := params.UnmarshalJSON(body); err != nil {\n")
 			fmt.Fprintf(b, "\t\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\t\treturn\n\t\t\t}\n\t\t}\n")
@@ -321,7 +321,7 @@ func writePatchCase(b *bytes.Buffer, f Field) {
 func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
 	fmt.Fprintf(b, "\tvar mu sync.Mutex\n")
 	fmt.Fprintf(b, "\tph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
-	fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tvar patch %sPatch\n", r.GoName)
 	fmt.Fprintf(b, "\t\tif err := patch.UnmarshalJSON(body); err != nil {\n")
 	fmt.Fprintf(b, "\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\treturn\n\t\t}\n")

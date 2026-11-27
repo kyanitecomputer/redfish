@@ -4651,7 +4651,7 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch SessionServicePatch
@@ -5226,7 +5226,7 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch ChassisPatch
@@ -5328,7 +5328,7 @@ func RegisterResetChassis(mux *http.ServeMux, p ResetChassisProvider) {
 		var params ChassisResetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -5748,7 +5748,7 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch ComputerSystemPatch
@@ -5858,7 +5858,7 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 		var params ComputerSystemAddResourceBlockParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -5958,7 +5958,7 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 		var params ComputerSystemDecommissionParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6067,7 +6067,7 @@ func RegisterExportConfigurationComputerSystem(mux *http.ServeMux, p ExportConfi
 		var params ComputerSystemExportConfigurationParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6153,7 +6153,7 @@ func RegisterRemoveResourceBlockComputerSystem(mux *http.ServeMux, p RemoveResou
 		var params ComputerSystemRemoveResourceBlockParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6233,7 +6233,7 @@ func RegisterResetComputerSystem(mux *http.ServeMux, p ResetComputerSystemProvid
 		var params ComputerSystemResetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6613,7 +6613,7 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch ManagerPatch
@@ -6743,7 +6743,7 @@ func RegisterModifyRedundancySetManager(mux *http.ServeMux, p ModifyRedundancySe
 		var params ManagerModifyRedundancySetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6821,7 +6821,7 @@ func RegisterResetManager(mux *http.ServeMux, p ResetManagerProvider) {
 		var params ManagerResetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6899,7 +6899,7 @@ func RegisterResetToDefaultsManager(mux *http.ServeMux, p ResetToDefaultsManager
 		var params ManagerResetToDefaultsParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6984,7 +6984,7 @@ func RegisterUpdateSecurityModeManager(mux *http.ServeMux, p UpdateSecurityModeM
 		var params ManagerUpdateSecurityModeParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -7203,7 +7203,7 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch ManagerNetworkProtocolPatch
@@ -7524,7 +7524,7 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch AccountServicePatch
@@ -7957,7 +7957,7 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch ManagerAccountPatch
@@ -8066,7 +8066,7 @@ func RegisterChangePasswordManagerAccount(mux *http.ServeMux, p ChangePasswordMa
 		var params ManagerAccountChangePasswordParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -8190,7 +8190,7 @@ func RegisterVerifyTimeBasedOneTimePasswordManagerAccount(mux *http.ServeMux, p 
 		var params ManagerAccountVerifyTimeBasedOneTimePasswordParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -8510,7 +8510,7 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch ThermalSubsystemPatch
@@ -9381,7 +9381,7 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch EthernetInterfacePatch
@@ -9656,7 +9656,7 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch LogServicePatch
@@ -9765,7 +9765,7 @@ func RegisterClearLogLogService(mux *http.ServeMux, p ClearLogLogServiceProvider
 		var params LogServiceClearLogParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -9887,7 +9887,7 @@ func RegisterCollectDiagnosticDataLogService(mux *http.ServeMux, p CollectDiagno
 		var params LogServiceCollectDiagnosticDataParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10031,7 +10031,7 @@ func RegisterPushDiagnosticDataLogService(mux *http.ServeMux, p PushDiagnosticDa
 		var params LogServicePushDiagnosticDataParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10366,7 +10366,7 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch LogEntryPatch
@@ -10618,7 +10618,7 @@ func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch UpdateServicePatch
@@ -10719,7 +10719,7 @@ func RegisterActivateUpdateService(mux *http.ServeMux, p ActivateUpdateServicePr
 		var params UpdateServiceActivateParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10812,7 +10812,7 @@ func RegisterGenerateSSHIdentityKeyPairUpdateService(mux *http.ServeMux, p Gener
 		var params UpdateServiceGenerateSSHIdentityKeyPairParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10968,7 +10968,7 @@ func RegisterSimpleUpdateUpdateService(mux *http.ServeMux, p SimpleUpdateUpdateS
 		var params UpdateServiceSimpleUpdateParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -11199,7 +11199,7 @@ func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) 
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch SoftwareInventoryPatch
@@ -11302,7 +11302,7 @@ func RegisterActivateSoftwareInventory(mux *http.ServeMux, p ActivateSoftwareInv
 		var params SoftwareInventoryActivateParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -11381,7 +11381,7 @@ func RegisterCancelSoftwareInventory(mux *http.ServeMux, p CancelSoftwareInvento
 		var params SoftwareInventoryCancelParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -11545,7 +11545,7 @@ func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		var patch TaskServicePatch

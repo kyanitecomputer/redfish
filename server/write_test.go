@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"src.kyanite.computer/redfish/odata"
 )
@@ -80,5 +82,32 @@ func TestWriteActionResult(t *testing.T) {
 				t.Errorf("has body = %v, want %v", got, tt.wantBody)
 			}
 		})
+	}
+}
+
+func TestReadBody(t *testing.T) {
+	for _, tt := range []struct {
+		size int
+		want int // status of the error, 0 for none
+	}{
+		{0, 0},
+		{maxBodyBytes, 0},
+		{maxBodyBytes + 1, http.StatusRequestEntityTooLarge},
+	} {
+		r := httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(strings.Repeat(" ", tt.size)))
+		body, err := ReadBody(r)
+		got := 0
+		if e, ok := errors.AsType[*Error](err); ok {
+			got = e.Status
+		} else if err != nil {
+			t.Errorf("%d bytes: error %v is not an *Error", tt.size, err)
+		}
+		if got != tt.want || err == nil && len(body) != tt.size {
+			t.Errorf("%d bytes: read %d, status %d, want %d", tt.size, len(body), got, tt.want)
+		}
+	}
+	r := httptest.NewRequest(http.MethodPatch, "/", iotest.ErrReader(os.ErrDeadlineExceeded))
+	if _, err := ReadBody(r); err == nil || err.(*Error).Status != http.StatusRequestTimeout {
+		t.Errorf("timed out body: %v, want 408", err)
 	}
 }

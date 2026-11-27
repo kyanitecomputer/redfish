@@ -111,6 +111,8 @@ func TestPushRejected(t *testing.T) {
 		{"no file", [][2]string{{"UpdateParameters", `{}`}}, "", http.StatusBadRequest},
 		{"bad parameters", [][2]string{{"UpdateParameters", `{`}, {"UpdateFile", "x"}}, "", http.StatusBadRequest},
 		{"too large", [][2]string{{"UpdateFile", strings.Repeat("x", 4096)}}, "", http.StatusRequestEntityTooLarge},
+		{"large parameters", [][2]string{{"UpdateParameters", `{"Targets":[]` + strings.Repeat(" ", maxParamsBytes) + `}`}, {"UpdateFile", "x"}}, "", http.StatusRequestEntityTooLarge},
+		{"parameters after the file", [][2]string{{"UpdateFile", "x"}, {"UpdateParameters", `{"Stage":true}`}}, "", http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,6 +120,9 @@ func TestPushRejected(t *testing.T) {
 			mux := http.NewServeMux()
 			s := New(b, task.New())
 			s.MaxImageSizeBytes = 1024
+			if tt.name == "large parameters" {
+				s.MaxImageSizeBytes = 0
+			}
 			s.Register(mux)
 			srv := httptest.NewServer(mux)
 			defer srv.Close()

@@ -503,11 +503,12 @@ func notFound(p server.Params) error {
 	}
 }
 
-// readBody parses the body of r with parse, or answers 400 and returns false.
+// readBody parses the body of r with parse, or answers the error and returns
+// false.
 func readBody(w http.ResponseWriter, r *http.Request, parse func([]byte) error) bool {
 	body, err := server.ReadBody(r)
 	if err != nil {
-		server.BadRequest(w, odata.MsgUnrecognizedBody, "The request body could not be read.")
+		server.WriteErr(w, err)
 		return false
 	}
 	if len(bytes.TrimSpace(body)) == 0 || parse(body) != nil {
