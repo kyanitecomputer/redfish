@@ -1222,3 +1222,16 @@ func TestChangeByDemotedAccount(t *testing.T) {
 		t.Error("op was disabled")
 	}
 }
+
+// verify reports whether password matches the stored hash h.
+func verify(h, password string) bool {
+	p, ok := parseHash(h)
+	return ok && p.matches(password)
+}
+
+func TestHasDoesNotAllocate(t *testing.T) {
+	acc := Account{UserName: "op", RoleId: Operator}
+	if n := testing.AllocsPerRun(100, func() { acc.Has(ConfigureComponents) }); n != 0 {
+		t.Errorf("Has allocates %v times", n)
+	}
+}
