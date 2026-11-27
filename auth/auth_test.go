@@ -440,8 +440,7 @@ func TestDisabledCertificate(t *testing.T) {
 
 func TestBusyLogin(t *testing.T) {
 	ts := newTestService(t)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	ts.s.accounts.verifyWait = 10 * time.Millisecond
 	for range verifySlots {
 		ts.s.accounts.slots <- struct{}{}
 	}
@@ -673,8 +672,7 @@ func (f savingFunc) Save(data []byte) error { f(data); return nil }
 func TestBusyPasswordChange(t *testing.T) {
 	ts := newTestService(t)
 	token, _ := ts.login("op", pw)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	ts.s.accounts.verifyWait = 10 * time.Millisecond
 	release := fillSlots(ts.s.accounts)
 	defer release()
 	if w, _ := ts.do("PATCH", AccountsURI+"/op", "token:"+token, `{"Password":"a new long password"}`); w.Code != http.StatusServiceUnavailable {
@@ -702,8 +700,7 @@ func TestPolicyPatchBounds(t *testing.T) {
 func TestBusyChangePasswordAction(t *testing.T) {
 	ts := newTestService(t)
 	token, _ := ts.login("op", pw)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	ts.s.accounts.verifyWait = 10 * time.Millisecond
 	release := fillSlots(ts.s.accounts)
 	defer release()
 	w, _ := ts.do("POST", AccountsURI+"/op/Actions/ManagerAccount.ChangePassword", "token:"+token,
@@ -745,8 +742,8 @@ func TestOwnPasswordChangeKeepsSession(t *testing.T) {
 		{"POST", AccountsURI + "/op/Actions/ManagerAccount.ChangePassword", `{"NewPassword":"another long password","SessionAccountPassword":"a new long password"}`},
 	} {
 		ran := false
-		ts.s.beforeRebind = func() {
-			ts.s.beforeRebind = nil
+		ts.s.accounts.probe.beforeRebind = func() {
+			ts.s.accounts.probe.beforeRebind = nil
 			ran = true
 			logins[i]()
 		}
@@ -791,8 +788,8 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 		token, _ := ts.login("op", pw)
 		// Not a PATCH of the account: PATCHes of accounts run one at a
 		// time.
-		ts.s.accounts.beforeChange = func() {
-			ts.s.accounts.beforeChange = nil
+		ts.s.accounts.probe.beforeChange = func() {
+			ts.s.accounts.probe.beforeChange = nil
 			if err := ts.s.accounts.SetPassword("op", reset); err != nil {
 				t.Fatalf("reset: %v", err)
 			}
@@ -818,9 +815,9 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 		strings.NewReader(`{"NewPassword":"a new long password","SessionAccountPassword":"`+reset+`"}`))
 	r = r.WithContext(context.WithValue(r.Context(), principalKey{}, Principal{Account: acc}))
 	w := httptest.NewRecorder()
-	ts.s.accounts.beforeChange = func() { t.Error("the new password was hashed after a superseded proof") }
+	ts.s.accounts.probe.beforeChange = func() { t.Error("the new password was hashed after a superseded proof") }
 	mux.ServeHTTP(w, r)
-	ts.s.accounts.beforeChange = nil
+	ts.s.accounts.probe.beforeChange = nil
 	if w.Code != http.StatusConflict {
 		t.Errorf("proof with a password set after the request was authenticated: status %d, want 409", w.Code)
 	}

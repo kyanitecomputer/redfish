@@ -53,6 +53,7 @@ func newAccounts(t *testing.T, s Storage) (*Accounts, *clock) {
 		t.Fatal(err)
 	}
 	a.Iterations = 1000
+	a.probe = &probe{}
 	c := newClock()
 	a.now = c.now
 	return a, c
@@ -335,7 +336,7 @@ func TestConcurrentGuesses(t *testing.T) {
 		wg.Go(func() { a.Authenticate("admin", "wrong password!") })
 	}
 	wg.Wait()
-	if n := a.hashed.Load(); n > int64(DefaultPolicy.LockoutThreshold) {
+	if n := a.probe.hashed.Load(); n > int64(DefaultPolicy.LockoutThreshold) {
 		t.Errorf("%d guesses hashed, want at most %d", n, DefaultPolicy.LockoutThreshold)
 	}
 	if !a.Locked("admin") {
@@ -346,8 +347,7 @@ func TestConcurrentGuesses(t *testing.T) {
 func TestBusy(t *testing.T) {
 	a, _ := newAccounts(t, &Memory{})
 	a.Create("admin", pw, Administrator)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	a.verifyWait = 10 * time.Millisecond
 	for range verifySlots {
 		a.slots <- struct{}{}
 	}
@@ -364,11 +364,11 @@ func TestBusy(t *testing.T) {
 func TestLongPassword(t *testing.T) {
 	a, _ := newAccounts(t, &Memory{})
 	a.Create("admin", pw, Administrator)
-	before := a.hashed.Load()
+	before := a.probe.hashed.Load()
 	if _, err := a.Authenticate("admin", strings.Repeat("x", 1<<20)); err == nil {
 		t.Fatal("a 1 MiB password logged in")
 	}
-	if a.hashed.Load() != before {
+	if a.probe.hashed.Load() != before {
 		t.Error("a password longer than MaxPasswordLength was hashed")
 	}
 }
@@ -417,7 +417,7 @@ func TestSlots(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	if n := a.maxSeen.Load(); n < 1 || n > 2 {
+	if n := a.probe.maxSeen.Load(); n < 1 || n > 2 {
 		t.Errorf("%d passwords hashed at once, want 1 or 2", n)
 	}
 	// Logins beyond maxWaiting do not wait.
@@ -453,9 +453,8 @@ func TestSuccessResetsFailures(t *testing.T) {
 // TestFailuresOfAccountsAlwaysCount fills the failures of unknown names with
 // locked ones: the names of accounts are still counted and locked.
 func TestFailuresOfAccountsAlwaysCount(t *testing.T) {
-	defer func(n int) { maxFailures = n }(maxFailures)
-	maxFailures = 20
 	a, _ := newAccounts(t, &Memory{})
+	a.maxFailures = 20
 	p := a.Policy()
 	p.LockoutThreshold, p.LockoutDuration = 1, 24*time.Hour
 	a.SetPolicy(p)
@@ -463,8 +462,8 @@ func TestFailuresOfAccountsAlwaysCount(t *testing.T) {
 	for i := range 30 {
 		a.Authenticate(fmt.Sprintf("junk%d", i), pw)
 	}
-	if n := len(a.failures); n > maxFailures {
-		t.Errorf("%d names counted, want at most %d", n, maxFailures)
+	if n := len(a.failures); n > a.maxFailures {
+		t.Errorf("%d names counted, want at most %d", n, a.maxFailures)
 	}
 	a.Authenticate("admin", "wrong password!")
 	if !a.Locked("admin") {
@@ -776,7 +775,7 @@ func TestUndoOrderAfterDisable(t *testing.T) {
 	var arrived sync.WaitGroup
 	arrived.Add(2)
 	gate := make(chan struct{})
-	a.beforeCheck = func() { arrived.Done(); <-gate }
+	a.probe.beforeCheck = func() { arrived.Done(); <-gate }
 	var wg sync.WaitGroup
 	for range 2 {
 		wg.Go(func() {
@@ -792,7 +791,7 @@ func TestUndoOrderAfterDisable(t *testing.T) {
 	}
 	close(gate)
 	wg.Wait()
-	a.beforeCheck = nil
+	a.probe.beforeCheck = nil
 	if err := a.Change("op", nil, &on, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -870,8 +869,7 @@ func TestDatabaseErrors(t *testing.T) {
 func TestPasswordWritesUseSlots(t *testing.T) {
 	a, _ := newAccounts(t, &Memory{})
 	a.Create("admin", pw, Administrator)
-	defer func(d time.Duration) { verifyWait = d }(verifyWait)
-	verifyWait = 10 * time.Millisecond
+	a.verifyWait = 10 * time.Millisecond
 	release := fillSlots(a)
 	defer release()
 	if err := a.SetPassword("admin", "another long password"); !errors.Is(err, ErrBusy) {
@@ -893,7 +891,7 @@ func TestConcurrentRehash(t *testing.T) {
 	a.Iterations = 3000
 	var arrived sync.WaitGroup
 	arrived.Add(2)
-	a.beforeCheck = func() { arrived.Done(); arrived.Wait() }
+	a.probe.beforeCheck = func() { arrived.Done(); arrived.Wait() }
 	var wg sync.WaitGroup
 	for range 2 {
 		wg.Go(func() {
@@ -1045,10 +1043,10 @@ func TestRehashCooldownAfterSave(t *testing.T) {
 	a.Iterations = 2000
 	// Both logins check, then hash anew (2 x 3000 iterations), before the
 	// first save fails.
-	start := a.work.Load()
+	start := a.probe.work.Load()
 	st.during = func() {
 		st.during = nil
-		for deadline := time.Now().Add(5 * time.Second); a.work.Load()-start < 6000; time.Sleep(time.Millisecond) {
+		for deadline := time.Now().Add(5 * time.Second); a.probe.work.Load()-start < 6000; time.Sleep(time.Millisecond) {
 			if time.Now().After(deadline) {
 				t.Error("the second login did not hash anew")
 				return
@@ -1059,7 +1057,7 @@ func TestRehashCooldownAfterSave(t *testing.T) {
 	// second is not stuck behind the first one's save.
 	var both sync.WaitGroup
 	both.Add(2)
-	a.beforeCheck = func() { both.Done(); both.Wait() }
+	a.probe.beforeCheck = func() { both.Done(); both.Wait() }
 	var wg sync.WaitGroup
 	for _, name := range []string{"admin", "op"} {
 		wg.Go(func() {
@@ -1069,7 +1067,7 @@ func TestRehashCooldownAfterSave(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	a.beforeCheck = nil
+	a.probe.beforeCheck = nil
 	if n := st.saves.Load(); n != 1 {
 		t.Errorf("%d saves, want 1: the second login saved during the cooldown", n)
 	}
@@ -1097,9 +1095,9 @@ func TestFailedLoginWork(t *testing.T) {
 	a, _ := newAccounts(t, m)
 	a.Iterations = 3000
 	work := func(name string) int64 {
-		before := a.work.Load()
+		before := a.probe.work.Load()
 		a.Authenticate(name, "wrong password!")
-		return a.work.Load() - before
+		return a.probe.work.Load() - before
 	}
 	if known, unknown := work("admin"), work("nobody"); known != unknown || unknown != 3000 {
 		t.Errorf("iterations: account %d, unknown name %d, want 3000 both", known, unknown)
@@ -1132,11 +1130,11 @@ func TestIterationsTooHigh(t *testing.T) {
 	a.Create("admin", pw, Administrator)
 	a.Iterations = maxIterations + 1
 	for _, name := range []string{"admin", "nobody"} {
-		before := a.work.Load()
+		before := a.probe.work.Load()
 		if _, err := a.Authenticate(name, "wrong password!"); err == nil {
 			t.Errorf("%s: login passed", name)
 		}
-		if n := a.work.Load() - before; n != 0 {
+		if n := a.probe.work.Load() - before; n != 0 {
 			t.Errorf("%s: %d iterations hashed", name, n)
 		}
 	}
@@ -1192,14 +1190,14 @@ func TestNoRehashOfDisabledAccount(t *testing.T) {
 	m.Save([]byte("account admin Administrator enabled " + h + "\naccount op Operator disabled " + h + "\n"))
 	a, _ := newAccounts(t, m)
 	a.Iterations = 2000
-	before := a.work.Load()
+	before := a.probe.work.Load()
 	if _, err := a.Authenticate("op", pw); err == nil {
 		t.Fatal("login of a disabled account")
 	}
 	if n := hashIterations(a.list[1].hash); n != 1000 {
 		t.Errorf("disabled account got a new hash: %d iterations", n)
 	}
-	if w := a.work.Load() - before; w != 1000 {
+	if w := a.probe.work.Load() - before; w != 1000 {
 		t.Errorf("%d iterations, want 1000", w)
 	}
 }

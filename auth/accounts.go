@@ -200,12 +200,13 @@ const (
 	maxWaiting  = 8
 )
 
-// verifyWait is how long a login waits for a slot to hash its password.
-var verifyWait = 5 * time.Second
-
-// maxFailures bounds the user names without an account whose failed logins
-// are counted; those of accounts are always counted.
-var maxFailures = 4096
+const (
+	// verifyWait is how long a login waits for a slot to hash its password.
+	verifyWait = 5 * time.Second
+	// maxFailures bounds the user names without an account whose failed
+	// logins are counted; those of accounts are always counted.
+	maxFailures = 4096
+)
 
 // ErrBusy is the error of a login, or a change of a password, that waited
 // too long for a slot to hash the password, as too many arrived at once. It
@@ -245,19 +246,14 @@ type Accounts struct {
 	now     func() time.Time
 	slots   chan struct{}
 	waiting atomic.Int32
-	hashed  atomic.Int64 // passwords hashed, for tests
-	work    atomic.Int64 // PBKDF2 iterations of logins, new hashes included, for tests
 	// rehashAfter is when a new hash at login may be saved again after
 	// saving one failed, in Unix nanoseconds.
 	rehashAfter atomic.Int64
-	active      atomic.Int32 // passwords being hashed
-	maxSeen     atomic.Int32 // most passwords hashed at once, for tests
-	// beforeCheck, if set, is called by a login that holds a slot and has
-	// chosen the hash to check, for tests.
-	beforeCheck func()
-	// beforeChange, if set, is called by change after hashing a new
-	// password, if any, before it takes the lock, for tests.
-	beforeChange func()
+	// verifyWait and maxFailures are the constants of the same names,
+	// unless a test changes them.
+	verifyWait  time.Duration
+	maxFailures int
+	probe       *probe // nil but in tests
 
 	mu       sync.Mutex
 	policy   Policy
@@ -304,12 +300,14 @@ type reservation struct {
 // with the device.
 func NewAccounts(s Storage) (*Accounts, error) {
 	a := &Accounts{
-		storage:  s,
-		now:      time.Now,
-		slots:    make(chan struct{}, verifySlots),
-		policy:   DefaultPolicy,
-		failures: map[string]*failures{},
-		verified: map[[32]byte]time.Time{},
+		storage:     s,
+		now:         time.Now,
+		verifyWait:  verifyWait,
+		maxFailures: maxFailures,
+		slots:       make(chan struct{}, verifySlots),
+		policy:      DefaultPolicy,
+		failures:    map[string]*failures{},
+		verified:    map[[32]byte]time.Time{},
 	}
 	if _, err := rand.Read(a.key[:]); err != nil {
 		return nil, err
@@ -500,9 +498,7 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 			return 0, Account{}, err
 		}
 	}
-	if a.beforeChange != nil {
-		a.beforeChange()
-	}
+	a.probe.change()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.superseded(by) {
@@ -688,16 +684,14 @@ func (a *Accounts) Authenticate(name, password string) (Account, error) {
 	}
 	a.mu.Unlock()
 
-	if a.beforeCheck != nil {
-		a.beforeCheck()
-	}
+	a.probe.check()
 	ok := a.check(h, password)
 	// The cooldown is checked here to save hashing, and again before the
 	// save, which decides.
 	var rehash string
 	switch {
 	case ok && acc != nil && acc.Enabled && hashIterations(h) < cost && now.UnixNano() >= a.rehashAfter.Load():
-		a.work.Add(int64(cost))
+		a.probe.addWork(cost)
 		rehash, _ = hash(password, cost)
 	case !ok && hashWork(h) < cost:
 		a.pad(cost - hashWork(h))
@@ -754,14 +748,14 @@ func (a *Accounts) hashPassword(password string) (string, error) {
 }
 
 // acquire waits for a slot to hash a password, or fails with ErrBusy after
-// verifyWait or when maxWaiting logins wait already.
+// a.verifyWait or when maxWaiting logins wait already.
 func (a *Accounts) acquire() error {
 	if a.waiting.Add(1) > maxWaiting {
 		a.waiting.Add(-1)
 		return ErrBusy
 	}
 	defer a.waiting.Add(-1)
-	t := time.NewTimer(verifyWait)
+	t := time.NewTimer(a.verifyWait)
 	defer t.Stop()
 	select {
 	case a.slots <- struct{}{}:
@@ -775,18 +769,15 @@ func (a *Accounts) release() { <-a.slots }
 
 // check reports whether password matches h; the caller holds a slot.
 func (a *Accounts) check(h, password string) bool {
-	a.hashed.Add(1)
-	a.work.Add(int64(hashWork(h)))
-	n := a.active.Add(1)
-	defer a.active.Add(-1)
-	for m := a.maxSeen.Load(); n > m && !a.maxSeen.CompareAndSwap(m, n); m = a.maxSeen.Load() {
+	if a.probe != nil {
+		defer a.probe.hashing(hashWork(h))()
 	}
 	return verify(h, password)
 }
 
 // pad does iter PBKDF2 iterations for nothing; the caller holds a slot.
 func (a *Accounts) pad(iter int) {
-	a.work.Add(int64(iter))
+	a.probe.addWork(iter)
 	_, _ = pbkdf2.Key(sha256.New, "", padSalt[:], iter, sha256.Size)
 }
 
@@ -817,7 +808,7 @@ func (a *Accounts) locked(name string, now time.Time) bool {
 
 // countFailure counts a failed login with the user name, and locks it when
 // that reaches the threshold. The names of accounts are always counted;
-// when maxFailures other names are counted, those that are not locked are
+// when a.maxFailures other names are counted, those that are not locked are
 // forgotten, and while that leaves no room, other names are not counted.
 // It returns what it did, for undo and clearWindow. a.mu must be held.
 func (a *Accounts) countFailure(name string, now time.Time) reservation {
@@ -827,13 +818,13 @@ func (a *Accounts) countFailure(name string, now time.Time) reservation {
 	}
 	f := a.failures[name]
 	if f == nil {
-		if a.find(name) == nil && a.unknownFailures() >= maxFailures {
+		if a.find(name) == nil && a.unknownFailures() >= a.maxFailures {
 			for n, old := range a.failures {
 				if a.find(n) == nil && !now.Before(old.lockedUntil) {
 					delete(a.failures, n)
 				}
 			}
-			if a.unknownFailures() >= maxFailures {
+			if a.unknownFailures() >= a.maxFailures {
 				return reservation{}
 			}
 		}

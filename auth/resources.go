@@ -349,9 +349,7 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 // authenticated pr has ended too. (change refuses such a change when given
 // the principal, so this only guards callers that do not give it.)
 func (s *Service) keepOwnSession(prev uint64, acc Account, pr Principal) {
-	if s.beforeRebind != nil {
-		s.beforeRebind()
-	}
+	s.accounts.probe.rebind()
 	if acc.Enabled && acc.UserName == pr.Account.UserName && pr.SessionID != "" && prev == pr.Account.gen {
 		s.sessions.rebind(pr.SessionID, prev, acc.gen)
 	}
