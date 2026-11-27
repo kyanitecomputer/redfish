@@ -119,7 +119,7 @@ func (r *resolver) resource(typeRef string) error {
 		GoName:      et.Name,
 		ODataType:   "#" + leafNS + "." + et.Name,
 		ContextFrag: baseNS + "." + et.Name,
-		URIs:        chainURIs(r.b, chain),
+		URIs:        chainURIs(chain),
 		Description: chainDescription(chain),
 	}
 
@@ -172,10 +172,10 @@ func (r *resolver) actionParam(p csdl.Parameter) (Field, bool) {
 		if _, _, ok := r.b.ResolveEntity(inner); ok {
 			return Field{GoName: ident(p.Name), JSONName: p.Name, GoType: "[]odata.Link", Kind: KindNavSlice}, true
 		}
-		f, ok := r.scalarField(p.Name, p.Type, true, false)
+		f, ok := r.scalarField(p.Name, p.Type, false)
 		return f, ok && (f.Kind == KindStringSlice || f.Kind == KindEnumSlice)
 	}
-	f, ok := r.scalarField(p.Name, p.Type, true, false)
+	f, ok := r.scalarField(p.Name, p.Type, false)
 	return f, ok && f.scalarKind()
 }
 
@@ -232,7 +232,9 @@ func collectionMember(chain []*csdl.EntityType) (name string, autoExpand bool) {
 	return "", false
 }
 
-func chainURIs(b *csdl.Bundle, chain []*csdl.EntityType) []string {
+// chainURIs returns the Redfish.Uris of the first type in the chain that has
+// them.
+func chainURIs(chain []*csdl.EntityType) []string {
 	for _, et := range chain {
 		if u := csdl.Annotations(et.Annotations).Strings("Redfish.Uris"); len(u) > 0 {
 			return u
@@ -256,9 +258,9 @@ func chainDescription(chain []*csdl.EntityType) string {
 func (r *resolver) flattenEntityFields(chain []*csdl.EntityType) []Field {
 	var props []csdl.Property
 	var navs []csdl.NavigationProperty
-	for i := len(chain) - 1; i >= 0; i-- {
-		props = append(props, chain[i].Properties...)
-		navs = append(navs, chain[i].NavProps...)
+	for _, et := range slices.Backward(chain) {
+		props = append(props, et.Properties...)
+		navs = append(navs, et.NavProps...)
 	}
 	return r.buildFields(props, navs)
 }
@@ -279,7 +281,7 @@ func (r *resolver) buildFields(props []csdl.Property, navs []csdl.NavigationProp
 	}
 	for _, p := range props {
 		anns := csdl.Annotations(p.Annotations)
-		f, ok := r.scalarField(p.Name, p.Type, p.IsNullable(), anns.Has("Redfish.Required"))
+		f, ok := r.scalarField(p.Name, p.Type, anns.Has("Redfish.Required"))
 		perm := anns.EnumMember("OData.Permissions")
 		f.Writable = strings.HasSuffix(perm, "/ReadWrite") || strings.HasSuffix(perm, "/Write")
 		f.WriteOnly = strings.HasSuffix(perm, "/Write") || strings.HasSuffix(perm, "/None")
@@ -293,8 +295,7 @@ func (r *resolver) buildFields(props []csdl.Property, navs []csdl.NavigationProp
 }
 
 func (r *resolver) navField(n csdl.NavigationProperty) (Field, bool) {
-	inner, isColl := csdl.StripCollection(n.Type)
-	_ = inner
+	_, isColl := csdl.StripCollection(n.Type)
 	f := Field{
 		GoName:   ident(n.Name),
 		JSONName: n.Name,
@@ -312,7 +313,7 @@ func (r *resolver) navField(n csdl.NavigationProperty) (Field, bool) {
 
 // scalarField maps a structural property to a Go field, resolving type
 // definitions, enums, and complex types as needed.
-func (r *resolver) scalarField(name, typeRef string, nullable, required bool) (Field, bool) {
+func (r *resolver) scalarField(name, typeRef string, required bool) (Field, bool) {
 	inner, isColl := csdl.StripCollection(typeRef)
 	ns, tname := csdl.SplitQualified(inner)
 
@@ -335,7 +336,7 @@ func (r *resolver) scalarField(name, typeRef string, nullable, required bool) (F
 	if td, ok := r.b.ResolveTypeDef(inner); ok {
 		// Type definitions alias an Edm primitive; recurse on the underlying type
 		// while preserving this property's name and requiredness.
-		return r.scalarField(name, td.UnderlyingType, nullable, required)
+		return r.scalarField(name, td.UnderlyingType, required)
 	}
 
 	if en, ok := r.b.ResolveEnum(inner); ok {
@@ -393,9 +394,9 @@ func (r *resolver) complex(ns string, ct *csdl.ComplexType) string {
 	chain := r.complexChain(ct)
 	var props []csdl.Property
 	var navs []csdl.NavigationProperty
-	for i := len(chain) - 1; i >= 0; i-- {
-		props = append(props, chain[i].Properties...)
-		navs = append(navs, chain[i].NavProps...)
+	for _, ct := range slices.Backward(chain) {
+		props = append(props, ct.Properties...)
+		navs = append(navs, ct.NavProps...)
 	}
 	fields := r.buildFields(props, navs)
 	c := &Complex{GoName: gn, Fields: fields}

@@ -172,10 +172,3 @@ type PropertyValue struct {
 type ValueList struct {
 	Strings []string `xml:"String"`
 }
-
-// Nullable reports the effective nullability. Per OData, properties are
-// nullable unless explicitly marked otherwise.
-func (p Property) IsNullable() bool { return p.Nullable == nil || *p.Nullable }
-
-// IsNullable reports the effective nullability of a navigation property.
-func (n NavigationProperty) IsNullable() bool { return n.Nullable == nil || *n.Nullable }

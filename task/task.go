@@ -82,7 +82,6 @@ func (m *Manager) Start(name string, fn Func) *server.ActionResult {
 	}}
 	m.tasks[id] = e
 	m.order = append(m.order, id)
-	m.prune()
 	t := e.task
 	m.mu.Unlock()
 

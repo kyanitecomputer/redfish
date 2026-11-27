@@ -130,3 +130,14 @@ func TestFloat(t *testing.T) {
 		valid(t, b.Bytes())
 	}
 }
+
+func TestZeroBuilder(t *testing.T) {
+	var b Builder
+	if got := string(b.Bytes()); got != "{}" {
+		t.Errorf("zero Builder = %s", got)
+	}
+	b.Int("n", 1)
+	if got := string(b.Bytes()); got != `{"n":1}` {
+		t.Errorf("zero Builder with a member = %s", got)
+	}
+}

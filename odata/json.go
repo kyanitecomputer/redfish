@@ -47,7 +47,8 @@ func AppendString(dst []byte, s string) []byte {
 }
 
 // Builder incrementally constructs a JSON object with ordered keys by appending
-// to an internal buffer. The zero value is not usable; call NewBuilder.
+// to an internal buffer. The zero value is an empty object; NewBuilder
+// preallocates the buffer.
 type Builder struct {
 	buf   []byte
 	dirty bool
