@@ -315,9 +315,7 @@ func NewAccounts(s Storage) (*Accounts, error) {
 		failures:    map[string]*failures{},
 		verified:    map[[32]byte]time.Time{},
 	}
-	if _, err := rand.Read(a.key[:]); err != nil {
-		return nil, err
-	}
+	rand.Read(a.key[:])
 	data, err := s.Load()
 	if err != nil {
 		return nil, err

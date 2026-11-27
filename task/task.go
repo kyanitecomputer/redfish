@@ -60,7 +60,7 @@ func (m *Manager) Register(mux *http.ServeMux) {
 	gen.RegisterTaskService(mux, m)
 	gen.RegisterTaskCollection(mux, m)
 	gen.RegisterTask(mux, m)
-	server.Handle(mux, "GET", MonitorURI+"/{TaskId}", m.serveMonitor)
+	server.Handle(mux, http.MethodGet, MonitorURI+"/{TaskId}", m.serveMonitor)
 }
 
 // Start runs fn in its own goroutine as a new task called name and returns the
@@ -179,13 +179,12 @@ func (m *Manager) serveMonitor(w http.ResponseWriter, r *http.Request, p server.
 
 // GetTaskService implements gen.TaskServiceProvider.
 func (m *Manager) GetTaskService(_ context.Context) (*gen.TaskService, error) {
-	enabled, events := true, false
 	return &gen.TaskService{
 		Id:                              "TaskService",
 		Name:                            "Task Service",
-		ServiceEnabled:                  &enabled,
+		ServiceEnabled:                  new(true),
 		CompletedTaskOverWritePolicy:    gen.TaskServiceOverWritePolicyOldest,
-		LifeCycleEventOnTaskStateChange: &events,
+		LifeCycleEventOnTaskStateChange: new(false),
 		DateTime:                        now(),
 		Tasks:                           odata.Link(CollectionURI),
 	}, nil

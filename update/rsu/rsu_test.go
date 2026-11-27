@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -112,7 +113,7 @@ func (f *fakeRSU) write(t *testing.T, name, content string) {
 func (f *fakeRSU) read(t *testing.T, name string) string {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(f.dir, name))
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		t.Fatal(err)
 	}
 	return string(b)

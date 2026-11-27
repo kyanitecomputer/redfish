@@ -32,7 +32,7 @@ func Render(m *Model) ([]byte, error) {
 	if slices.ContainsFunc(m.Resources, (*Resource).HasPatch) {
 		fmt.Fprintf(&b, "\t%q\n", "sync")
 	}
-	fmt.Fprintf(&b, "\t%q\n\t%q\n)\n\n", odataPkg, serverPkg)
+	fmt.Fprintf(&b, "\n\t%q\n\t%q\n)\n\n", odataPkg, serverPkg)
 
 	if needsJSON {
 		writePatchHelpers(&b)
@@ -155,7 +155,7 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "\t\tif res == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif res.ODataID == \"\" {\n\t\t\tres.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, res)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "", "h")
+	writeRoutes(b, "http.MethodGet", r.URIs, "", "h")
 	if patchable {
 		writePatchHandler(b, r, hasParams)
 	}
@@ -246,7 +246,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 		fmt.Fprintf(b, "\t\tres, err := p.%s(r.Context()%s, &params)\n", method, callArgs(hasParams))
 		fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 		fmt.Fprintf(b, "\t\tserver.WriteActionResult(w, res)\n\t}\n")
-		writeRoutes(b, "POST", r.URIs, a.Segment, "h")
+		writeRoutes(b, "http.MethodPost", r.URIs, a.Segment, "h")
 		fmt.Fprintf(b, "}\n\n")
 	}
 }
@@ -340,7 +340,7 @@ func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
 	fmt.Fprintf(b, "\t\tif updated == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif updated.ODataID == \"\" {\n\t\t\tupdated.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, updated)\n\t}\n")
-	writeRoutes(b, "PATCH", r.URIs, "", "ph")
+	writeRoutes(b, "http.MethodPatch", r.URIs, "", "ph")
 }
 
 func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
@@ -377,7 +377,7 @@ func writeCollection(b *bytes.Buffer, r *Resource, generated map[string]bool) {
 	fmt.Fprintf(b, "\t\t\tMembers:      ids,\n")
 	fmt.Fprintf(b, "\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, c)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "", "h")
+	writeRoutes(b, "http.MethodGet", r.URIs, "", "h")
 	fmt.Fprintf(b, "}\n\n")
 }
 
@@ -410,7 +410,7 @@ func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "\t\t\tExpanded:     items,\n")
 	fmt.Fprintf(b, "\t\t}\n")
 	fmt.Fprintf(b, "\t\tserver.WriteResource(w, c)\n\t}\n")
-	writeRoutes(b, "GET", r.URIs, "", "h")
+	writeRoutes(b, "http.MethodGet", r.URIs, "", "h")
 	fmt.Fprintf(b, "}\n\n")
 }
 
@@ -749,23 +749,24 @@ func callArgs(hasParams bool) string {
 	return ""
 }
 
-// writeRoutes registers handler hVar for method on each URI via server.Handle,
-// or on each action target when segment names an action. Resources whose schema
-// defines no URIs are registered at the URIs passed to their Register function.
+// writeRoutes registers handler hVar for method, an expression such as
+// http.MethodGet, on each URI via server.Handle, or on each action target when
+// segment names an action. Resources whose schema defines no URIs are
+// registered at the URIs passed to their Register function.
 func writeRoutes(b *bytes.Buffer, method string, uris []string, segment, hVar string) {
 	if len(uris) == 0 {
 		target := "uri"
 		if segment != "" {
 			target = fmt.Sprintf("uri+%q", "/Actions/"+segment)
 		}
-		fmt.Fprintf(b, "\tfor _, uri := range uris {\n\t\tserver.Handle(mux, %q, %s, %s)\n\t}\n", method, target, hVar)
+		fmt.Fprintf(b, "\tfor _, uri := range uris {\n\t\tserver.Handle(mux, %s, %s, %s)\n\t}\n", method, target, hVar)
 		return
 	}
 	if segment != "" {
 		uris = actionURIs(uris, segment)
 	}
 	for _, uri := range uris {
-		fmt.Fprintf(b, "\tserver.Handle(mux, %q, %q, %s)\n", method, uri, hVar)
+		fmt.Fprintf(b, "\tserver.Handle(mux, %s, %q, %s)\n", method, uri, hVar)
 	}
 }
 

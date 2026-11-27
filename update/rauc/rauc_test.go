@@ -2,6 +2,8 @@ package rauc
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +62,7 @@ func (f *fakeRAUC) write(t *testing.T, name, content string) {
 func (f *fakeRAUC) read(t *testing.T, name string) string {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(f.dir, name))
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		t.Fatal(err)
 	}
 	return string(b)

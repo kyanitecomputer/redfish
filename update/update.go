@@ -129,7 +129,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	gen.RegisterSoftwareInventory(mux, s)
 	if _, ok := installerOf(s.backend); ok {
 		gen.RegisterSimpleUpdateUpdateService(mux, s)
-		server.Handle(mux, "POST", MultipartPushURI, s.servePush)
+		server.Handle(mux, http.MethodPost, MultipartPushURI, s.servePush)
 	}
 	if _, ok := activatorOf(s.backend); ok {
 		gen.RegisterActivateUpdateService(mux, s)

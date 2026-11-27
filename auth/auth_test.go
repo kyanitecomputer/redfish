@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"src.kyanite.computer/redfish/gen"
-	"src.kyanite.computer/redfish/odata"
-	"src.kyanite.computer/redfish/server"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"src.kyanite.computer/redfish/gen"
+	"src.kyanite.computer/redfish/odata"
+	"src.kyanite.computer/redfish/server"
 )
 
 // testService serves the auth resources and a few others behind Handler, for
@@ -625,7 +626,7 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 		defer mu.Unlock()
 		var timeout int
 		var basic string
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			fmt.Sscanf(line, "policy SessionTimeout %d", &timeout)
 			fmt.Sscanf(line, "policy HTTPBasicAuth %s", &basic)
 		}
@@ -637,7 +638,7 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		for i := range 2000 {
-			ts.s.PatchSessionService(context.Background(), &gen.SessionServicePatch{SessionTimeout: ptr(int64(2000 + i))})
+			ts.s.PatchSessionService(context.Background(), &gen.SessionServicePatch{SessionTimeout: new(int64(2000 + i))})
 		}
 	})
 	wg.Go(func() {
@@ -648,7 +649,7 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 			} else if i > 1000 {
 				basic = ""
 			}
-			patch := &gen.AccountServicePatch{MinPasswordLength: ptr(int64(12))}
+			patch := &gen.AccountServicePatch{MinPasswordLength: new(int64(12))}
 			if basic != "" {
 				patch.HTTPBasicAuth = &basic
 			}
@@ -660,8 +661,6 @@ func TestPolicyPatchesDoNotUndoEachOther(t *testing.T) {
 		t.Errorf("lost updates: %v", bad[:min(len(bad), 3)])
 	}
 }
-
-func ptr[T any](v T) *T { return &v }
 
 // savingFunc is a Storage that hands every saved database to a function.
 type savingFunc func([]byte)

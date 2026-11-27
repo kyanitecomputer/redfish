@@ -48,7 +48,6 @@ func newBackend() *backend {
 // Management profile requires. Every field used here is already present in the
 // generated model; only the data is supplied by the backend.
 func chassisFixture() *gen.Chassis {
-	indicator := true
 	return &gen.Chassis{
 		Id:                      "1",
 		Name:                    "Main Chassis",
@@ -57,7 +56,7 @@ func chassisFixture() *gen.Chassis {
 		Model:                   "Cairn-1U",
 		SerialNumber:            "CRN-0001",
 		IndicatorLED:            gen.ChassisIndicatorLEDOff,
-		LocationIndicatorActive: &indicator,
+		LocationIndicatorActive: new(true),
 		PowerState:              gen.ResourcePowerStateOn,
 		Status:                  &gen.ResourceStatus{State: gen.ResourceStateEnabled, Health: gen.ResourceHealthOK},
 		ThermalSubsystem:        odata.Link("/redfish/v1/Chassis/1/ThermalSubsystem"),

@@ -11,10 +11,11 @@ import (
 	"encoding/json/jsontext"
 	"io"
 	"net/http"
-	"src.kyanite.computer/redfish/odata"
-	"src.kyanite.computer/redfish/server"
 	"strconv"
 	"sync"
+
+	"src.kyanite.computer/redfish/odata"
+	"src.kyanite.computer/redfish/server"
 )
 
 // errPatchType is returned when a PATCH value has an unexpected JSON type.
@@ -4501,8 +4502,8 @@ func RegisterServiceRoot(mux *http.ServeMux, p ServiceRootProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1", h)
-	server.Handle(mux, "GET", "/redfish/v1/", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/", h)
 }
 
 // SessionService: The `SessionService` schema describes the session service and its properties, with links to the actual list of sessions.
@@ -4646,7 +4647,7 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/SessionService", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/SessionService", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -4691,7 +4692,7 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/SessionService", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/SessionService", ph)
 }
 
 // SessionCollectionProvider lists the members of the SessionCollection collection by @odata.id.
@@ -4716,7 +4717,7 @@ func RegisterSessionCollection(mux *http.ServeMux, p SessionCollectionProvider) 
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/SessionService/Sessions", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/SessionService/Sessions", h)
 }
 
 // Session: The `Session` resource describes a single connection (session) between a client and a Redfish service instance.
@@ -4847,7 +4848,7 @@ func RegisterSession(mux *http.ServeMux, p SessionProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/SessionService/Sessions/{SessionId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/SessionService/Sessions/{SessionId}", h)
 }
 
 // ChassisCollectionProvider lists the members of the ChassisCollection collection by @odata.id.
@@ -4872,7 +4873,7 @@ func RegisterChassisCollection(mux *http.ServeMux, p ChassisCollectionProvider) 
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Chassis", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis", h)
 }
 
 // Chassis: The `Chassis` schema represents the physical components of a system.
@@ -5221,7 +5222,7 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -5266,7 +5267,7 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Chassis/{ChassisId}", ph)
 }
 
 // ChassisResetParameters holds the input parameters of the #Chassis.Reset action.
@@ -5344,7 +5345,7 @@ func RegisterResetChassis(mux *http.ServeMux, p ResetChassisProvider) {
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Actions/Chassis.Reset", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/Actions/Chassis.Reset", h)
 }
 
 // ComputerSystemCollectionProvider lists the members of the ComputerSystemCollection collection by @odata.id.
@@ -5369,7 +5370,7 @@ func RegisterComputerSystemCollection(mux *http.ServeMux, p ComputerSystemCollec
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Systems", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems", h)
 }
 
 // ComputerSystem: The `ComputerSystem` schema represents a computer or system instance and the software-visible resources, or items within the data plane, such as memory, CPU, and other devices that it can access.
@@ -5741,9 +5742,9 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -5788,9 +5789,9 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Systems/{ComputerSystemId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", ph)
 }
 
 // ComputerSystemAddResourceBlockParameters holds the input parameters of the #ComputerSystem.AddResourceBlock action.
@@ -5874,9 +5875,9 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.AddResourceBlock", h)
 }
 
 // ComputerSystemDecommissionParameters holds the input parameters of the #ComputerSystem.Decommission action.
@@ -5977,9 +5978,9 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Decommission", h)
 }
 
 // ComputerSystemExportConfigurationParameters holds the input parameters of the #ComputerSystem.ExportConfiguration action.
@@ -6089,9 +6090,9 @@ func RegisterExportConfigurationComputerSystem(mux *http.ServeMux, p ExportConfi
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.ExportConfiguration", h)
 }
 
 // ComputerSystemRemoveResourceBlockParameters holds the input parameters of the #ComputerSystem.RemoveResourceBlock action.
@@ -6175,9 +6176,9 @@ func RegisterRemoveResourceBlockComputerSystem(mux *http.ServeMux, p RemoveResou
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.RemoveResourceBlock", h)
 }
 
 // ComputerSystemResetParameters holds the input parameters of the #ComputerSystem.Reset action.
@@ -6255,9 +6256,9 @@ func RegisterResetComputerSystem(mux *http.ServeMux, p ResetComputerSystemProvid
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.Reset", h)
 }
 
 // ComputerSystemSetDefaultBootOrderParameters holds the input parameters of the #ComputerSystem.SetDefaultBootOrder action (none defined).
@@ -6279,9 +6280,9 @@ func RegisterSetDefaultBootOrderComputerSystem(mux *http.ServeMux, p SetDefaultB
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Actions/ComputerSystem.SetDefaultBootOrder", h)
 }
 
 // ManagerCollectionProvider lists the members of the ManagerCollection collection by @odata.id.
@@ -6306,7 +6307,7 @@ func RegisterManagerCollection(mux *http.ServeMux, p ManagerCollectionProvider) 
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers", h)
 }
 
 // Manager: In Redfish, a manager is a systems management entity that can implement or provide access to a Redfish service.
@@ -6614,7 +6615,7 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -6659,7 +6660,7 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Managers/{ManagerId}", ph)
 }
 
 // ManagerForceFailoverParameters holds the input parameters of the #Manager.ForceFailover action (none defined).
@@ -6681,7 +6682,7 @@ func RegisterForceFailoverManager(mux *http.ServeMux, p ForceFailoverManagerProv
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ForceFailover", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ForceFailover", h)
 }
 
 // ManagerModifyRedundancySetParameters holds the input parameters of the #Manager.ModifyRedundancySet action.
@@ -6765,7 +6766,7 @@ func RegisterModifyRedundancySetManager(mux *http.ServeMux, p ModifyRedundancySe
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ModifyRedundancySet", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ModifyRedundancySet", h)
 }
 
 // ManagerResetParameters holds the input parameters of the #Manager.Reset action.
@@ -6843,7 +6844,7 @@ func RegisterResetManager(mux *http.ServeMux, p ResetManagerProvider) {
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.Reset", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/Actions/Manager.Reset", h)
 }
 
 // ManagerResetToDefaultsParameters holds the input parameters of the #Manager.ResetToDefaults action.
@@ -6921,7 +6922,7 @@ func RegisterResetToDefaultsManager(mux *http.ServeMux, p ResetToDefaultsManager
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/Actions/Manager.ResetToDefaults", h)
 }
 
 // ManagerUpdateSecurityModeParameters holds the input parameters of the #Manager.UpdateSecurityMode action.
@@ -7006,7 +7007,7 @@ func RegisterUpdateSecurityModeManager(mux *http.ServeMux, p UpdateSecurityModeM
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/Actions/Manager.UpdateSecurityMode", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/Actions/Manager.UpdateSecurityMode", h)
 }
 
 // ManagerNetworkProtocol: The network service settings for the manager.
@@ -7204,7 +7205,7 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -7249,7 +7250,7 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", ph)
 }
 
 // AccountService: The `AccountService` schema defines an account service.
@@ -7524,8 +7525,8 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/AccountService", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/AccountService", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -7570,8 +7571,8 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/AccountService", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/AccountService", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", ph)
 }
 
 // ManagerAccountCollectionProvider lists the members of the ManagerAccountCollection collection by @odata.id.
@@ -7596,8 +7597,8 @@ func RegisterManagerAccountCollection(mux *http.ServeMux, p ManagerAccountCollec
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/AccountService/Accounts", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/AccountService/Accounts", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts", h)
 }
 
 // ManagerAccount: The `ManagerAccount` schema defines the user accounts that are owned by a manager.
@@ -7957,8 +7958,8 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -8003,8 +8004,8 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", ph)
 }
 
 // ManagerAccountChangePasswordParameters holds the input parameters of the #ManagerAccount.ChangePassword action.
@@ -8088,8 +8089,8 @@ func RegisterChangePasswordManagerAccount(mux *http.ServeMux, p ChangePasswordMa
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ChangePassword", h)
 }
 
 // ManagerAccountClearSecretKeyParameters holds the input parameters of the #ManagerAccount.ClearSecretKey action (none defined).
@@ -8111,8 +8112,8 @@ func RegisterClearSecretKeyManagerAccount(mux *http.ServeMux, p ClearSecretKeyMa
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.ClearSecretKey", h)
 }
 
 // ManagerAccountGenerateSecretKeyParameters holds the input parameters of the #ManagerAccount.GenerateSecretKey action (none defined).
@@ -8134,8 +8135,8 @@ func RegisterGenerateSecretKeyManagerAccount(mux *http.ServeMux, p GenerateSecre
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.GenerateSecretKey", h)
 }
 
 // ManagerAccountVerifyTimeBasedOneTimePasswordParameters holds the input parameters of the #ManagerAccount.VerifyTimeBasedOneTimePassword action.
@@ -8212,8 +8213,8 @@ func RegisterVerifyTimeBasedOneTimePasswordManagerAccount(mux *http.ServeMux, p 
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/AccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}/Actions/ManagerAccount.VerifyTimeBasedOneTimePassword", h)
 }
 
 // RoleCollectionProvider lists the members of the RoleCollection collection by @odata.id.
@@ -8238,8 +8239,8 @@ func RegisterRoleCollection(mux *http.ServeMux, p RoleCollectionProvider) {
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/AccountService/Roles", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Roles", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/AccountService/Roles", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Roles", h)
 }
 
 // Role: The `Role` schema contains a Redfish role to use in conjunction with a manager account.
@@ -8353,8 +8354,8 @@ func RegisterRole(mux *http.ServeMux, p RoleProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/AccountService/Roles/{RoleId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Roles/{RoleId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/AccountService/Roles/{RoleId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Roles/{RoleId}", h)
 }
 
 // ThermalSubsystem: The `ThermalSubsystem` schema contains the definition for the thermal subsystem of a chassis.
@@ -8511,7 +8512,7 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -8556,7 +8557,7 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", ph)
 }
 
 // PowerSubsystem: This `PowerSubsystem schema` contains the definition for the power subsystem of a chassis.
@@ -8636,7 +8637,7 @@ func RegisterPowerSubsystem(mux *http.ServeMux, p PowerSubsystemProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PowerSubsystem", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/PowerSubsystem", h)
 }
 
 // SensorCollectionProvider lists the members of the SensorCollection collection by @odata.id.
@@ -8661,12 +8662,12 @@ func RegisterSensorCollection(mux *http.ServeMux, p SensorCollectionProvider) {
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Sensors", h)
-	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/RackPDUs/{PowerDistributionId}/Sensors", h)
-	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/FloorPDUs/{PowerDistributionId}/Sensors", h)
-	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Sensors", h)
-	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/TransferSwitches/{PowerDistributionId}/Sensors", h)
-	server.Handle(mux, "GET", "/redfish/v1/PowerEquipment/PowerShelves/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/Sensors", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/PowerEquipment/RackPDUs/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/PowerEquipment/FloorPDUs/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/PowerEquipment/Switchgear/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/PowerEquipment/TransferSwitches/{PowerDistributionId}/Sensors", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/PowerEquipment/PowerShelves/{PowerDistributionId}/Sensors", h)
 }
 
 // ControlCollectionProvider lists the members of the ControlCollection collection by @odata.id.
@@ -8691,7 +8692,7 @@ func RegisterControlCollection(mux *http.ServeMux, p ControlCollectionProvider) 
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Controls", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/Controls", h)
 }
 
 // EnvironmentMetrics: The `EnvironmentMetrics` schema represents the environmental metrics of a device.
@@ -8801,77 +8802,77 @@ func RegisterEnvironmentMetrics(mux *http.ServeMux, p EnvironmentMetricsProvider
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics", h)
-	server.Handle(mux, "GET", "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics", h)
 }
 
 // EnvironmentMetricsResetMetricsParameters holds the input parameters of the #EnvironmentMetrics.ResetMetrics action (none defined).
@@ -8893,77 +8894,77 @@ func RegisterResetMetricsEnvironmentMetrics(mux *http.ServeMux, p ResetMetricsEn
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetMetrics", h)
 }
 
 // EnvironmentMetricsResetToDefaultsParameters holds the input parameters of the #EnvironmentMetrics.ResetToDefaults action (none defined).
@@ -8985,77 +8986,77 @@ func RegisterResetToDefaultsEnvironmentMetrics(mux *http.ServeMux, p ResetToDefa
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
-	server.Handle(mux, "POST", "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/Memory/{MemoryId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/Drives/{DriveId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Facilities/{FacilityId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Facilities/{FacilityId}/AmbientMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Fabrics/{FabricId}/Switches/{SwitchId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/MediaControllers/{MediaControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/FabricAdapters/{FabricAdapterId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/GraphicsControllers/{GraphicsControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/USBControllers/{USBControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/Processors/{ProcessorId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Storage/{StorageId}/StorageControllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Storage/{StorageId}/Controllers/{StorageControllerId}/Ports/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/USBPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/DedicatedNetworkPorts/{PortId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/CDUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/ImmersionUnits/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/HeatExchangers/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ThermalEquipment/RPUs/{CoolingUnitId}/EnvironmentMetrics/Actions/EnvironmentMetrics.ResetToDefaults", h)
 }
 
 // EthernetInterfaceCollectionProvider lists the members of the EthernetInterfaceCollection collection by @odata.id.
@@ -9080,15 +9081,15 @@ func RegisterEthernetInterfaceCollection(mux *http.ServeMux, p EthernetInterface
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/HostInterfaces/{HostInterfaceId}/HostEthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/HostInterfaces/{HostInterfaceId}/HostEthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces", h)
 }
 
 // EthernetInterface: The `EthernetInterface` schema represents a single, logical Ethernet interface or network interface controller (NIC).
@@ -9373,16 +9374,16 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -9427,16 +9428,16 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Managers/{ManagerId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", ph)
 }
 
 // LogServiceCollectionProvider lists the members of the LogServiceCollection collection by @odata.id.
@@ -9461,11 +9462,11 @@ func RegisterLogServiceCollection(mux *http.ServeMux, p LogServiceCollectionProv
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/LogServices", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/LogServices", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/LogServices", h)
 }
 
 // LogService: The `LogService` schema contains properties for monitoring and configuring a log service.
@@ -9649,15 +9650,15 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/JobService/Log", h)
-	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/JobService/Log", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TelemetryService/LogService", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -9702,15 +9703,15 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/JobService/Log", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/TelemetryService/LogService", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/JobService/Log", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/TelemetryService/LogService", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", ph)
 }
 
 // LogServiceClearLogParameters holds the input parameters of the #LogService.ClearLog action.
@@ -9787,15 +9788,15 @@ func RegisterClearLogLogService(mux *http.ServeMux, p ClearLogLogServiceProvider
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.ClearLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/JobService/Log/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/TelemetryService/LogService/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.ClearLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.ClearLog", h)
 }
 
 // LogServiceCollectDiagnosticDataParameters holds the input parameters of the #LogService.CollectDiagnosticData action.
@@ -9909,15 +9910,15 @@ func RegisterCollectDiagnosticDataLogService(mux *http.ServeMux, p CollectDiagno
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.CollectDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/JobService/Log/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/TelemetryService/LogService/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.CollectDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.CollectDiagnosticData", h)
 }
 
 // LogServiceDownloadRawLogParameters holds the input parameters of the #LogService.DownloadRawLog action (none defined).
@@ -9939,15 +9940,15 @@ func RegisterDownloadRawLogLogService(mux *http.ServeMux, p DownloadRawLogLogSer
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.DownloadRawLog", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/JobService/Log/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/TelemetryService/LogService/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.DownloadRawLog", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.DownloadRawLog", h)
 }
 
 // LogServicePushDiagnosticDataParameters holds the input parameters of the #LogService.PushDiagnosticData action.
@@ -10053,15 +10054,15 @@ func RegisterPushDiagnosticDataLogService(mux *http.ServeMux, p PushDiagnosticDa
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/JobService/Log/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/TelemetryService/LogService/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.PushDiagnosticData", h)
-	server.Handle(mux, "POST", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/JobService/Log/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/TelemetryService/LogService/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Actions/LogService.PushDiagnosticData", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Actions/LogService.PushDiagnosticData", h)
 }
 
 // LogEntryCollectionProvider returns the inlined members of the LogEntryCollection collection
@@ -10092,15 +10093,15 @@ func RegisterLogEntryCollection(mux *http.ServeMux, p LogEntryCollectionProvider
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/JobService/Log/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/JobService/Log/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TelemetryService/LogService/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries", h)
 }
 
 // LogEntry: The `LogEntry` schema defines the record format for a log.
@@ -10359,15 +10360,15 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/JobService/Log/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/JobService/Log/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -10412,15 +10413,15 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/JobService/Log/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Managers/{ManagerId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Chassis/{ChassisId}/LogServices/{LogServiceId}/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/JobService/Log/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", ph)
 }
 
 // UpdateService: The `UpdateService` schema describes the update service and the properties for the service itself with links to collections of firmware and software inventory.
@@ -10619,7 +10620,7 @@ func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/UpdateService", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/UpdateService", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -10664,7 +10665,7 @@ func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/UpdateService", ph)
 }
 
 // UpdateServiceActivateParameters holds the input parameters of the #UpdateService.Activate action.
@@ -10741,7 +10742,7 @@ func RegisterActivateUpdateService(mux *http.ServeMux, p ActivateUpdateServicePr
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.Activate", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/Actions/UpdateService.Activate", h)
 }
 
 // UpdateServiceGenerateSSHIdentityKeyPairParameters holds the input parameters of the #UpdateService.GenerateSSHIdentityKeyPair action.
@@ -10834,7 +10835,7 @@ func RegisterGenerateSSHIdentityKeyPairUpdateService(mux *http.ServeMux, p Gener
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.GenerateSSHIdentityKeyPair", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/Actions/UpdateService.GenerateSSHIdentityKeyPair", h)
 }
 
 // UpdateServiceRemoveSSHIdentityKeyPairParameters holds the input parameters of the #UpdateService.RemoveSSHIdentityKeyPair action (none defined).
@@ -10856,7 +10857,7 @@ func RegisterRemoveSSHIdentityKeyPairUpdateService(mux *http.ServeMux, p RemoveS
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.RemoveSSHIdentityKeyPair", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/Actions/UpdateService.RemoveSSHIdentityKeyPair", h)
 }
 
 // UpdateServiceSimpleUpdateParameters holds the input parameters of the #UpdateService.SimpleUpdate action.
@@ -10990,7 +10991,7 @@ func RegisterSimpleUpdateUpdateService(mux *http.ServeMux, p SimpleUpdateUpdateS
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate", h)
 }
 
 // UpdateServiceStartUpdateParameters holds the input parameters of the #UpdateService.StartUpdate action (none defined).
@@ -11012,7 +11013,7 @@ func RegisterStartUpdateUpdateService(mux *http.ServeMux, p StartUpdateUpdateSer
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/Actions/UpdateService.StartUpdate", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/Actions/UpdateService.StartUpdate", h)
 }
 
 // SoftwareInventoryCollectionProvider lists the members of the SoftwareInventoryCollection collection by @odata.id.
@@ -11037,9 +11038,9 @@ func RegisterSoftwareInventoryCollection(mux *http.ServeMux, p SoftwareInventory
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/UpdateService/SoftwareInventory", h)
-	server.Handle(mux, "GET", "/redfish/v1/UpdateService/FirmwareInventory", h)
-	server.Handle(mux, "GET", "/redfish/v1/UpdateService/LocalImageStore", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/UpdateService/SoftwareInventory", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/UpdateService/FirmwareInventory", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/UpdateService/LocalImageStore", h)
 }
 
 // SoftwareInventory: The `SoftwareInventory` schema contains an inventory of software components.
@@ -11198,9 +11199,9 @@ func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) 
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -11245,9 +11246,9 @@ func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) 
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", ph)
-	server.Handle(mux, "PATCH", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", ph)
 }
 
 // SoftwareInventoryActivateParameters holds the input parameters of the #SoftwareInventory.Activate action.
@@ -11324,9 +11325,9 @@ func RegisterActivateSoftwareInventory(mux *http.ServeMux, p ActivateSoftwareInv
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}/Actions/SoftwareInventory.Activate", h)
 }
 
 // SoftwareInventoryCancelParameters holds the input parameters of the #SoftwareInventory.Cancel action.
@@ -11403,9 +11404,9 @@ func RegisterCancelSoftwareInventory(mux *http.ServeMux, p CancelSoftwareInvento
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
-	server.Handle(mux, "POST", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}/Actions/SoftwareInventory.Cancel", h)
 }
 
 // TaskService: The `TaskService` schema describes a task service that enables management of long-duration operations, includes the properties for the task service itself, and has links to the resource collection of tasks.
@@ -11546,7 +11547,7 @@ func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/TaskService", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TaskService", h)
 	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		body, err := server.ReadBody(r)
@@ -11591,7 +11592,7 @@ func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 		}
 		server.WriteResource(w, updated)
 	}
-	server.Handle(mux, "PATCH", "/redfish/v1/TaskService", ph)
+	server.Handle(mux, http.MethodPatch, "/redfish/v1/TaskService", ph)
 }
 
 // TaskServiceDeleteAllCompletedTasksParameters holds the input parameters of the #TaskService.DeleteAllCompletedTasks action (none defined).
@@ -11613,7 +11614,7 @@ func RegisterDeleteAllCompletedTasksTaskService(mux *http.ServeMux, p DeleteAllC
 		}
 		server.WriteActionResult(w, res)
 	}
-	server.Handle(mux, "POST", "/redfish/v1/TaskService/Actions/TaskService.DeleteAllCompletedTasks", h)
+	server.Handle(mux, http.MethodPost, "/redfish/v1/TaskService/Actions/TaskService.DeleteAllCompletedTasks", h)
 }
 
 // TaskCollectionProvider lists the members of the TaskCollection collection by @odata.id.
@@ -11638,8 +11639,8 @@ func RegisterTaskCollection(mux *http.ServeMux, p TaskCollectionProvider) {
 		}
 		server.WriteResource(w, c)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks", h)
-	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks/{TaskId}/SubTasks", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TaskService/Tasks", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TaskService/Tasks/{TaskId}/SubTasks", h)
 }
 
 // Task: The `Task` schema contains information about a task that the Redfish task service schedules or executes.
@@ -11729,8 +11730,8 @@ func RegisterTask(mux *http.ServeMux, p TaskProvider) {
 		}
 		server.WriteResource(w, res)
 	}
-	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks/{TaskId}", h)
-	server.Handle(mux, "GET", "/redfish/v1/TaskService/Tasks/{TaskId}/SubTasks/{TaskId2}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TaskService/Tasks/{TaskId}", h)
+	server.Handle(mux, http.MethodGet, "/redfish/v1/TaskService/Tasks/{TaskId}/SubTasks/{TaskId2}", h)
 }
 
 // metadataXML is the service $metadata (EDMX) document covering the

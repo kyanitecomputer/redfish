@@ -3,7 +3,6 @@ package gen
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"src.kyanite.computer/redfish/internal/csdl"
@@ -51,7 +50,7 @@ func buildEDMX(b *csdl.Bundle, m *Model) string {
 		verNS := namespaceOfODataType(res.ODataType)
 		add(baseNamespace(verNS), verNS)
 	}
-	sort.Strings(order)
+	slices.Sort(order)
 
 	var b2 strings.Builder
 	b2.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
