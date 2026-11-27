@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"sync"
 
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
@@ -53,8 +54,8 @@ func (j *Joined) Inventory(ctx context.Context) (*Inventory, error) {
 	all := &Inventory{}
 	var firstErr error
 	failed := 0
-	for _, b := range j.backends {
-		inv, err := b.Inventory(ctx)
+	for i := range j.backends {
+		inv, err := j.inventory(ctx, i)
 		if err != nil {
 			firstErr = cmp.Or(firstErr, err)
 			failed++
@@ -130,11 +131,11 @@ func (j *Joined) CanActivate(ctx context.Context, image string) bool {
 func (j *Joined) owner(ctx context.Context, uris []string) (Backend, error) {
 	pending := slices.Clone(uris)
 	owner := -1
-	for i, b := range j.backends {
+	for i := range j.backends {
 		if len(pending) == 0 {
 			break
 		}
-		inv, err := b.Inventory(ctx)
+		inv, err := j.inventory(ctx, i)
 		if err != nil {
 			return nil, err
 		}
@@ -156,6 +157,56 @@ func (j *Joined) owner(ctx context.Context, uris []string) (Backend, error) {
 		return nil, badTargets
 	}
 	return j.backends[owner], nil
+}
+
+// inventories holds the inventories of the backends of Joined values read
+// for one request, so that the request reads each once, however often it
+// lists the inventory and looks up the owner of an item.
+type inventories struct {
+	mu sync.Mutex
+	m  map[*Joined][]*inventoryResult
+}
+
+type inventoryResult struct {
+	inv *Inventory
+	err error
+}
+
+type inventoriesKey struct{}
+
+// withInventories returns ctx with a new inventories, unless it has one.
+// The service gives it to the backend calls of a request; tasks run
+// without, so that they see the current inventory.
+func withInventories(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(inventoriesKey{}).(*inventories); ok {
+		return ctx
+	}
+	return context.WithValue(ctx, inventoriesKey{}, &inventories{m: map[*Joined][]*inventoryResult{}})
+}
+
+// inventory returns the inventory of backend i, read once per inventories
+// in ctx.
+func (j *Joined) inventory(ctx context.Context, i int) (*Inventory, error) {
+	c, ok := ctx.Value(inventoriesKey{}).(*inventories)
+	if !ok {
+		return j.backends[i].Inventory(ctx)
+	}
+	c.mu.Lock()
+	rs := c.m[j]
+	if rs == nil {
+		rs = make([]*inventoryResult, len(j.backends))
+		c.m[j] = rs
+	}
+	r := rs[i]
+	c.mu.Unlock()
+	if r != nil {
+		return r.inv, r.err
+	}
+	inv, err := j.backends[i].Inventory(ctx)
+	c.mu.Lock()
+	rs[i] = &inventoryResult{inv, err}
+	c.mu.Unlock()
+	return inv, err
 }
 
 var badTargets = &server.Error{

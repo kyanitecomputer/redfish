@@ -65,6 +65,7 @@ func canActivate(ctx context.Context, act Activator, image string) bool {
 // ActivateUpdateService implements gen.ActivateUpdateServiceProvider: it
 // activates the staged images listed in Targets.
 func (s *Service) ActivateUpdateService(ctx context.Context, params *gen.UpdateServiceActivateParameters) (*server.ActionResult, error) {
+	ctx = withInventories(ctx)
 	if len(params.Targets) == 0 {
 		return nil, &server.Error{
 			Status:    http.StatusBadRequest,
@@ -89,6 +90,7 @@ func (s *Service) ActivateUpdateService(ctx context.Context, params *gen.UpdateS
 // it activates the staged image of one inventory item on the devices listed in
 // Targets.
 func (s *Service) ActivateSoftwareInventory(ctx context.Context, p server.Params, params *gen.SoftwareInventoryActivateParameters) (*server.ActionResult, error) {
+	ctx = withInventories(ctx)
 	image := strings.TrimSuffix(p.Path(), "/Actions/SoftwareInventory.Activate")
 	item, err := s.GetSoftwareInventory(ctx, p)
 	if err != nil {

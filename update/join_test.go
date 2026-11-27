@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"slices"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/server"
+	"src.kyanite.computer/redfish/task"
 )
 
 // joinPart is a backend for the Join tests that records the calls it gets;
@@ -342,5 +346,60 @@ func TestJoinDuplicateIds(t *testing.T) {
 	// The first backend refuses to activate x; the second would.
 	if j.CanActivate(ctx, fw+"x") {
 		t.Error("CanActivate follows the second backend")
+	}
+}
+
+// counted is a joinPart that counts its inventory reads.
+type counted struct {
+	itemActivator
+	reads *atomic.Int32
+}
+
+func (c *counted) Inventory(ctx context.Context) (*Inventory, error) {
+	c.reads.Add(1)
+	return c.itemActivator.Inventory(ctx)
+}
+
+// TestJoinReadsOncePerRequest checks that a request reads the inventory of
+// each backend once; an activation task reads them again.
+func TestJoinReadsOncePerRequest(t *testing.T) {
+	calls := &[]string{}
+	fw := FirmwareInventoryURI + "/"
+	var a, b atomic.Int32
+	j := Join(
+		&counted{itemActivator{joinPart{name: "a", firmware: []string{"a1"}, calls: calls}, []string{fw + "a1"}}, &a},
+		&counted{itemActivator{joinPart{name: "b", firmware: []string{"b1"}, calls: calls}, []string{fw + "b1"}}, &b},
+	)
+	mux := http.NewServeMux()
+	tasks := task.New()
+	tasks.Register(mux)
+	s := New(j, tasks)
+	s.Register(mux)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	for _, tt := range []struct {
+		method, uri, body string
+		want              [2]int32
+	}{
+		{"GET", fw + "b1", "", [2]int32{1, 1}},
+		// The task reads a's inventory to find the owner of b1, then b's.
+		{"POST", fw + "b1/Actions/SoftwareInventory.Activate", "{}", [2]int32{2, 2}},
+		{"POST", ActivateURI, `{"Targets":[{"@odata.id":"` + fw + `b1"}]}`, [2]int32{2, 2}},
+	} {
+		a.Store(0)
+		b.Store(0)
+		if code, _ := do(t, tt.method, srv.URL+tt.uri, tt.body); code/100 != 2 {
+			t.Fatalf("%s %s: status %d", tt.method, tt.uri, code)
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for s.Busy() {
+			if time.Now().After(deadline) {
+				t.Fatal("activation still running")
+			}
+			time.Sleep(time.Millisecond)
+		}
+		if got := [2]int32{a.Load(), b.Load()}; got != tt.want {
+			t.Errorf("%s %s: inventory reads %v, want %v", tt.method, tt.uri, got, tt.want)
+		}
 	}
 }
