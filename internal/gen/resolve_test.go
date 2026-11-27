@@ -1,7 +1,10 @@
 package gen
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"src.kyanite.computer/redfish/internal/csdl"
 )
@@ -107,5 +110,43 @@ func TestWriteOnlyAndCreate(t *testing.T) {
 	}
 	if root.Creatable() {
 		t.Error("ServiceRoot is creatable")
+	}
+}
+
+// TestBaseTypeCycle builds types whose BaseType chains loop.
+func TestBaseTypeCycle(t *testing.T) {
+	const doc = `<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+  <edmx:DataServices>
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="Loop.v1_0_0">
+      <EntityType Name="Loop" BaseType="Loop.v1_0_0.Other">
+        <Property Name="Inner" Type="Loop.v1_0_0.A"/>
+      </EntityType>
+      <EntityType Name="Other" BaseType="Loop.v1_0_0.Loop"/>
+      <ComplexType Name="A" BaseType="Loop.v1_0_0.B"/>
+      <ComplexType Name="B" BaseType="Loop.v1_0_0.A"/>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>`
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Loop_v1.xml"), []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	b, err := csdl.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := Build(b, "gen", []string{"Loop.Loop"})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Build loops on a BaseType cycle")
 	}
 }
