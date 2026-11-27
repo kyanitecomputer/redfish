@@ -3,6 +3,7 @@ package odata
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"testing"
 )
 
@@ -106,5 +107,26 @@ func TestErrorBody(t *testing.T) {
 	info := inner["@Message.ExtendedInfo"].([]any)
 	if len(info) != 1 {
 		t.Fatalf("extended info len = %d", len(info))
+	}
+}
+
+func TestFloat(t *testing.T) {
+	for _, tt := range []struct {
+		v    float64
+		want string
+	}{
+		{1.5, `{"v":1.5}`},
+		{-0.25, `{"v":-0.25}`},
+		{1e21, `{"v":1e+21}`},
+		{math.NaN(), `{"v":null}`},
+		{math.Inf(1), `{"v":null}`},
+		{math.Inf(-1), `{"v":null}`},
+	} {
+		b := NewBuilder()
+		b.Float("v", tt.v)
+		if got := string(b.Bytes()); got != tt.want {
+			t.Errorf("Float(%v) = %s, want %s", tt.v, got, tt.want)
+		}
+		valid(t, b.Bytes())
 	}
 }

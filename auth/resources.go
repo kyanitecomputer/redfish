@@ -334,7 +334,9 @@ func (s *Service) PatchManagerAccount(ctx context.Context, p server.Params, patc
 		}
 	}
 	if patch.Locked != nil {
-		s.accounts.Unlock(name)
+		if err := s.accounts.unlock(name, pr.by()); err != nil {
+			return nil, err
+		}
 	}
 	return s.GetManagerAccount(ctx, p)
 }
@@ -415,7 +417,8 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 }
 
 // serveCreateAccount creates an account from UserName, Password and RoleId,
-// and Enabled if given.
+// and Enabled if given; 409 if the principal's account changed since the
+// request was authenticated, as for PatchManagerAccount.
 func (s *Service) serveCreateAccount(w http.ResponseWriter, r *http.Request, _ server.Params) {
 	var c gen.ManagerAccountCreate
 	if !readBody(w, r, c.UnmarshalJSON) {
@@ -434,7 +437,8 @@ func (s *Service) serveCreateAccount(w http.ResponseWriter, r *http.Request, _ s
 		server.WriteErr(w, server.NotWritable("PasswordChangeRequired"))
 		return
 	}
-	if err := s.accounts.create(*c.UserName, *c.Password, *c.RoleId, c.Enabled == nil || *c.Enabled); err != nil {
+	pr, _ := PrincipalFrom(r.Context())
+	if err := s.accounts.create(*c.UserName, *c.Password, *c.RoleId, c.Enabled == nil || *c.Enabled, pr.by()); err != nil {
 		server.WriteErr(w, err)
 		return
 	}
@@ -442,10 +446,12 @@ func (s *Service) serveCreateAccount(w http.ResponseWriter, r *http.Request, _ s
 	server.WriteCreated(w, AccountsURI+"/"+acc.UserName, s.accountResource(acc))
 }
 
-// serveDeleteAccount deletes an account and ends its sessions.
+// serveDeleteAccount deletes an account and ends its sessions; 409 if the
+// principal's account changed since the request was authenticated.
 func (s *Service) serveDeleteAccount(w http.ResponseWriter, r *http.Request, p server.Params) {
 	name := p.Get("ManagerAccountId")
-	if err := s.accounts.Delete(name); err != nil {
+	pr, _ := PrincipalFrom(r.Context())
+	if err := s.accounts.delete(name, pr.by()); err != nil {
 		server.WriteErr(w, err)
 		return
 	}
@@ -503,11 +509,12 @@ func notFound(p server.Params) error {
 	}
 }
 
-// readBody parses the body of r with parse, or answers 400 and returns false.
+// readBody parses the body of r with parse, or answers the error and returns
+// false.
 func readBody(w http.ResponseWriter, r *http.Request, parse func([]byte) error) bool {
 	body, err := server.ReadBody(r)
 	if err != nil {
-		server.BadRequest(w, odata.MsgUnrecognizedBody, "The request body could not be read.")
+		server.WriteErr(w, err)
 		return false
 	}
 	if len(bytes.TrimSpace(body)) == 0 || parse(body) != nil {

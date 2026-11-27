@@ -9,6 +9,7 @@ import (
 	"hash/fnv"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -33,11 +34,15 @@ func etag(body []byte) string {
 	return `"` + strconv.FormatUint(h.Sum64(), 16) + `"`
 }
 
+// writeJSON writes a JSON response. A successful one gets the ETag of its
+// body; an error body is no representation of the resource and gets none.
 func writeJSON(w http.ResponseWriter, status int, body []byte) {
 	h := w.Header()
 	h.Set("Content-Type", odata.ContentType)
 	h.Set("OData-Version", odata.Version)
-	h.Set("ETag", etag(body))
+	if status < 300 {
+		h.Set("ETag", etag(body))
+	}
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }
@@ -176,7 +181,9 @@ func PreconditionFailed(w http.ResponseWriter) {
 }
 
 // CheckIfMatch reports whether a request may proceed given its If-Match header
-// and the resource's current body. A missing header or "*" always matches.
+// and the resource's current body. A missing header or "*" always matches;
+// otherwise one of the entity tags must equal the current one, and a weak tag
+// never does (RFC 9110, section 13.1.1).
 func CheckIfMatch(r *http.Request, currentBody []byte) bool {
 	im := strings.TrimSpace(r.Header.Get("If-Match"))
 	if im == "" || im == "*" {
@@ -184,18 +191,49 @@ func CheckIfMatch(r *http.Request, currentBody []byte) bool {
 	}
 	cur := etag(currentBody)
 	for tag := range strings.SplitSeq(im, ",") {
-		tag = strings.TrimSpace(tag)
-		tag = strings.TrimPrefix(tag, "W/") // accept weak form defensively
-		if tag == cur {
+		if strings.TrimSpace(tag) == cur {
 			return true
 		}
 	}
 	return false
 }
 
-// ReadBody reads a request body up to a fixed size limit.
+// ReadBody reads the body of r, which may hold up to 1 MiB. Its errors are
+// those of ReadError.
 func ReadBody(r *http.Request) ([]byte, error) {
-	return io.ReadAll(io.LimitReader(r.Body, maxBodyBytes))
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBodyBytes+1))
+	if err == nil && len(body) > maxBodyBytes {
+		err = &http.MaxBytesError{Limit: maxBodyBytes}
+	}
+	if err != nil {
+		return nil, ReadError(err)
+	}
+	return body, nil
+}
+
+// ReadError returns the error that answers a failure to read a request
+// body: 413 when the body exceeds a limit (an *http.MaxBytesError), 408 when
+// the client stopped sending it (see BodyIdleTimeout), otherwise 400.
+func ReadError(err error) *Error {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		return &Error{
+			Status:    http.StatusRequestEntityTooLarge,
+			MessageID: odata.MsgGeneralError,
+			Message:   "The request body exceeds the size the service accepts.",
+		}
+	}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return &Error{
+			Status:    http.StatusRequestTimeout,
+			MessageID: odata.MsgGeneralError,
+			Message:   "The client stopped sending the request body before it was complete.",
+		}
+	}
+	return &Error{
+		Status:    http.StatusBadRequest,
+		MessageID: odata.MsgUnrecognizedBody,
+		Message:   "The request body could not be read.",
+	}
 }
 
 func severityFor(status int) string {

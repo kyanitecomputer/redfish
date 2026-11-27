@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"src.kyanite.computer/redfish/odata"
 )
@@ -80,5 +82,65 @@ func TestWriteActionResult(t *testing.T) {
 				t.Errorf("has body = %v, want %v", got, tt.wantBody)
 			}
 		})
+	}
+}
+
+func TestReadBody(t *testing.T) {
+	for _, tt := range []struct {
+		size int
+		want int // status of the error, 0 for none
+	}{
+		{0, 0},
+		{maxBodyBytes, 0},
+		{maxBodyBytes + 1, http.StatusRequestEntityTooLarge},
+	} {
+		r := httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(strings.Repeat(" ", tt.size)))
+		body, err := ReadBody(r)
+		got := 0
+		if e, ok := errors.AsType[*Error](err); ok {
+			got = e.Status
+		} else if err != nil {
+			t.Errorf("%d bytes: error %v is not an *Error", tt.size, err)
+		}
+		if got != tt.want || err == nil && len(body) != tt.size {
+			t.Errorf("%d bytes: read %d, status %d, want %d", tt.size, len(body), got, tt.want)
+		}
+	}
+	r := httptest.NewRequest(http.MethodPatch, "/", iotest.ErrReader(os.ErrDeadlineExceeded))
+	if _, err := ReadBody(r); err == nil || err.(*Error).Status != http.StatusRequestTimeout {
+		t.Errorf("timed out body: %v, want 408", err)
+	}
+}
+
+func TestETag(t *testing.T) {
+	w := httptest.NewRecorder()
+	WriteJSON(w, []byte(`{}`))
+	tag := w.Header().Get("ETag")
+	if tag == "" {
+		t.Fatal("no ETag on a resource")
+	}
+	w = httptest.NewRecorder()
+	WriteError(w, http.StatusNotFound, odata.MsgResourceNotFound, "missing")
+	if e := w.Header().Get("ETag"); e != "" {
+		t.Errorf("error response has ETag %s", e)
+	}
+	for _, tt := range []struct {
+		ifMatch string
+		ok      bool
+	}{
+		{"", true},
+		{"*", true},
+		{tag, true},
+		{`"other", ` + tag, true},
+		{"W/" + tag, false},
+		{`"other"`, false},
+	} {
+		r := httptest.NewRequest(http.MethodPatch, "/", nil)
+		if tt.ifMatch != "" {
+			r.Header.Set("If-Match", tt.ifMatch)
+		}
+		if got := CheckIfMatch(r, []byte(`{}`)); got != tt.ok {
+			t.Errorf("If-Match %s: %v, want %v", tt.ifMatch, got, tt.ok)
+		}
 	}
 }

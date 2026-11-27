@@ -178,8 +178,10 @@ func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Req
 		return notSupported("Stage")
 	case len(req.ExcludeTargets) > 0:
 		return notSupported("ExcludeTargets")
-	case img.Username != "" || img.Password != "":
+	case img.Username != "":
 		return notSupported("Username")
+	case img.Password != "":
+		return notSupported("Password")
 	case img.Body == nil && strings.HasPrefix(img.URI, "-"):
 		return &server.Error{
 			Status:    http.StatusBadRequest,
@@ -228,11 +230,14 @@ func notSupported(param string) error {
 	}
 }
 
-// Install implements update.Installer. A pushed bundle is written to a file
-// in SpoolDir, which is removed after the installation. The percentages of
-// rauc's progress lines ("NN% message") are the progress; on failure the
-// error carries RAUC's LastError.
-func (b *Backend) Install(ctx context.Context, img update.Image, _ update.Request, progress func(int)) error {
+// Install implements update.Installer. It makes the checks of Validate. A
+// pushed bundle is written to a file in SpoolDir, which is removed after the
+// installation. The percentages of rauc's progress lines ("NN% message") are
+// the progress; on failure the error carries RAUC's LastError.
+func (b *Backend) Install(ctx context.Context, img update.Image, req update.Request, progress func(int)) error {
+	if err := b.Validate(ctx, img, req); err != nil {
+		return err
+	}
 	bundle := img.URI
 	if img.Body != nil {
 		path, err := installer.Spool(b.cfg.SpoolDir, "bundle-*.raucb", img.Body)

@@ -66,6 +66,31 @@ func TestInstallURI(t *testing.T) {
 	}
 }
 
+// TestInstallValidates calls Install without Validate: it makes the same
+// checks, and does not run rauc install.
+func TestInstallValidates(t *testing.T) {
+	f, b := newFakeRAUC(t)
+	for _, tt := range []struct {
+		img   update.Image
+		req   update.Request
+		param string
+	}{
+		{update.Image{URI: "--help"}, update.Request{}, "ImageURI"},
+		{update.Image{URI: "https://x/b"}, update.Request{Stage: true}, "Stage"},
+		{update.Image{URI: "https://x/b", Password: "p"}, update.Request{}, "Password"},
+	} {
+		err := b.Install(context.Background(), tt.img, tt.req, func(int) {})
+		if err == nil || !strings.Contains(err.Error(), "parameter "+tt.param) {
+			t.Errorf("Install(%+v, %+v) = %v, want an error naming %s", tt.img, tt.req, err, tt.param)
+		}
+	}
+	for _, c := range f.calls(t) {
+		if strings.HasPrefix(c, "install") {
+			t.Errorf("rauc ran %q", c)
+		}
+	}
+}
+
 func TestInstallFails(t *testing.T) {
 	tests := []struct {
 		name, out, want string
@@ -125,6 +150,7 @@ func TestValidate(t *testing.T) {
 		{"stage", update.Image{URI: "https://x/b"}, update.Request{Stage: true}, true},
 		{"exclude", update.Image{URI: "https://x/b"}, update.Request{ExcludeTargets: []string{fw + "slot_a"}}, true},
 		{"credentials", update.Image{URI: "https://x/b", Username: "u"}, update.Request{}, true},
+		{"password", update.Image{URI: "https://x/b", Password: "p"}, update.Request{}, true},
 		{"option-like URI", update.Image{URI: "--help"}, update.Request{}, true},
 		{"local path", update.Image{URI: "/data/b.raucb"}, update.Request{}, false},
 	}

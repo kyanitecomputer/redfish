@@ -774,8 +774,8 @@ func messageID(m map[string]any) string {
 	return id
 }
 
-// TestOwnPasswordChangeAfterReset: an administrator sets op's password
-// while op's own change of it is being hashed. op's change is refused, the
+// TestOwnPasswordChangeAfterReset: op's password is reset while op's own
+// change of it is being hashed. op's change is refused, the
 // administrator's password stays, and op's session has ended. The same for
 // the ChangePassword action, and for its password proof made after the
 // reset with the new password, which is refused before the new password is
@@ -789,10 +789,12 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 	} {
 		ts.s.accounts.SetPassword("op", pw)
 		token, _ := ts.login("op", pw)
+		// Not a PATCH of the account: PATCHes of accounts run one at a
+		// time.
 		ts.s.accounts.beforeChange = func() {
 			ts.s.accounts.beforeChange = nil
-			if w, _ := ts.do("PATCH", AccountsURI+"/op", "admin", `{"Password":"`+reset+`"}`); w.Code != http.StatusOK {
-				t.Fatalf("reset: status %d", w.Code)
+			if err := ts.s.accounts.SetPassword("op", reset); err != nil {
+				t.Fatalf("reset: %v", err)
 			}
 		}
 		if w, _ := ts.do(req.method, req.uri, "token:"+token, req.body); w.Code != http.StatusConflict {
@@ -824,5 +826,50 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 	}
 	if _, err := ts.s.accounts.Authenticate("op", reset); err != nil {
 		t.Error("the reset password was replaced")
+	}
+}
+
+// TestSupersededAdministrator sends changes as an administrator whose
+// password was changed after the requests were authenticated: each is
+// refused with 409 and changes nothing.
+func TestSupersededAdministrator(t *testing.T) {
+	ts := newTestService(t)
+	if err := ts.s.accounts.Create("boss", pw, Administrator); err != nil {
+		t.Fatal(err)
+	}
+	stale, _ := ts.s.accounts.Get("boss")
+	if err := ts.s.accounts.SetPassword("boss", "another long password"); err != nil {
+		t.Fatal(err)
+	}
+	for i := range ts.s.accounts.Policy().LockoutThreshold {
+		_, _ = ts.s.accounts.Authenticate("op", fmt.Sprint("wrong ", i))
+	}
+	if !ts.s.accounts.Locked("op") {
+		t.Fatal("op is not locked")
+	}
+	mux := http.NewServeMux()
+	ts.s.Register(mux)
+	for _, req := range []struct{ method, uri, body string }{
+		{"POST", AccountsURI, `{"UserName":"new","Password":"` + pw + `","RoleId":"ReadOnly"}`},
+		{"DELETE", AccountsURI + "/viewer", ""},
+		{"PATCH", AccountsURI + "/op", `{"Locked":false}`},
+		{"PATCH", AccountsURI + "/op", `{"RoleId":"ReadOnly"}`},
+	} {
+		r := httptest.NewRequest(req.method, req.uri, strings.NewReader(req.body))
+		r = r.WithContext(context.WithValue(r.Context(), principalKey{}, Principal{Account: stale}))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		if w.Code != http.StatusConflict {
+			t.Errorf("%s %s: status %d, want 409", req.method, req.uri, w.Code)
+		}
+	}
+	if _, ok := ts.s.accounts.Get("new"); ok {
+		t.Error("the account was created")
+	}
+	if _, ok := ts.s.accounts.Get("viewer"); !ok {
+		t.Error("the account was deleted")
+	}
+	if acc, _ := ts.s.accounts.Get("op"); !ts.s.accounts.Locked("op") || acc.RoleId != Operator {
+		t.Error("op was changed")
 	}
 }

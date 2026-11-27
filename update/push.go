@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
-	"os"
 
 	"src.kyanite.computer/redfish/gen"
 	"src.kyanite.computer/redfish/odata"
@@ -27,6 +27,8 @@ var errInstallReturned = errors.New("update: install returned before reading the
 // multipart/form-data body with an optional UpdateParameters JSON part followed
 // by the UpdateFile part. The image is streamed to the backend's Install while
 // the request is read, and the response is 202 Accepted with the task monitor.
+// UpdateParameters must come before UpdateFile: one after it fails the update,
+// which has started by then.
 func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Params) {
 	inst, ok := installerOf(s.backend)
 	if !ok {
@@ -55,7 +57,10 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 		}
 		switch part.FormName() {
 		case "UpdateParameters":
-			body, err := io.ReadAll(io.LimitReader(part, maxParamsBytes))
+			body, err := io.ReadAll(io.LimitReader(part, maxParamsBytes+1))
+			if err == nil && len(body) > maxParamsBytes {
+				err = &http.MaxBytesError{Limit: maxParamsBytes}
+			}
 			if err != nil {
 				writeUploadErr(w, err)
 				return
@@ -98,28 +103,48 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 		server.WriteErr(w, err)
 		return
 	}
-	if _, err := io.Copy(pw, file); err != nil && !errors.Is(err, errInstallReturned) {
+	if _, err := io.Copy(pw, file); err != nil {
+		if !errors.Is(err, errInstallReturned) {
+			pw.CloseWithError(err)
+			writeUploadErr(w, err)
+			return
+		}
+	} else if err := paramsAfterFile(mr); err != nil {
+		// The image is not ended, so Install fails rather than install it
+		// with the wrong parameters.
 		pw.CloseWithError(err)
-		writeUploadErr(w, err)
+		if errors.Is(err, errParamsAfterFile) {
+			server.BadRequest(w, odata.MsgUnrecognizedBody, "The UpdateParameters part must precede the UpdateFile part.")
+		} else {
+			writeUploadErr(w, err)
+		}
 		return
 	}
 	pw.Close()
 	server.WriteActionResult(w, res)
 }
 
-// writeUploadErr reports a failure to read the upload: 413 when it exceeds
-// MaxImageSizeBytes, 408 when the client stopped sending (see
-// server.BodyIdleTimeout), otherwise 400.
+var errParamsAfterFile = errors.New("update: UpdateParameters after UpdateFile")
+
+// paramsAfterFile reads the parts after UpdateFile and fails with
+// errParamsAfterFile if one of them is UpdateParameters.
+func paramsAfterFile(mr *multipart.Reader) error {
+	for {
+		part, err := mr.NextPart()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if part.FormName() == "UpdateParameters" {
+			return errParamsAfterFile
+		}
+	}
+}
+
+// writeUploadErr reports a failure to read the upload, as server.ReadError
+// does.
 func writeUploadErr(w http.ResponseWriter, err error) {
-	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
-		server.WriteError(w, http.StatusRequestEntityTooLarge, odata.MsgGeneralError,
-			"The update image exceeds the maximum size the service accepts.")
-		return
-	}
-	if errors.Is(err, os.ErrDeadlineExceeded) {
-		server.WriteError(w, http.StatusRequestTimeout, odata.MsgGeneralError,
-			"The client stopped sending the update image before it was complete.")
-		return
-	}
-	server.BadRequest(w, odata.MsgUnrecognizedBody, "The multipart request body could not be read.")
+	server.WriteErr(w, server.ReadError(err))
 }

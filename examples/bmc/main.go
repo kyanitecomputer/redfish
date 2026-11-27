@@ -1,6 +1,7 @@
-// Command bmc is a minimal example Redfish service built on the generated
-// package. It serves a ServiceRoot, a Chassis collection and member, and a
-// ComputerSystem collection and member backed by in-memory fixtures. Every
+// Command bmc is an example Redfish service built on the generated package.
+// It serves a chassis, a computer system and a manager from in-memory
+// fixtures, with the resources the OCP Baseline Hardware Management profile
+// requires, and the account, session, task and update services. Every
 // request but the public ones needs a login: the account admin with the
 // password admin, kept in memory.
 //

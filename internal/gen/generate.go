@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"slices"
 	"strings"
 )
 
@@ -25,9 +26,13 @@ func Render(m *Model) ([]byte, error) {
 	fmt.Fprintf(&b, "\npackage %s\n\n", m.Package)
 	b.WriteString("import (\n")
 	if needsJSON {
-		fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n", "bytes", "encoding/json/jsontext", "strconv")
+		fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n\t%q\n", "bytes", "encoding/json/jsontext", "io", "strconv")
 	}
-	fmt.Fprintf(&b, "\t%q\n\t%q\n\t%q\n\t%q\n)\n\n", "context", "net/http", odataPkg, serverPkg)
+	fmt.Fprintf(&b, "\t%q\n\t%q\n", "context", "net/http")
+	if slices.ContainsFunc(m.Resources, (*Resource).HasPatch) {
+		fmt.Fprintf(&b, "\t%q\n", "sync")
+	}
+	fmt.Fprintf(&b, "\t%q\n\t%q\n)\n\n", odataPkg, serverPkg)
 
 	if needsJSON {
 		writePatchHelpers(&b)
@@ -112,11 +117,10 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "\treturn b.Bytes()\n}\n\n")
 
 	hasParams := needsParams(r.URIs)
-	writable := r.WritableFields()
-	patchable := r.Patchable && len(writable) > 0
+	patchable := r.HasPatch()
 
 	if patchable {
-		writePatchType(b, r, writable)
+		writePatchType(b, r, r.WritableFields())
 	}
 	if !r.IsCollection && r.Creatable() {
 		doc := fmt.Sprintf("// %sCreate holds the properties of %s present in the body of a POST that\n// creates one: the writable ones and those required on create.", r.GoName, r.GoName)
@@ -137,6 +141,12 @@ func writeSingleton(b *bytes.Buffer, r *Resource) {
 
 	fmt.Fprintf(b, "// Register%s wires the %s resource into mux. It links into a binary\n", r.GoName, r.GoName)
 	fmt.Fprintf(b, "// only when referenced, so unused resources are removed by the linker.\n")
+	if patchable {
+		fmt.Fprintf(b, "//\n// PATCH requests registered here run one at a time: the If-Match\n")
+		fmt.Fprintf(b, "// precondition is checked against Get%s and still holds\n", r.GoName)
+		fmt.Fprintf(b, "// when Patch%s runs. Changes the provider makes by other\n", r.GoName)
+		fmt.Fprintf(b, "// paths are not serialized with them.\n")
+	}
 	writeURIsDoc(b, r.GoName, r.URIs)
 	fmt.Fprintf(b, "func Register%s(mux *http.ServeMux, p %sProvider%s) {\n", r.GoName, r.GoName, registerArgs(r.URIs))
 	fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
@@ -176,7 +186,8 @@ func writeSparseStruct(b *bytes.Buffer, typeName, doc string, fields []Field) {
 // that ignores unknown and null-valued properties.
 func writeSparseParser(b *bytes.Buffer, typeName string, fields []Field) {
 	fmt.Fprintf(b, "// UnmarshalJSON parses the known properties of a %s body,\n", typeName)
-	fmt.Fprintf(b, "// ignoring unknown and null-valued properties.\n")
+	fmt.Fprintf(b, "// ignoring unknown and null-valued properties. Data must hold one JSON\n")
+	fmt.Fprintf(b, "// object and nothing after it.\n")
 	fmt.Fprintf(b, "func (p *%s) UnmarshalJSON(data []byte) error {\n", typeName)
 	fmt.Fprintf(b, "\tdec := jsontext.NewDecoder(bytes.NewReader(data))\n")
 	fmt.Fprintf(b, "\tif t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {\n")
@@ -194,7 +205,7 @@ func writeSparseParser(b *bytes.Buffer, typeName string, fields []Field) {
 		writePatchCase(b, f)
 	}
 	fmt.Fprintf(b, "\t\tdefault:\n\t\t\tif err := dec.SkipValue(); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
-	fmt.Fprintf(b, "\t\t}\n\t}\n\treturn nil\n}\n\n")
+	fmt.Fprintf(b, "\t\t}\n\t}\n\treturn patchReadEnd(dec)\n}\n\n")
 }
 
 // writeActions emits, for each bound action of a resource, a parameters struct
@@ -227,7 +238,7 @@ func writeActions(b *bytes.Buffer, r *Resource) {
 		fmt.Fprintf(b, "\th := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
 		fmt.Fprintf(b, "\t\tvar params %s\n", paramsType)
 		if len(a.Params) > 0 {
-			fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
+			fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 			fmt.Fprintf(b, "\t\tif len(bytes.TrimSpace(body)) > 0 {\n")
 			fmt.Fprintf(b, "\t\t\tif err := params.UnmarshalJSON(body); err != nil {\n")
 			fmt.Fprintf(b, "\t\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\t\treturn\n\t\t\t}\n\t\t}\n")
@@ -303,19 +314,23 @@ func writePatchCase(b *bytes.Buffer, f Field) {
 }
 
 // writePatchHandler emits the PATCH handler inside a Register function. It
-// performs If-Match concurrency control, parses the sparse patch, delegates to
-// the provider, and writes the updated resource.
+// parses the sparse patch, then, holding mu, checks If-Match against the
+// current resource, delegates to the provider, and writes the updated
+// resource: PATCHes of the resource are serialized, so the precondition
+// holds until the change is made.
 func writePatchHandler(b *bytes.Buffer, r *Resource, hasParams bool) {
+	fmt.Fprintf(b, "\tvar mu sync.Mutex\n")
 	fmt.Fprintf(b, "\tph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {\n")
+	fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tvar patch %sPatch\n", r.GoName)
+	fmt.Fprintf(b, "\t\tif err := patch.UnmarshalJSON(body); err != nil {\n")
+	fmt.Fprintf(b, "\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\treturn\n\t\t}\n")
+	fmt.Fprintf(b, "\t\tmu.Lock()\n\t\tdefer mu.Unlock()\n")
 	fmt.Fprintf(b, "\t\tcur, err := p.Get%s(r.Context()%s)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif cur == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif cur.ODataID == \"\" {\n\t\t\tcur.ODataID = prm.Path()\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif !server.CheckIfMatch(r, cur.Bytes()) {\n\t\t\tserver.PreconditionFailed(w)\n\t\t\treturn\n\t\t}\n")
-	fmt.Fprintf(b, "\t\tbody, err := server.ReadBody(r)\n\t\tif err != nil {\n\t\t\tserver.Internal(w)\n\t\t\treturn\n\t\t}\n")
-	fmt.Fprintf(b, "\t\tvar patch %sPatch\n", r.GoName)
-	fmt.Fprintf(b, "\t\tif err := patch.UnmarshalJSON(body); err != nil {\n")
-	fmt.Fprintf(b, "\t\t\tserver.BadRequest(w, odata.MsgMalformedJSON, \"The request body was not valid JSON.\")\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tupdated, err := p.Patch%s(r.Context()%s, &patch)\n", r.GoName, callArgs(hasParams))
 	fmt.Fprintf(b, "\t\tif err != nil {\n\t\t\tserver.WriteErr(w, err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif updated == nil {\n\t\t\tserver.NotFound(w, r)\n\t\t\treturn\n\t\t}\n")
@@ -395,24 +410,18 @@ func writeExpandedCollection(b *bytes.Buffer, r *Resource) {
 	fmt.Fprintf(b, "}\n\n")
 }
 
-func modelHasPatch(m *Model) bool {
+// modelNeedsJSON reports whether the model emits any jsontext-based body parser,
+// which requires the bytes, encoding/json/jsontext, and strconv imports plus the
+// shared scalar readers: for a PATCH, a creating POST, or an action with
+// parameters.
+func modelNeedsJSON(m *Model) bool {
 	for _, r := range m.Resources {
-		if !r.IsCollection && r.Patchable && len(r.WritableFields()) > 0 {
+		if r.IsCollection {
+			continue
+		}
+		if r.HasPatch() || r.Creatable() {
 			return true
 		}
-	}
-	return false
-}
-
-// modelNeedsJSON reports whether the model emits any jsontext-based body parser,
-// which requires the bytes, encoding/json/jsontext, and strconv imports plus the shared
-// scalar readers. True when a resource is PATCH-able or any action takes
-// scalar parameters.
-func modelNeedsJSON(m *Model) bool {
-	if modelHasPatch(m) {
-		return true
-	}
-	for _, r := range m.Resources {
 		for _, a := range r.Actions {
 			if len(a.Params) > 0 {
 				return true
@@ -431,6 +440,19 @@ var errPatchType = &patchError{"unexpected JSON type in PATCH body"}
 type patchError struct{ msg string }
 
 func (e *patchError) Error() string { return e.msg }
+
+// patchReadEnd reports an error unless the body ends after the object just
+// read.
+func patchReadEnd(dec *jsontext.Decoder) error {
+	_, err := dec.ReadToken()
+	switch err {
+	case io.EOF:
+		return nil
+	case nil:
+		return errPatchType
+	}
+	return err
+}
 
 func patchReadString(dec *jsontext.Decoder) (string, error) {
 	t, err := dec.ReadToken()
@@ -506,7 +528,8 @@ func patchReadStrings(dec *jsontext.Decoder) ([]string, error) {
 }
 
 // patchReadLinks reads a JSON array of reference objects ({"@odata.id": ...}),
-// ignoring any other members of each object.
+// ignoring any other members of each object. Every object needs a non-empty
+// @odata.id.
 func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
 		if err != nil {
@@ -540,6 +563,9 @@ func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 		}
 		if _, err := dec.ReadToken(); err != nil {
 			return nil, err
+		}
+		if id == "" {
+			return nil, errPatchType
 		}
 		out = append(out, odata.Link(id))
 	}

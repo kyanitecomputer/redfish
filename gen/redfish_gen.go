@@ -9,10 +9,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json/jsontext"
+	"io"
 	"net/http"
 	"src.kyanite.computer/redfish/odata"
 	"src.kyanite.computer/redfish/server"
 	"strconv"
+	"sync"
 )
 
 // errPatchType is returned when a PATCH value has an unexpected JSON type.
@@ -21,6 +23,19 @@ var errPatchType = &patchError{"unexpected JSON type in PATCH body"}
 type patchError struct{ msg string }
 
 func (e *patchError) Error() string { return e.msg }
+
+// patchReadEnd reports an error unless the body ends after the object just
+// read.
+func patchReadEnd(dec *jsontext.Decoder) error {
+	_, err := dec.ReadToken()
+	switch err {
+	case io.EOF:
+		return nil
+	case nil:
+		return errPatchType
+	}
+	return err
+}
 
 func patchReadString(dec *jsontext.Decoder) (string, error) {
 	t, err := dec.ReadToken()
@@ -96,7 +111,8 @@ func patchReadStrings(dec *jsontext.Decoder) ([]string, error) {
 }
 
 // patchReadLinks reads a JSON array of reference objects ({"@odata.id": ...}),
-// ignoring any other members of each object.
+// ignoring any other members of each object. Every object needs a non-empty
+// @odata.id.
 func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '[' {
 		if err != nil {
@@ -130,6 +146,9 @@ func patchReadLinks(dec *jsontext.Decoder) ([]odata.Link, error) {
 		}
 		if _, err := dec.ReadToken(); err != nil {
 			return nil, err
+		}
+		if id == "" {
+			return nil, errPatchType
 		}
 		out = append(out, odata.Link(id))
 	}
@@ -4539,7 +4558,8 @@ type SessionServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a SessionServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SessionServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -4594,7 +4614,7 @@ func (p *SessionServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SessionServiceProvider supplies the SessionService resource.
@@ -4605,6 +4625,11 @@ type SessionServiceProvider interface {
 
 // RegisterSessionService wires the SessionService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetSessionService and still holds
+// when PatchSessionService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetSessionService(r.Context())
@@ -4622,7 +4647,20 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/SessionService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch SessionServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetSessionService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -4637,16 +4675,6 @@ func RegisterSessionService(mux *http.ServeMux, p SessionServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch SessionServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchSessionService(r.Context(), &patch)
@@ -4749,7 +4777,8 @@ type SessionCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a SessionCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SessionCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -4792,7 +4821,7 @@ func (p *SessionCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SessionProvider supplies the Session resource.
@@ -5070,7 +5099,8 @@ type ChassisPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ChassisPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ChassisPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5159,7 +5189,7 @@ func (p *ChassisPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ChassisProvider supplies the Chassis resource.
@@ -5170,6 +5200,11 @@ type ChassisProvider interface {
 
 // RegisterChassis wires the Chassis resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetChassis and still holds
+// when PatchChassis runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetChassis(r.Context(), prm)
@@ -5187,7 +5222,20 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch ChassisPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetChassis(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -5202,16 +5250,6 @@ func RegisterChassis(mux *http.ServeMux, p ChassisProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ChassisPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchChassis(r.Context(), prm, &patch)
@@ -5237,7 +5275,8 @@ type ChassisResetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ChassisResetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ChassisResetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5275,7 +5314,7 @@ func (p *ChassisResetParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetChassisProvider performs the #Chassis.Reset action.
@@ -5289,7 +5328,7 @@ func RegisterResetChassis(mux *http.ServeMux, p ResetChassisProvider) {
 		var params ChassisResetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -5581,7 +5620,8 @@ type ComputerSystemPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5669,7 +5709,7 @@ func (p *ComputerSystemPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ComputerSystemProvider supplies the ComputerSystem resource.
@@ -5680,6 +5720,11 @@ type ComputerSystemProvider interface {
 
 // RegisterComputerSystem wires the ComputerSystem resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetComputerSystem and still holds
+// when PatchComputerSystem runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetComputerSystem(r.Context(), prm)
@@ -5699,7 +5744,20 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch ComputerSystemPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetComputerSystem(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -5714,16 +5772,6 @@ func RegisterComputerSystem(mux *http.ServeMux, p ComputerSystemProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ComputerSystemPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchComputerSystem(r.Context(), prm, &patch)
@@ -5752,7 +5800,8 @@ type ComputerSystemAddResourceBlockParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemAddResourceBlockParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemAddResourceBlockParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5795,7 +5844,7 @@ func (p *ComputerSystemAddResourceBlockParameters) UnmarshalJSON(data []byte) er
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // AddResourceBlockComputerSystemProvider performs the #ComputerSystem.AddResourceBlock action.
@@ -5809,7 +5858,7 @@ func RegisterAddResourceBlockComputerSystem(mux *http.ServeMux, p AddResourceBlo
 		var params ComputerSystemAddResourceBlockParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -5839,7 +5888,8 @@ type ComputerSystemDecommissionParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemDecommissionParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemDecommissionParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -5894,7 +5944,7 @@ func (p *ComputerSystemDecommissionParameters) UnmarshalJSON(data []byte) error 
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // DecommissionComputerSystemProvider performs the #ComputerSystem.Decommission action.
@@ -5908,7 +5958,7 @@ func RegisterDecommissionComputerSystem(mux *http.ServeMux, p DecommissionComput
 		var params ComputerSystemDecommissionParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -5939,7 +5989,8 @@ type ComputerSystemExportConfigurationParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemExportConfigurationParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemExportConfigurationParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6002,7 +6053,7 @@ func (p *ComputerSystemExportConfigurationParameters) UnmarshalJSON(data []byte)
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ExportConfigurationComputerSystemProvider performs the #ComputerSystem.ExportConfiguration action.
@@ -6016,7 +6067,7 @@ func RegisterExportConfigurationComputerSystem(mux *http.ServeMux, p ExportConfi
 		var params ComputerSystemExportConfigurationParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6044,7 +6095,8 @@ type ComputerSystemRemoveResourceBlockParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemRemoveResourceBlockParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemRemoveResourceBlockParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6087,7 +6139,7 @@ func (p *ComputerSystemRemoveResourceBlockParameters) UnmarshalJSON(data []byte)
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // RemoveResourceBlockComputerSystemProvider performs the #ComputerSystem.RemoveResourceBlock action.
@@ -6101,7 +6153,7 @@ func RegisterRemoveResourceBlockComputerSystem(mux *http.ServeMux, p RemoveResou
 		var params ComputerSystemRemoveResourceBlockParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6128,7 +6180,8 @@ type ComputerSystemResetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ComputerSystemResetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ComputerSystemResetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6166,7 +6219,7 @@ func (p *ComputerSystemResetParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetComputerSystemProvider performs the #ComputerSystem.Reset action.
@@ -6180,7 +6233,7 @@ func RegisterResetComputerSystem(mux *http.ServeMux, p ResetComputerSystemProvid
 		var params ComputerSystemResetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6436,7 +6489,8 @@ type ManagerPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6522,7 +6576,7 @@ func (p *ManagerPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerProvider supplies the Manager resource.
@@ -6533,6 +6587,11 @@ type ManagerProvider interface {
 
 // RegisterManager wires the Manager resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetManager and still holds
+// when PatchManager runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManager(r.Context(), prm)
@@ -6550,7 +6609,20 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch ManagerPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetManager(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -6565,16 +6637,6 @@ func RegisterManager(mux *http.ServeMux, p ManagerProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ManagerPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchManager(r.Context(), prm, &patch)
@@ -6623,7 +6685,8 @@ type ManagerModifyRedundancySetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerModifyRedundancySetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerModifyRedundancySetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6666,7 +6729,7 @@ func (p *ManagerModifyRedundancySetParameters) UnmarshalJSON(data []byte) error 
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ModifyRedundancySetManagerProvider performs the #Manager.ModifyRedundancySet action.
@@ -6680,7 +6743,7 @@ func RegisterModifyRedundancySetManager(mux *http.ServeMux, p ModifyRedundancySe
 		var params ManagerModifyRedundancySetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6705,7 +6768,8 @@ type ManagerResetParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerResetParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerResetParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6743,7 +6807,7 @@ func (p *ManagerResetParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetManagerProvider performs the #Manager.Reset action.
@@ -6757,7 +6821,7 @@ func RegisterResetManager(mux *http.ServeMux, p ResetManagerProvider) {
 		var params ManagerResetParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6782,7 +6846,8 @@ type ManagerResetToDefaultsParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerResetToDefaultsParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerResetToDefaultsParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6820,7 +6885,7 @@ func (p *ManagerResetToDefaultsParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ResetToDefaultsManagerProvider performs the #Manager.ResetToDefaults action.
@@ -6834,7 +6899,7 @@ func RegisterResetToDefaultsManager(mux *http.ServeMux, p ResetToDefaultsManager
 		var params ManagerResetToDefaultsParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -6860,7 +6925,8 @@ type ManagerUpdateSecurityModeParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerUpdateSecurityModeParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerUpdateSecurityModeParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -6904,7 +6970,7 @@ func (p *ManagerUpdateSecurityModeParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // UpdateSecurityModeManagerProvider performs the #Manager.UpdateSecurityMode action.
@@ -6918,7 +6984,7 @@ func RegisterUpdateSecurityModeManager(mux *http.ServeMux, p UpdateSecurityModeM
 		var params ManagerUpdateSecurityModeParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -7061,7 +7127,8 @@ type ManagerNetworkProtocolPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerNetworkProtocolPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerNetworkProtocolPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7099,7 +7166,7 @@ func (p *ManagerNetworkProtocolPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerNetworkProtocolProvider supplies the ManagerNetworkProtocol resource.
@@ -7110,6 +7177,11 @@ type ManagerNetworkProtocolProvider interface {
 
 // RegisterManagerNetworkProtocol wires the ManagerNetworkProtocol resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetManagerNetworkProtocol and still holds
+// when PatchManagerNetworkProtocol runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocolProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManagerNetworkProtocol(r.Context(), prm)
@@ -7127,7 +7199,20 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/NetworkProtocol", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch ManagerNetworkProtocolPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetManagerNetworkProtocol(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -7142,16 +7227,6 @@ func RegisterManagerNetworkProtocol(mux *http.ServeMux, p ManagerNetworkProtocol
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ManagerNetworkProtocolPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchManagerNetworkProtocol(r.Context(), prm, &patch)
@@ -7299,7 +7374,8 @@ type AccountServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a AccountServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *AccountServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7410,7 +7486,7 @@ func (p *AccountServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // AccountServiceProvider supplies the AccountService resource.
@@ -7421,6 +7497,11 @@ type AccountServiceProvider interface {
 
 // RegisterAccountService wires the AccountService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetAccountService and still holds
+// when PatchAccountService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetAccountService(r.Context(), prm)
@@ -7439,7 +7520,20 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 	}
 	server.Handle(mux, "GET", "/redfish/v1/AccountService", h)
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch AccountServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetAccountService(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -7454,16 +7548,6 @@ func RegisterAccountService(mux *http.ServeMux, p AccountServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch AccountServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchAccountService(r.Context(), prm, &patch)
@@ -7606,7 +7690,8 @@ type ManagerAccountPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7709,7 +7794,7 @@ func (p *ManagerAccountPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerAccountCreate holds the properties of ManagerAccount present in the body of a POST that
@@ -7730,7 +7815,8 @@ type ManagerAccountCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7833,7 +7919,7 @@ func (p *ManagerAccountCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ManagerAccountProvider supplies the ManagerAccount resource.
@@ -7844,6 +7930,11 @@ type ManagerAccountProvider interface {
 
 // RegisterManagerAccount wires the ManagerAccount resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetManagerAccount and still holds
+// when PatchManagerAccount runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetManagerAccount(r.Context(), prm)
@@ -7862,7 +7953,20 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 	}
 	server.Handle(mux, "GET", "/redfish/v1/AccountService/Accounts/{ManagerAccountId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Managers/{ManagerId}/RemoteAccountService/Accounts/{ManagerAccountId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch ManagerAccountPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetManagerAccount(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -7877,16 +7981,6 @@ func RegisterManagerAccount(mux *http.ServeMux, p ManagerAccountProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ManagerAccountPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchManagerAccount(r.Context(), prm, &patch)
@@ -7914,7 +8008,8 @@ type ManagerAccountChangePasswordParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountChangePasswordParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountChangePasswordParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -7957,7 +8052,7 @@ func (p *ManagerAccountChangePasswordParameters) UnmarshalJSON(data []byte) erro
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ChangePasswordManagerAccountProvider performs the #ManagerAccount.ChangePassword action.
@@ -7971,7 +8066,7 @@ func RegisterChangePasswordManagerAccount(mux *http.ServeMux, p ChangePasswordMa
 		var params ManagerAccountChangePasswordParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -8043,7 +8138,8 @@ type ManagerAccountVerifyTimeBasedOneTimePasswordParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a ManagerAccountVerifyTimeBasedOneTimePasswordParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ManagerAccountVerifyTimeBasedOneTimePasswordParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -8080,7 +8176,7 @@ func (p *ManagerAccountVerifyTimeBasedOneTimePasswordParameters) UnmarshalJSON(d
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // VerifyTimeBasedOneTimePasswordManagerAccountProvider performs the #ManagerAccount.VerifyTimeBasedOneTimePassword action.
@@ -8094,7 +8190,7 @@ func RegisterVerifyTimeBasedOneTimePasswordManagerAccount(mux *http.ServeMux, p 
 		var params ManagerAccountVerifyTimeBasedOneTimePasswordParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -8187,7 +8283,8 @@ type RoleCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a RoleCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *RoleCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -8224,7 +8321,7 @@ func (p *RoleCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // RoleProvider supplies the Role resource.
@@ -8338,7 +8435,8 @@ type ThermalSubsystemPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a ThermalSubsystemPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *ThermalSubsystemPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -8375,7 +8473,7 @@ func (p *ThermalSubsystemPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ThermalSubsystemProvider supplies the ThermalSubsystem resource.
@@ -8386,6 +8484,11 @@ type ThermalSubsystemProvider interface {
 
 // RegisterThermalSubsystem wires the ThermalSubsystem resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetThermalSubsystem and still holds
+// when PatchThermalSubsystem runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetThermalSubsystem(r.Context(), prm)
@@ -8403,7 +8506,20 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/ThermalSubsystem", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch ThermalSubsystemPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetThermalSubsystem(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -8418,16 +8534,6 @@ func RegisterThermalSubsystem(mux *http.ServeMux, p ThermalSubsystemProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch ThermalSubsystemPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchThermalSubsystem(r.Context(), prm, &patch)
@@ -9136,7 +9242,8 @@ type EthernetInterfacePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a EthernetInterfacePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *EthernetInterfacePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9228,7 +9335,7 @@ func (p *EthernetInterfacePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // EthernetInterfaceProvider supplies the EthernetInterface resource.
@@ -9239,6 +9346,11 @@ type EthernetInterfaceProvider interface {
 
 // RegisterEthernetInterface wires the EthernetInterface resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetEthernetInterface and still holds
+// when PatchEthernetInterface runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetEthernetInterface(r.Context(), prm)
@@ -9265,7 +9377,20 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 	server.Handle(mux, "GET", "/redfish/v1/CompositionService/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/ResourceBlocks/{ResourceBlockId}/Systems/{ComputerSystemId}/OperatingSystem/Containers/EthernetInterfaces/{EthernetInterfaceId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/NetworkAdapters/{NetworkAdapterId}/NetworkDeviceFunctions/{NetworkDeviceFunctionId}/EthernetInterfaces/{EthernetInterfaceId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch EthernetInterfacePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetEthernetInterface(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -9280,16 +9405,6 @@ func RegisterEthernetInterface(mux *http.ServeMux, p EthernetInterfaceProvider) 
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch EthernetInterfacePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchEthernetInterface(r.Context(), prm, &patch)
@@ -9433,7 +9548,8 @@ type LogServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9495,7 +9611,7 @@ func (p *LogServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // LogServiceProvider supplies the LogService resource.
@@ -9506,6 +9622,11 @@ type LogServiceProvider interface {
 
 // RegisterLogService wires the LogService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetLogService and still holds
+// when PatchLogService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetLogService(r.Context(), prm)
@@ -9531,7 +9652,20 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService", h)
 	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog", h)
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch LogServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetLogService(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -9546,16 +9680,6 @@ func RegisterLogService(mux *http.ServeMux, p LogServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch LogServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchLogService(r.Context(), prm, &patch)
@@ -9589,7 +9713,8 @@ type LogServiceClearLogParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServiceClearLogParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServiceClearLogParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9626,7 +9751,7 @@ func (p *LogServiceClearLogParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ClearLogLogServiceProvider performs the #LogService.ClearLog action.
@@ -9640,7 +9765,7 @@ func RegisterClearLogLogService(mux *http.ServeMux, p ClearLogLogServiceProvider
 		var params LogServiceClearLogParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -9678,7 +9803,8 @@ type LogServiceCollectDiagnosticDataParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServiceCollectDiagnosticDataParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServiceCollectDiagnosticDataParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9747,7 +9873,7 @@ func (p *LogServiceCollectDiagnosticDataParameters) UnmarshalJSON(data []byte) e
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // CollectDiagnosticDataLogServiceProvider performs the #LogService.CollectDiagnosticData action.
@@ -9761,7 +9887,7 @@ func RegisterCollectDiagnosticDataLogService(mux *http.ServeMux, p CollectDiagno
 		var params LogServiceCollectDiagnosticDataParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -9828,7 +9954,8 @@ type LogServicePushDiagnosticDataParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogServicePushDiagnosticDataParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogServicePushDiagnosticDataParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -9890,7 +10017,7 @@ func (p *LogServicePushDiagnosticDataParameters) UnmarshalJSON(data []byte) erro
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // PushDiagnosticDataLogServiceProvider performs the #LogService.PushDiagnosticData action.
@@ -9904,7 +10031,7 @@ func RegisterPushDiagnosticDataLogService(mux *http.ServeMux, p PushDiagnosticDa
 		var params LogServicePushDiagnosticDataParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10100,7 +10227,8 @@ type LogEntryPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogEntryPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogEntryPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10137,7 +10265,7 @@ func (p *LogEntryPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // LogEntryCreate holds the properties of LogEntry present in the body of a POST that
@@ -10148,7 +10276,8 @@ type LogEntryCreate struct {
 }
 
 // UnmarshalJSON parses the known properties of a LogEntryCreate body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *LogEntryCreate) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10192,7 +10321,7 @@ func (p *LogEntryCreate) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // LogEntryProvider supplies the LogEntry resource.
@@ -10203,6 +10332,11 @@ type LogEntryProvider interface {
 
 // RegisterLogEntry wires the LogEntry resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetLogEntry and still holds
+// when PatchLogEntry runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetLogEntry(r.Context(), prm)
@@ -10228,7 +10362,20 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 	server.Handle(mux, "GET", "/redfish/v1/TelemetryService/LogService/Entries/{LogEntryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Systems/{ComputerSystemId}/Memory/{MemoryId}/DeviceLog/Entries/{LogEntryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/Chassis/{ChassisId}/PCIeDevices/{PCIeDeviceId}/CXLLogicalDevices/{CXLLogicalDeviceId}/DeviceLog/Entries/{LogEntryId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch LogEntryPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetLogEntry(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -10243,16 +10390,6 @@ func RegisterLogEntry(mux *http.ServeMux, p LogEntryProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch LogEntryPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchLogEntry(r.Context(), prm, &patch)
@@ -10382,7 +10519,8 @@ type UpdateServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10443,7 +10581,7 @@ func (p *UpdateServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // UpdateServiceProvider supplies the UpdateService resource.
@@ -10454,6 +10592,11 @@ type UpdateServiceProvider interface {
 
 // RegisterUpdateService wires the UpdateService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetUpdateService and still holds
+// when PatchUpdateService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetUpdateService(r.Context())
@@ -10471,7 +10614,20 @@ func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch UpdateServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetUpdateService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -10486,16 +10642,6 @@ func RegisterUpdateService(mux *http.ServeMux, p UpdateServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch UpdateServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchUpdateService(r.Context(), &patch)
@@ -10521,7 +10667,8 @@ type UpdateServiceActivateParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServiceActivateParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServiceActivateParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10558,7 +10705,7 @@ func (p *UpdateServiceActivateParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ActivateUpdateServiceProvider performs the #UpdateService.Activate action.
@@ -10572,7 +10719,7 @@ func RegisterActivateUpdateService(mux *http.ServeMux, p ActivateUpdateServicePr
 		var params UpdateServiceActivateParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10599,7 +10746,8 @@ type UpdateServiceGenerateSSHIdentityKeyPairParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServiceGenerateSSHIdentityKeyPairParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServiceGenerateSSHIdentityKeyPairParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10650,7 +10798,7 @@ func (p *UpdateServiceGenerateSSHIdentityKeyPairParameters) UnmarshalJSON(data [
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // GenerateSSHIdentityKeyPairUpdateServiceProvider performs the #UpdateService.GenerateSSHIdentityKeyPair action.
@@ -10664,7 +10812,7 @@ func RegisterGenerateSSHIdentityKeyPairUpdateService(mux *http.ServeMux, p Gener
 		var params UpdateServiceGenerateSSHIdentityKeyPairParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10719,7 +10867,8 @@ type UpdateServiceSimpleUpdateParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a UpdateServiceSimpleUpdateParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *UpdateServiceSimpleUpdateParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -10805,7 +10954,7 @@ func (p *UpdateServiceSimpleUpdateParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SimpleUpdateUpdateServiceProvider performs the #UpdateService.SimpleUpdate action.
@@ -10819,7 +10968,7 @@ func RegisterSimpleUpdateUpdateService(mux *http.ServeMux, p SimpleUpdateUpdateS
 		var params UpdateServiceSimpleUpdateParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -10973,7 +11122,8 @@ type SoftwareInventoryPatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a SoftwareInventoryPatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SoftwareInventoryPatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11010,7 +11160,7 @@ func (p *SoftwareInventoryPatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // SoftwareInventoryProvider supplies the SoftwareInventory resource.
@@ -11021,6 +11171,11 @@ type SoftwareInventoryProvider interface {
 
 // RegisterSoftwareInventory wires the SoftwareInventory resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetSoftwareInventory and still holds
+// when PatchSoftwareInventory runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetSoftwareInventory(r.Context(), prm)
@@ -11040,7 +11195,20 @@ func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) 
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService/SoftwareInventory/{SoftwareInventoryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService/FirmwareInventory/{SoftwareInventoryId}", h)
 	server.Handle(mux, "GET", "/redfish/v1/UpdateService/LocalImageStore/{SoftwareInventoryId}", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch SoftwareInventoryPatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetSoftwareInventory(r.Context(), prm)
 		if err != nil {
 			server.WriteErr(w, err)
@@ -11055,16 +11223,6 @@ func RegisterSoftwareInventory(mux *http.ServeMux, p SoftwareInventoryProvider) 
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch SoftwareInventoryPatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchSoftwareInventory(r.Context(), prm, &patch)
@@ -11092,7 +11250,8 @@ type SoftwareInventoryActivateParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a SoftwareInventoryActivateParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SoftwareInventoryActivateParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11129,7 +11288,7 @@ func (p *SoftwareInventoryActivateParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // ActivateSoftwareInventoryProvider performs the #SoftwareInventory.Activate action.
@@ -11143,7 +11302,7 @@ func RegisterActivateSoftwareInventory(mux *http.ServeMux, p ActivateSoftwareInv
 		var params SoftwareInventoryActivateParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -11170,7 +11329,8 @@ type SoftwareInventoryCancelParameters struct {
 }
 
 // UnmarshalJSON parses the known properties of a SoftwareInventoryCancelParameters body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *SoftwareInventoryCancelParameters) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11207,7 +11367,7 @@ func (p *SoftwareInventoryCancelParameters) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // CancelSoftwareInventoryProvider performs the #SoftwareInventory.Cancel action.
@@ -11221,7 +11381,7 @@ func RegisterCancelSoftwareInventory(mux *http.ServeMux, p CancelSoftwareInvento
 		var params SoftwareInventoryCancelParameters
 		body, err := server.ReadBody(r)
 		if err != nil {
-			server.Internal(w)
+			server.WriteErr(w, err)
 			return
 		}
 		if len(bytes.TrimSpace(body)) > 0 {
@@ -11298,7 +11458,8 @@ type TaskServicePatch struct {
 }
 
 // UnmarshalJSON parses the known properties of a TaskServicePatch body,
-// ignoring unknown and null-valued properties.
+// ignoring unknown and null-valued properties. Data must hold one JSON
+// object and nothing after it.
 func (p *TaskServicePatch) UnmarshalJSON(data []byte) error {
 	dec := jsontext.NewDecoder(bytes.NewReader(data))
 	if t, err := dec.ReadToken(); err != nil || t.Kind() != '{' {
@@ -11347,7 +11508,7 @@ func (p *TaskServicePatch) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	return nil
+	return patchReadEnd(dec)
 }
 
 // TaskServiceProvider supplies the TaskService resource.
@@ -11358,6 +11519,11 @@ type TaskServiceProvider interface {
 
 // RegisterTaskService wires the TaskService resource into mux. It links into a binary
 // only when referenced, so unused resources are removed by the linker.
+//
+// PATCH requests registered here run one at a time: the If-Match
+// precondition is checked against GetTaskService and still holds
+// when PatchTaskService runs. Changes the provider makes by other
+// paths are not serialized with them.
 func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 	h := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
 		res, err := p.GetTaskService(r.Context())
@@ -11375,7 +11541,20 @@ func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 		server.WriteResource(w, res)
 	}
 	server.Handle(mux, "GET", "/redfish/v1/TaskService", h)
+	var mu sync.Mutex
 	ph := func(w http.ResponseWriter, r *http.Request, prm server.Params) {
+		body, err := server.ReadBody(r)
+		if err != nil {
+			server.WriteErr(w, err)
+			return
+		}
+		var patch TaskServicePatch
+		if err := patch.UnmarshalJSON(body); err != nil {
+			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
 		cur, err := p.GetTaskService(r.Context())
 		if err != nil {
 			server.WriteErr(w, err)
@@ -11390,16 +11569,6 @@ func RegisterTaskService(mux *http.ServeMux, p TaskServiceProvider) {
 		}
 		if !server.CheckIfMatch(r, cur.Bytes()) {
 			server.PreconditionFailed(w)
-			return
-		}
-		body, err := server.ReadBody(r)
-		if err != nil {
-			server.Internal(w)
-			return
-		}
-		var patch TaskServicePatch
-		if err := patch.UnmarshalJSON(body); err != nil {
-			server.BadRequest(w, odata.MsgMalformedJSON, "The request body was not valid JSON.")
 			return
 		}
 		updated, err := p.PatchTaskService(r.Context(), &patch)

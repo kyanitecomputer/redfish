@@ -220,7 +220,7 @@ func imageURI(uri string, proto *gen.UpdateServiceTransferProtocolType) string {
 // validate checks an update request with the backend's Validator, if any.
 func (s *Service) validate(ctx context.Context, img Image, req Request) error {
 	if v, ok := s.backend.(Validator); ok {
-		return v.Validate(ctx, img, req)
+		return v.Validate(withInventories(ctx), img, req)
 	}
 	return nil
 }
@@ -339,6 +339,7 @@ func (s *Service) ListSoftwareInventory(ctx context.Context, p server.Params) ([
 
 // GetSoftwareInventory implements gen.SoftwareInventoryProvider.
 func (s *Service) GetSoftwareInventory(ctx context.Context, p server.Params) (*gen.SoftwareInventory, error) {
+	ctx = withInventories(ctx)
 	items, base, err := s.inventory(ctx, p)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package gen
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -157,11 +158,11 @@ func chainUpdatable(chain []*csdl.EntityType) bool {
 	return false
 }
 
-// entityChain returns the BaseType chain leaf-first.
+// entityChain returns the BaseType chain leaf-first. A cycle ends it.
 func (r *resolver) entityChain(leaf *csdl.EntityType) []*csdl.EntityType {
 	var chain []*csdl.EntityType
 	cur := leaf
-	for cur != nil {
+	for cur != nil && !slices.Contains(chain, cur) {
 		chain = append(chain, cur)
 		if cur.BaseType == "" {
 			break
@@ -374,10 +375,11 @@ func (r *resolver) complex(ns string, ct *csdl.ComplexType) string {
 	return gn
 }
 
+// complexChain returns the BaseType chain leaf-first. A cycle ends it.
 func (r *resolver) complexChain(leaf *csdl.ComplexType) []*csdl.ComplexType {
 	var chain []*csdl.ComplexType
 	cur := leaf
-	for cur != nil {
+	for cur != nil && !slices.Contains(chain, cur) {
 		chain = append(chain, cur)
 		if cur.BaseType == "" {
 			break
