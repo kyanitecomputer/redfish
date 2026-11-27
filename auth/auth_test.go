@@ -828,3 +828,48 @@ func TestOwnPasswordChangeAfterReset(t *testing.T) {
 		t.Error("the reset password was replaced")
 	}
 }
+
+// TestSupersededAdministrator sends changes as an administrator whose
+// password was changed after the requests were authenticated: each is
+// refused with 409 and changes nothing.
+func TestSupersededAdministrator(t *testing.T) {
+	ts := newTestService(t)
+	if err := ts.s.accounts.Create("boss", pw, Administrator); err != nil {
+		t.Fatal(err)
+	}
+	stale, _ := ts.s.accounts.Get("boss")
+	if err := ts.s.accounts.SetPassword("boss", "another long password"); err != nil {
+		t.Fatal(err)
+	}
+	for i := range ts.s.accounts.Policy().LockoutThreshold {
+		_, _ = ts.s.accounts.Authenticate("op", fmt.Sprint("wrong ", i))
+	}
+	if !ts.s.accounts.Locked("op") {
+		t.Fatal("op is not locked")
+	}
+	mux := http.NewServeMux()
+	ts.s.Register(mux)
+	for _, req := range []struct{ method, uri, body string }{
+		{"POST", AccountsURI, `{"UserName":"new","Password":"` + pw + `","RoleId":"ReadOnly"}`},
+		{"DELETE", AccountsURI + "/viewer", ""},
+		{"PATCH", AccountsURI + "/op", `{"Locked":false}`},
+		{"PATCH", AccountsURI + "/op", `{"RoleId":"ReadOnly"}`},
+	} {
+		r := httptest.NewRequest(req.method, req.uri, strings.NewReader(req.body))
+		r = r.WithContext(context.WithValue(r.Context(), principalKey{}, Principal{Account: stale}))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		if w.Code != http.StatusConflict {
+			t.Errorf("%s %s: status %d, want 409", req.method, req.uri, w.Code)
+		}
+	}
+	if _, ok := ts.s.accounts.Get("new"); ok {
+		t.Error("the account was created")
+	}
+	if _, ok := ts.s.accounts.Get("viewer"); !ok {
+		t.Error("the account was deleted")
+	}
+	if acc, _ := ts.s.accounts.Get("op"); !ts.s.accounts.Locked("op") || acc.RoleId != Operator {
+		t.Error("op was changed")
+	}
+}

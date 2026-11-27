@@ -397,19 +397,40 @@ func (a *Accounts) Locked(name string) bool {
 
 // Unlock forgets the failed logins with the user name.
 func (a *Accounts) Unlock(name string) {
+	_ = a.unlock(name, nil)
+}
+
+// unlock is Unlock, failing with errSuperseded as change does.
+func (a *Accounts) unlock(name string, by *Account) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.superseded(by) {
+		return errSuperseded
+	}
 	delete(a.failures, name)
+	return nil
+}
+
+// superseded reports whether by, the account a change was authorized with
+// as it was then, no longer holds: it was deleted, or has another
+// generation or role. A nil by always holds. a.mu must be held.
+func (a *Accounts) superseded(by *Account) bool {
+	if by == nil {
+		return false
+	}
+	cur := a.find(by.UserName)
+	return cur == nil || cur.gen != by.gen || cur.RoleId != by.RoleId
 }
 
 // Create adds an enabled account. The name must be 1 to 32 letters, digits,
 // '.', '_' and '-', starting with a letter or digit, as it is also the Id of
 // the account's resource.
 func (a *Accounts) Create(name, password, role string) error {
-	return a.create(name, password, role, true)
+	return a.create(name, password, role, true, nil)
 }
 
-func (a *Accounts) create(name, password, role string, enabled bool) error {
+// create is Create, failing with errSuperseded as change does.
+func (a *Accounts) create(name, password, role string, enabled bool, by *Account) error {
 	if err := checkName(name); err != nil {
 		return err
 	}
@@ -425,6 +446,9 @@ func (a *Accounts) create(name, password, role string, enabled bool) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.superseded(by) {
+		return errSuperseded
+	}
 	if a.find(name) != nil {
 		return errExists(name)
 	}
@@ -481,10 +505,8 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if by != nil {
-		if cur := a.find(by.UserName); cur == nil || cur.gen != by.gen || cur.RoleId != by.RoleId {
-			return 0, Account{}, errSuperseded
-		}
+	if a.superseded(by) {
+		return 0, Account{}, errSuperseded
 	}
 	i := slices.IndexFunc(a.list, func(acc *account) bool { return acc.UserName == name })
 	if i < 0 {
@@ -528,8 +550,16 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 // Delete removes the account named name, unless it is the last enabled
 // Administrator.
 func (a *Accounts) Delete(name string) error {
+	return a.delete(name, nil)
+}
+
+// delete is Delete, failing with errSuperseded as change does.
+func (a *Accounts) delete(name string, by *Account) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.superseded(by) {
+		return errSuperseded
+	}
 	i := slices.IndexFunc(a.list, func(acc *account) bool { return acc.UserName == name })
 	if i < 0 {
 		return errNoAccount(name)
