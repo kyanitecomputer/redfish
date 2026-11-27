@@ -727,7 +727,7 @@ func TestOwnPasswordChangeKeepsSession(t *testing.T) {
 	// session.
 	logins := []func(){
 		func() {
-			if w, m := ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`); w.Code != http.StatusServiceUnavailable || messageID(m) != odata.MsgCreateLimitReached {
+			if w, m := ts.do("POST", SessionsURI, "", `{"UserName":"u5","Password":"`+pw+`"}`); w.Code != http.StatusServiceUnavailable || messageID(m) != odata.MsgCreateLimitReachedForResource {
 				t.Errorf("login u5 with a full store: status %d, message %q", w.Code, messageID(m))
 			}
 		},
@@ -866,7 +866,7 @@ func TestSupersededAdministrator(t *testing.T) {
 	if _, ok := ts.s.accounts.Get("viewer"); !ok {
 		t.Error("the account was deleted")
 	}
-	if acc, _ := ts.s.accounts.Get("op"); !ts.s.accounts.Locked("op") || acc.RoleId != Operator {
+	if acc, _ := ts.s.accounts.Get("op"); !ts.s.accounts.Locked("op") || acc.RoleID != Operator {
 		t.Error("op was changed")
 	}
 }

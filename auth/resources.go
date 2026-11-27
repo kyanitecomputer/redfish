@@ -107,7 +107,7 @@ func (s *Service) sessionResource(sess session) *gen.Session {
 	}
 	res.ClientOriginIPAddress = sess.origin
 	if acc, ok := s.accounts.Get(sess.user); ok {
-		res.Roles = []string{acc.RoleId}
+		res.Roles = []string{acc.RoleID}
 	}
 	return res
 }
@@ -130,14 +130,14 @@ func (s *Service) serveCreateSession(w http.ResponseWriter, r *http.Request, _ s
 		s.loginFailed(w, err)
 		return
 	}
-	max := s.MaxSessions
-	if max == 0 {
-		max = DefaultMaxSessions
+	limit := s.MaxSessions
+	if limit == 0 {
+		limit = DefaultMaxSessions
 	}
 	origin, _, _ := net.SplitHostPort(r.RemoteAddr)
-	sess, token, ok := s.sessions.create(acc, origin, s.now(), s.accounts.Policy().SessionTimeout, max, s.current)
+	sess, token, ok := s.sessions.create(acc, origin, s.now(), s.accounts.Policy().SessionTimeout, limit, s.current)
 	if !ok {
-		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgCreateLimitReached,
+		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgCreateLimitReachedForResource,
 			"The create operation failed because the resource has reached the limit of possible resources.")
 		return
 	}
@@ -273,12 +273,12 @@ func (s *Service) accountResource(acc Account) *gen.ManagerAccount {
 		Id:                     acc.UserName,
 		Name:                   "User Account",
 		UserName:               acc.UserName,
-		RoleId:                 acc.RoleId,
+		RoleId:                 acc.RoleID,
 		Enabled:                &enabled,
 		Locked:                 &locked,
 		PasswordChangeRequired: &change,
 		AccountTypes:           []gen.ManagerAccountAccountTypes{gen.ManagerAccountAccountTypesRedfish},
-		Links:                  &gen.ManagerAccountLinks{Role: odata.Link(RolesURI + "/" + acc.RoleId)},
+		Links:                  &gen.ManagerAccountLinks{Role: odata.Link(RolesURI + "/" + acc.RoleID)},
 		Actions: &gen.ManagerAccountActions{
 			ChangePassword: &odata.ActionTarget{Target: uri + "/Actions/ManagerAccount.ChangePassword"},
 		},
@@ -399,7 +399,7 @@ func (s *Service) ChangePasswordManagerAccount(ctx context.Context, p server.Par
 	} else if err != nil {
 		return nil, &server.Error{
 			Status:    http.StatusBadRequest,
-			MessageID: odata.MsgActionParameterValueFormat,
+			MessageID: odata.MsgActionParameterValueFormatError,
 			Message:   "The value for the parameter SessionAccountPassword is not the password of the account of the session.",
 		}
 	} else if acc.gen != pr.Account.gen {
@@ -502,7 +502,7 @@ var errInsufficient = &server.Error{
 func notFound(p server.Params) error {
 	return &server.Error{
 		Status:    http.StatusNotFound,
-		MessageID: odata.MsgResourceNotFound,
+		MessageID: odata.MsgResourceMissingAtURI,
 		Message:   "The resource at URI '" + p.Path() + "' was not found.",
 	}
 }

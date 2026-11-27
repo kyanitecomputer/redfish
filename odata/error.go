@@ -1,32 +1,32 @@
 package odata
 
-// Standard Redfish base message identifiers used for protocol-level failures.
-// The full message registry (DSP8011) can be layered on later; these cover the
-// errors the server itself raises.
+// Standard Redfish base message identifiers used for protocol-level failures,
+// each named after its message. The full message registry (DSP8011) can be
+// layered on later; these cover the errors the server itself raises.
 const (
-	MsgGeneralError     = "Base.1.0.GeneralError"
-	MsgResourceNotFound = "Base.1.0.ResourceMissingAtURI"
-	MsgMethodNotAllowed = "Base.1.0.ActionNotSupported"
-	MsgPreconditionFail = "Base.1.0.PreconditionFailed"
-	MsgMalformedJSON    = "Base.1.0.MalformedJSON"
-	MsgInternalError    = "Base.1.0.InternalError"
-	MsgPropertyNotWrite = "Base.1.0.PropertyNotWritable"
-	MsgUnrecognizedProp = "Base.1.0.PropertyUnknown"
+	MsgGeneralError         = "Base.1.0.GeneralError"
+	MsgResourceMissingAtURI = "Base.1.0.ResourceMissingAtURI"
+	MsgActionNotSupported   = "Base.1.0.ActionNotSupported"
+	MsgPreconditionFailed   = "Base.1.0.PreconditionFailed"
+	MsgMalformedJSON        = "Base.1.0.MalformedJSON"
+	MsgInternalError        = "Base.1.0.InternalError"
+	MsgPropertyNotWritable  = "Base.1.0.PropertyNotWritable"
+	MsgPropertyUnknown      = "Base.1.0.PropertyUnknown"
 
-	MsgActionParameterMissing      = "Base.1.0.ActionParameterMissing"
-	MsgActionParameterNotSupported = "Base.1.0.ActionParameterNotSupported"
-	MsgActionParameterValueFormat  = "Base.1.0.ActionParameterValueFormatError"
-	MsgServiceUnavailable          = "Base.1.0.ServiceTemporarilyUnavailable"
-	MsgUnrecognizedBody            = "Base.1.0.UnrecognizedRequestBody"
+	MsgActionParameterMissing          = "Base.1.0.ActionParameterMissing"
+	MsgActionParameterNotSupported     = "Base.1.0.ActionParameterNotSupported"
+	MsgActionParameterValueFormatError = "Base.1.0.ActionParameterValueFormatError"
+	MsgServiceTemporarilyUnavailable   = "Base.1.0.ServiceTemporarilyUnavailable"
+	MsgUnrecognizedRequestBody         = "Base.1.0.UnrecognizedRequestBody"
 
-	MsgNoValidSession           = "Base.1.0.NoValidSession"
-	MsgInsufficientPrivilege    = "Base.1.0.InsufficientPrivilege"
-	MsgCreateLimitReached       = "Base.1.0.CreateLimitReachedForResource"
-	MsgResourceAlreadyExists    = "Base.1.0.ResourceAlreadyExists"
-	MsgResourceCannotBeDeleted  = "Base.1.0.ResourceCannotBeDeleted"
-	MsgPropertyMissing          = "Base.1.0.PropertyMissing"
-	MsgPropertyValueFormatError = "Base.1.0.PropertyValueFormatError"
-	MsgPropertyValueNotInList   = "Base.1.0.PropertyValueNotInList"
+	MsgNoValidSession                = "Base.1.0.NoValidSession"
+	MsgInsufficientPrivilege         = "Base.1.0.InsufficientPrivilege"
+	MsgCreateLimitReachedForResource = "Base.1.0.CreateLimitReachedForResource"
+	MsgResourceAlreadyExists         = "Base.1.0.ResourceAlreadyExists"
+	MsgResourceCannotBeDeleted       = "Base.1.0.ResourceCannotBeDeleted"
+	MsgPropertyMissing               = "Base.1.0.PropertyMissing"
+	MsgPropertyValueFormatError      = "Base.1.0.PropertyValueFormatError"
+	MsgPropertyValueNotInList        = "Base.1.0.PropertyValueNotInList"
 )
 
 // ExtendedInfo is one entry of the @Message.ExtendedInfo array.

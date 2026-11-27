@@ -212,7 +212,7 @@ func (m *Manager) ListTask(_ context.Context, p server.Params) ([]string, error)
 		if _, ok := m.tasks[parent]; !ok {
 			return nil, &server.Error{
 				Status:    http.StatusNotFound,
-				MessageID: odata.MsgResourceNotFound,
+				MessageID: odata.MsgResourceMissingAtURI,
 				Message:   "The resource at URI '" + p.Path() + "' was not found.",
 			}
 		}

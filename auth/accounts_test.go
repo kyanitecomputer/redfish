@@ -64,7 +64,7 @@ func TestAccountsAuthenticate(t *testing.T) {
 	if err := a.Create("admin", pw, Administrator); err != nil {
 		t.Fatal(err)
 	}
-	if acc, err := a.Authenticate("admin", pw); err != nil || acc.RoleId != Administrator {
+	if acc, err := a.Authenticate("admin", pw); err != nil || acc.RoleID != Administrator {
 		t.Errorf("Authenticate = %v, %v", acc, err)
 	}
 	for _, tt := range []struct{ name, password string }{
@@ -207,7 +207,7 @@ func TestAccountsPersist(t *testing.T) {
 	}
 
 	b, _ := newAccounts(t, File(path))
-	if got := b.List(); len(got) != 2 || got[0].UserName != "admin" || got[1].RoleId != ReadOnly {
+	if got := b.List(); len(got) != 2 || got[0].UserName != "admin" || got[1].RoleID != ReadOnly {
 		t.Errorf("accounts = %v", got)
 	}
 	if b.Policy() != p {
@@ -381,8 +381,8 @@ func TestChangeIsAtomic(t *testing.T) {
 	if err := a.Change("op", &role, nil, &short); err == nil {
 		t.Fatal("a too short password was accepted")
 	}
-	if acc, _ := a.Get("op"); acc.RoleId != Operator {
-		t.Errorf("role changed by a refused change: %s", acc.RoleId)
+	if acc, _ := a.Get("op"); acc.RoleID != Operator {
+		t.Errorf("role changed by a refused change: %s", acc.RoleID)
 	}
 }
 
@@ -1230,7 +1230,7 @@ func verify(h, password string) bool {
 }
 
 func TestHasDoesNotAllocate(t *testing.T) {
-	acc := Account{UserName: "op", RoleId: Operator}
+	acc := Account{UserName: "op", RoleID: Operator}
 	if n := testing.AllocsPerRun(100, func() { acc.Has(ConfigureComponents) }); n != 0 {
 		t.Errorf("Has allocates %v times", n)
 	}

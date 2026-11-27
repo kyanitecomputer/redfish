@@ -166,7 +166,7 @@ func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params
 	if s == nil {
 		return nil, &server.Error{
 			Status:    http.StatusNotFound,
-			MessageID: odata.MsgResourceNotFound,
+			MessageID: odata.MsgResourceMissingAtURI,
 			Message:   "The resource at URI '" + p.Path() + "' was not found.",
 		}
 	}
@@ -183,7 +183,7 @@ func (b *backend) ResetComputerSystem(_ context.Context, p server.Params, params
 	default:
 		return nil, &server.Error{
 			Status:    http.StatusBadRequest,
-			MessageID: odata.MsgActionParameterValueFormat,
+			MessageID: odata.MsgActionParameterValueFormatError,
 			Message:   "The value " + string(resetType) + " for the parameter ResetType in the action ComputerSystem.Reset is not supported.",
 		}
 	}

@@ -120,7 +120,7 @@ func TestETag(t *testing.T) {
 		t.Fatal("no ETag on a resource")
 	}
 	w = httptest.NewRecorder()
-	WriteError(w, http.StatusNotFound, odata.MsgResourceNotFound, "missing")
+	WriteError(w, http.StatusNotFound, odata.MsgResourceMissingAtURI, "missing")
 	if e := w.Header().Get("ETag"); e != "" {
 		t.Errorf("error response has ETag %s", e)
 	}

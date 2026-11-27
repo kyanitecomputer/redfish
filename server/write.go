@@ -156,7 +156,7 @@ func (e *Error) Error() string { return e.Message }
 func NotWritable(property string) *Error {
 	return &Error{
 		Status:    http.StatusBadRequest,
-		MessageID: odata.MsgPropertyNotWrite,
+		MessageID: odata.MsgPropertyNotWritable,
 		Message:   "The property " + property + " is a read-only property and cannot be assigned a value.",
 	}
 }
@@ -173,7 +173,7 @@ func WriteErr(w http.ResponseWriter, err error) {
 
 // NotFound writes a standard Redfish 404 for the requested URI.
 func NotFound(w http.ResponseWriter, r *http.Request) {
-	WriteError(w, http.StatusNotFound, odata.MsgResourceNotFound,
+	WriteError(w, http.StatusNotFound, odata.MsgResourceMissingAtURI,
 		"The resource at URI '"+r.URL.Path+"' was not found.")
 }
 
@@ -191,7 +191,7 @@ func BadRequest(w http.ResponseWriter, code, message string) {
 // PreconditionFailed writes a Redfish 412, used when an If-Match header does not
 // match the resource's current ETag.
 func PreconditionFailed(w http.ResponseWriter) {
-	WriteError(w, http.StatusPreconditionFailed, odata.MsgPreconditionFail,
+	WriteError(w, http.StatusPreconditionFailed, odata.MsgPreconditionFailed,
 		"The If-Match header did not match the current ETag of the resource.")
 }
 
@@ -246,7 +246,7 @@ func ReadError(err error) *Error {
 	}
 	return &Error{
 		Status:    http.StatusBadRequest,
-		MessageID: odata.MsgUnrecognizedBody,
+		MessageID: odata.MsgUnrecognizedRequestBody,
 		Message:   "The request body could not be read.",
 	}
 }

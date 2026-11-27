@@ -40,7 +40,7 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 	}
 	mr, err := r.MultipartReader()
 	if err != nil {
-		server.BadRequest(w, odata.MsgUnrecognizedBody, "The request body must be multipart/form-data.")
+		server.BadRequest(w, odata.MsgUnrecognizedRequestBody, "The request body must be multipart/form-data.")
 		return
 	}
 
@@ -114,7 +114,7 @@ func (s *Service) servePush(w http.ResponseWriter, r *http.Request, _ server.Par
 		// with the wrong parameters.
 		pw.CloseWithError(err)
 		if errors.Is(err, errParamsAfterFile) {
-			server.BadRequest(w, odata.MsgUnrecognizedBody, "The UpdateParameters part must precede the UpdateFile part.")
+			server.BadRequest(w, odata.MsgUnrecognizedRequestBody, "The UpdateParameters part must precede the UpdateFile part.")
 		} else {
 			writeUploadErr(w, err)
 		}

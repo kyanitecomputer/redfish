@@ -185,7 +185,7 @@ func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Req
 	case img.Body == nil && strings.HasPrefix(img.URI, "-"):
 		return &server.Error{
 			Status:    http.StatusBadRequest,
-			MessageID: odata.MsgActionParameterValueFormat,
+			MessageID: odata.MsgActionParameterValueFormatError,
 			Message:   "The value for the parameter ImageURI must not start with '-'.",
 		}
 	case len(req.Targets) == 0:
@@ -200,7 +200,7 @@ func (b *Backend) Validate(ctx context.Context, img update.Image, req update.Req
 		if !ok || s.State == "booted" {
 			return &server.Error{
 				Status:    http.StatusBadRequest,
-				MessageID: odata.MsgActionParameterValueFormat,
+				MessageID: odata.MsgActionParameterValueFormatError,
 				Message:   "The value " + t + " for the parameter Targets is not an inactive RAUC slot of class " + b.cfg.Class + ".",
 			}
 		}
@@ -259,7 +259,7 @@ func (b *Backend) Activate(ctx context.Context, images, devices []string, _ func
 	if len(images) != 1 {
 		return &server.Error{
 			Status:    http.StatusBadRequest,
-			MessageID: odata.MsgActionParameterValueFormat,
+			MessageID: odata.MsgActionParameterValueFormatError,
 			Message:   "The RAUC update backend activates exactly one slot at a time.",
 		}
 	}
@@ -271,7 +271,7 @@ func (b *Backend) Activate(ctx context.Context, images, devices []string, _ func
 	if !ok {
 		return &server.Error{
 			Status:    http.StatusBadRequest,
-			MessageID: odata.MsgActionParameterValueFormat,
+			MessageID: odata.MsgActionParameterValueFormatError,
 			Message:   "The value " + images[0] + " for the parameter Targets is not a RAUC slot of class " + b.cfg.Class + ".",
 		}
 	}

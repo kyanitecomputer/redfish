@@ -198,7 +198,7 @@ func (s *Service) current(user string, gen uint64) bool {
 func (s *Service) loginFailed(w http.ResponseWriter, err error) {
 	if errors.Is(err, ErrBusy) {
 		w.Header().Set("Retry-After", "1")
-		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgServiceUnavailable,
+		server.WriteError(w, http.StatusServiceUnavailable, odata.MsgServiceTemporarilyUnavailable,
 			"The service is temporarily unavailable. Too many logins arrived at once; retry later.")
 		return
 	}

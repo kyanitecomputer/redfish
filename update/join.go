@@ -211,7 +211,7 @@ func (j *Joined) inventory(ctx context.Context, i int) (*Inventory, error) {
 
 var badTargets = &server.Error{
 	Status:    http.StatusBadRequest,
-	MessageID: odata.MsgActionParameterValueFormat,
+	MessageID: odata.MsgActionParameterValueFormatError,
 	Message:   "The value for the parameter Targets does not name inventory items of one update backend.",
 }
 
@@ -281,7 +281,7 @@ func (j *Joined) Activate(ctx context.Context, images, devices []string, progres
 func unsupported(what string) error {
 	return &server.Error{
 		Status:    http.StatusBadRequest,
-		MessageID: odata.MsgMethodNotAllowed,
+		MessageID: odata.MsgActionNotSupported,
 		Message:   "The targets do not support " + what + ".",
 	}
 }

@@ -331,7 +331,7 @@ func notSupported(param string) error {
 func badValue(msg string) error {
 	return &server.Error{
 		Status:    http.StatusBadRequest,
-		MessageID: odata.MsgActionParameterValueFormat,
+		MessageID: odata.MsgActionParameterValueFormatError,
 		Message:   msg,
 	}
 }

@@ -72,7 +72,7 @@ func privileges(role string) []Privilege {
 // Account is a local account.
 type Account struct {
 	UserName string
-	RoleId   string
+	RoleID   string
 	Enabled  bool
 
 	// gen changes when the account is created, gets another password or is
@@ -82,7 +82,7 @@ type Account struct {
 
 // Has reports whether the role of the account grants p.
 func (a Account) Has(p Privilege) bool {
-	return slices.Contains(privileges(a.RoleId), p)
+	return slices.Contains(privileges(a.RoleID), p)
 }
 
 // BasicAuth is whether HTTP Basic authentication is accepted, as
@@ -219,7 +219,7 @@ const (
 // is a *server.Error with status 503.
 var ErrBusy error = &server.Error{
 	Status:    http.StatusServiceUnavailable,
-	MessageID: odata.MsgServiceUnavailable,
+	MessageID: odata.MsgServiceTemporarilyUnavailable,
 	Message:   "The service is temporarily unavailable: too many logins or password changes at once. Retry later.",
 }
 
@@ -423,7 +423,7 @@ func (a *Accounts) superseded(by *Account) bool {
 		return false
 	}
 	cur := a.find(by.UserName)
-	return cur == nil || cur.gen != by.gen || cur.RoleId != by.RoleId
+	return cur == nil || cur.gen != by.gen || cur.RoleID != by.RoleID
 }
 
 // Create adds an enabled account. The name must be 1 to 32 letters, digits,
@@ -460,7 +460,7 @@ func (a *Accounts) create(name, password, role string, enabled bool, by *Account
 	if err := checkPassword(a.policy, password); err != nil {
 		return err
 	}
-	acc := &account{Account: Account{UserName: name, RoleId: role, Enabled: enabled, gen: newGen()}, hash: h}
+	acc := &account{Account: Account{UserName: name, RoleID: role, Enabled: enabled, gen: newGen()}, hash: h}
 	return a.commit(append(slices.Clone(a.list), acc), a.policy)
 }
 
@@ -523,7 +523,7 @@ func (a *Accounts) change(name string, role *string, enabled *bool, password *st
 	prev := a.list[i].gen
 	acc := *a.list[i]
 	if role != nil {
-		acc.RoleId = *role
+		acc.RoleID = *role
 	}
 	if enabled != nil {
 		if acc.Enabled && !*enabled {
@@ -584,7 +584,7 @@ func (a *Accounts) delete(name string, by *Account) error {
 func adminCount(list []*account) int {
 	n := 0
 	for _, acc := range list {
-		if acc.Enabled && acc.RoleId == Administrator {
+		if acc.Enabled && acc.RoleID == Administrator {
 			n++
 		}
 	}
@@ -1013,7 +1013,7 @@ func errExists(name string) error {
 func errNoAccount(name string) error {
 	return &server.Error{
 		Status:    http.StatusNotFound,
-		MessageID: odata.MsgResourceNotFound,
+		MessageID: odata.MsgResourceMissingAtURI,
 		Message:   "The account " + name + " does not exist.",
 	}
 }
@@ -1040,7 +1040,7 @@ func format(list []*account, p Policy) []byte {
 		if !acc.Enabled {
 			state = "disabled"
 		}
-		fmt.Fprintf(&b, "account %s %s %s %s\n", acc.UserName, acc.RoleId, state, acc.hash)
+		fmt.Fprintf(&b, "account %s %s %s %s\n", acc.UserName, acc.RoleID, state, acc.hash)
 	}
 	return b.Bytes()
 }
@@ -1084,12 +1084,12 @@ func parse(data []byte) ([]*account, Policy, error) {
 				return nil, p, bad("unknown setting")
 			}
 		case f[0] == "account" && len(f) == 5:
-			acc := &account{Account: Account{UserName: f[1], RoleId: f[2], Enabled: f[3] == "enabled", gen: newGen()}, hash: f[4]}
+			acc := &account{Account: Account{UserName: f[1], RoleID: f[2], Enabled: f[3] == "enabled", gen: newGen()}, hash: f[4]}
 			_, hashOK := parseHash(acc.hash)
 			switch {
 			case checkName(acc.UserName) != nil:
 				return nil, p, bad("bad user name")
-			case privileges(acc.RoleId) == nil:
+			case privileges(acc.RoleID) == nil:
 				return nil, p, bad("unknown role")
 			case f[3] != "enabled" && f[3] != "disabled":
 				return nil, p, bad("bad state")
